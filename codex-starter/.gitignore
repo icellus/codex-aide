@@ -1,5 +1,2 @@
-.DS_Store
-Thumbs.db
-*.log
-*.tmp
-*.bak
+.codex/settings.local.json
+.codex/state/

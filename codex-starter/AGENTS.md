@@ -1,48 +1,75 @@
-# Project Agent Rules
+# Codex Starter
 
-## Language
+Project-level Codex workflow starter.
 
-默认使用中文回答，除非用户明确要求使用其他语言。
+This file is the runtime overview, not the full workflow policy.
 
-技术名词、命令、代码、文件路径保持原始英文。
+## Operating Stance
 
-## Scope
+- Start light.
+- Prefer direct implementation for small, local work.
+- Enable heavier modules only when the current task justifies them.
+- Keep the main agent focused on intake, routing, governance, and result integration.
+- Prefer real subagents for `tester`, `coder`, `/qc`, and `/follow` when the runtime supports delegation.
+- Keep runtime context short; avoid repeating policy in multiple authority files.
 
-本文件约束整个项目目录树。
+## Command Protocol
 
-开始工作前，优先查看：
+- Inputs starting with `/Aide` must load `.agents/skills/aide/SKILL.md` before acting.
+- Inputs starting with `/qc` must load `.agents/skills/qc/SKILL.md` before acting.
+- Inputs starting with `/follow` must load `.agents/skills/follow/SKILL.md` before acting.
+- Inputs without a slash command still follow `.codex/project-profile.md`, `.codex/routing-policy.md`, and `.codex/validation-profile.json`.
 
-- `.codex/references/project-map.md`
-- `.codex/references/dev-commands.md`
-- `.codex/references/coding-rules.md`
-- `.codex/references/test-strategy.md`
-- `.codex/references/external-apis.md`
+## Skills and Subagents
 
-## Working Style
+- `/Aide`: user-facing intake and governance entry
+- `conduct`: internal delivery router and `workspace prep` owner
+- `prd`: optional product clarification
+- `architect`: optional system design clarification
+- `plan`: optional implementation planning
+- `auto_qc`: internal QC follow-up helper for eligible tester or coder completions
+- `tester` and `coder`: write-capable execution subagents defined in `.codex/agents/*.toml`
+- `repo_explorer`: read-only scan and evidence-gathering subagent
+- `qc_reviewer`: read-only audit subagent used by `/qc`
+- `follow_worker`: post-push or CI follow-through subagent used by `/follow`
+- `/qc`: optional audit gate
+- `/follow`: optional post-push follow-through
+- `.agents/skills/*/SKILL.md`: official repo-local skill layout
+- `.codex/scripts/*.mjs`: optional runtime helpers for reminders, git validation, and runtime-state sync
+- `.codex/config.toml`: subagent concurrency defaults for the starter
 
-- 先给结论，再给命令、代码或补丁
-- 用户明确说“先讨论 / 先分析”时，不要直接改文件
-- 默认优先最小可行改动，避免顺手重构无关内容
-- 搜索优先用 `rg` / `rg --files`
-- 读取大文件时先看结构，再决定是否全文读取
+## Sources of Truth
 
-## Shell / CLI
+- `.codex/routing-policy.md`: the only routing and module-activation authority
+- `.codex/project-profile.md`: current repo facts, current task state, and selected modules
+- `.codex/validation-profile.json`: structured validation command facts for the repo
+- `PROGRESS.md`: orchestration-only progress state
+- `.codex/state/runtime-state.json`: runtime memory written on demand by `.codex/scripts/*.mjs`
 
-- 默认使用 bash / sh 风格命令
-- 在 Windows 环境下，命令展示优先保持 bash / sh 风格
-- 执行时优先选择稳定的 CLI 程序，如 `rg`、`git`、`node`、`curl`
-- 不要默认假设 Git Bash 进程本身可用；只有确认可用时才通过 `bash -lc` 执行
-- 除非明显依赖 PowerShell 语法或 Windows 专属命令，否则不要默认使用 PowerShell cmdlet
-- 优先使用通用 CLI 工具，如 `rg`、`ls`、`find`、`sed`、`grep`
+Do not duplicate routing tables across command, skill, and state files.
 
-## Git / Safety
+## User-Facing Commands
 
-- 非用户明确要求时，不自动执行 `git commit`
-- 避免破坏性命令，如 `git reset --hard`、批量删除、覆盖式重写
-- 默认优先安全、可回退的操作
+- `/Aide`
+- `/qc`
+- `/follow`
 
-## Editing
+## Runtime Helper Policy
 
-- 新增或修改文本文件时默认使用 UTF-8
-- 未明确要求时优先使用 LF 换行
-- 修改代码后，优先运行最接近变更范围的验证命令
+- Use `node .codex/scripts/session-context.mjs` when starting or resuming routed work if runtime reminders would help.
+- After a durable `tester`, `coder`, `qc_reviewer`, or `follow_worker` result, sync `.codex/state/runtime-state.json` through `node .codex/scripts/runtime-state.mjs`.
+- Before broad git staging, apply the `.codex/scripts/validate-git.mjs` guard or the same deny policy manually.
+- Prefer the Codex-native runtime payload shape:
+  - `{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}`
+  - `{"event":"session_end","message":"...","cwd":"..."}`
+
+## Guardrails
+
+- Start from repository facts and the user's stated goal.
+- Do not ask for facts that are easy to infer from the repo.
+- `workspace prep` belongs to `conduct`, not `/Aide`.
+- `/qc` is opt-in by policy or explicit task need, not a default follow-up for every task.
+- `/follow` applies only after push or during release/CI follow-through.
+- Only the main agent or runtime scripts should write `.codex/project-profile.md`, `.codex/validation-profile.json`, `PROGRESS.md`, or `.codex/state/runtime-state.json`.
+- Write-capable subagents use an exclusive write window; do not run concurrent writing roles.
+- Keep README and docs human-facing; runtime authority lives in the files above.

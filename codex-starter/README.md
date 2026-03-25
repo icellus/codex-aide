@@ -1,20 +1,50 @@
 # codex-starter
 
-个人 Codex 项目模板仓库。
+Project-local Codex workflow starter.
 
-## Structure
+It keeps the default path direct, keeps the command surface small, and only enables heavier planning, QC, or release controls when the current task actually needs them.
 
-- `AGENTS.md`: 项目级规则，复制后自动生效
-- `.codex/references/`: 项目知识
-- `.codex/workflows/`: 任务工作流
-- `.codex/templates/`: 输出模板
+## At A Glance
 
-## Usage
+- default commands: `/Aide`, `/qc`, `/follow`
+- default mode for small work: `direct`
+- preferred execution model: subagent-first for `tester`, `coder`, `/qc`, and `/follow`
+- official repo skill layout: `.agents/skills/*/SKILL.md`
+- official custom subagent layout: `.codex/agents/*.toml`
+- routing authority: `.codex/routing-policy.md`
+- current task state: `.codex/project-profile.md`
+- structured validation commands: `.codex/validation-profile.json`
+- runtime helpers: `.codex/scripts/*.mjs`
+- runtime dependency: `node` on `PATH`
 
-把当前目录下的 `AGENTS.md` 和 `.codex/` 复制到你的项目根目录。
+## Quick Start
 
-## Notes
+1. Copy `AGENTS.md`, `.agents/skills/`, `.codex/`, and optionally `docs/` and `tests/` into the target repository.
+2. Ensure `node` is available if you want runtime helpers and smoke tests.
+3. Start with `/Aide` or `/Aide [your goal]`.
+4. Let `/Aide` scan the repo, update current state, and recommend the lightest route.
+5. Stay direct unless the task clearly needs planning, orchestration, QC, or follow-through.
 
-- 这是项目模板，不包含全局 `~/.codex` 内容
-- 目标是打开一个新项目后，复制这套目录即可开始按既定工作流协作
-- `.codex/` 下的文件是项目内资料，不会自动变成全局 skill
+The starter ships with template defaults in `.codex/project-profile.md` and `.codex/validation-profile.json`.
+`/Aide` should replace them with repo-specific state on the first real run.
+
+## Runtime Authority
+
+- `AGENTS.md`: global stance and slash-command protocol
+- `.agents/skills/*/SKILL.md`: repo-local skill modules and command protocols
+- `.codex/agents/*.toml`: custom subagent definitions
+- `.codex/config.toml`: subagent concurrency defaults
+- `.codex/routing-policy.md`: routing and module-activation authority
+- `.codex/project-profile.md`: current repo facts and current task state
+- `.codex/validation-profile.json`: structured validation command facts
+- `.codex/scripts/*.mjs`: runtime helpers for reminders, git validation, and runtime-state sync
+
+Runtime state is written to `.codex/state/runtime-state.json` on demand.
+When orchestration is active, `PROGRESS.md` uses `## Current Work` and can also hold runtime-managed `Session Retrospective` and `Learning Queue` sections.
+Auto QC reminders are queued only when the current task explicitly enables `/qc`, including direct or plan-driven work that does not have a tracked story path yet.
+
+## Docs
+
+- Overview: [`docs/overview.md`](./docs/overview.md)
+- Usage: [`docs/usage.md`](./docs/usage.md)
+- Smoke test: `node tests/runtime-hooks.smoke.mjs`
