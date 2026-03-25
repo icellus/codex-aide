@@ -28,7 +28,8 @@ It keeps the default path direct, keeps the command surface small, and only enab
 - `.claude/validation-profile.json`: structured validation command facts
 
 Hooks create `.claude/state/runtime-state.json` on demand.
-Auto QC reminders are queued only when the current task explicitly enables `/qc`.
+When orchestration is active, `PROGRESS.md` uses `## Current Work` and can also hold hook-managed `Session Retrospective` and `Learning Queue` sections.
+Auto QC reminders are queued only when the current task explicitly enables `/qc`, including direct or plan-driven work that does not have a tracked story path yet.
 
 ## Docs
 

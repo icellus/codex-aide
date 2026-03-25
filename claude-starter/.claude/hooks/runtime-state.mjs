@@ -181,6 +181,14 @@ function recordQcMetrics(state, storyPath, message, verdict, categories = []) {
   });
 }
 
+function matchesStoryScope(itemStoryPath, storyPath) {
+  if (storyPath) {
+    return !itemStoryPath || itemStoryPath === storyPath;
+  }
+
+  return !itemStoryPath;
+}
+
 function recordSubagentStop(input, state, activeStories, projectDir, profile) {
   const agentType = String(input.agent_type || "").toLowerCase();
   const message = String(input.last_assistant_message || "");
@@ -196,9 +204,9 @@ function recordSubagentStop(input, state, activeStories, projectDir, profile) {
     summary: compactText(message)
   });
 
-  if ((agentType === "tester" || agentType === "coder") && status === "complete" && storyPath && isQcEnabled(profile)) {
+  if ((agentType === "tester" || agentType === "coder") && status === "complete" && isQcEnabled(profile)) {
     upsertPendingAction(state, {
-      id: `run-qc:${agentType}:${storyPath || "unknown"}`,
+      id: `run-qc:${agentType}:${storyPath || "current-task"}`,
       type: "run_qc",
       phase: agentType,
       storyPath,
@@ -206,29 +214,29 @@ function recordSubagentStop(input, state, activeStories, projectDir, profile) {
     });
   }
 
-  if ((agentType === "tester" || agentType === "coder") && status === "complete" && storyPath) {
+  if ((agentType === "tester" || agentType === "coder") && status === "complete") {
     removePendingActions(
       state,
-      (item) => item.type === "blocked_review" && item.phase === agentType && item.storyPath === storyPath
+      (item) => item.type === "blocked_review" && item.phase === agentType && matchesStoryScope(item.storyPath, storyPath)
     );
   }
 
-  if ((agentType === "tester" || agentType === "coder") && status === "complete" && storyPath && !isQcEnabled(profile)) {
+  if ((agentType === "tester" || agentType === "coder") && status === "complete" && !isQcEnabled(profile)) {
     removePendingActions(
       state,
-      (item) => item.type === "run_qc" && item.phase === agentType && item.storyPath === storyPath
+      (item) => item.type === "run_qc" && item.phase === agentType && matchesStoryScope(item.storyPath, storyPath)
     );
   }
 
-  if ((agentType === "tester" || agentType === "coder") && status === "blocked" && storyPath) {
+  if ((agentType === "tester" || agentType === "coder") && status === "blocked") {
     upsertPendingAction(state, {
-      id: `blocked-review:${agentType}:${storyPath || "unknown"}`,
+      id: `blocked-review:${agentType}:${storyPath || "current-task"}`,
       type: "blocked_review",
       phase: agentType,
       storyPath,
       note: `Recent ${agentType} blockage detected. Review structured handoff before continuing.`
     });
-    if (isOrchestratedProfile(profile)) {
+    if (storyPath && isOrchestratedProfile(profile)) {
       upsertSessionRetrospective(state, storyPath, {
         trigger: "blocked",
         phase: agentType,
@@ -254,16 +262,16 @@ function recordStop(input, state, activeStories, projectDir, profile) {
   if (detectQcPass(message)) {
     recordQcMetrics(state, storyPath, message, "pass");
 
-    if (storyPath) {
-      removePendingActions(
-        state,
-        (item) => item.type === "run_qc" && (!item.storyPath || item.storyPath === storyPath)
-      );
-      removePendingActions(
-        state,
-        (item) => item.type === "blocked_review" && (!item.storyPath || item.storyPath === storyPath)
-      );
+    removePendingActions(
+      state,
+      (item) => item.type === "run_qc" && matchesStoryScope(item.storyPath, storyPath)
+    );
+    removePendingActions(
+      state,
+      (item) => item.type === "blocked_review" && matchesStoryScope(item.storyPath, storyPath)
+    );
 
+    if (storyPath) {
       const queuedForStory = state.learningQueue.filter(
         (item) => item.status === "queued" && (item.source || "unknown") === storyPath
       );
@@ -281,6 +289,11 @@ function recordStop(input, state, activeStories, projectDir, profile) {
   if (detectQcFail(message)) {
     const categories = detectFailureCategories(message);
     recordQcMetrics(state, storyPath, message, "fail", categories);
+
+    removePendingActions(
+      state,
+      (item) => item.type === "run_qc" && matchesStoryScope(item.storyPath, storyPath)
+    );
 
     if (storyPath) {
       for (const category of categories) {

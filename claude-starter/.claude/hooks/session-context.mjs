@@ -25,8 +25,8 @@ function summarizeQueuedLessons(state) {
   return state.learningQueue.filter((item) => item.status === "queued");
 }
 
-function summarizeRetrospectiveActions(state, activeStories) {
-  const activeStoryPath = activeStories[0]?.storyPath || null;
+function summarizeRetrospectiveActions(state, currentStory) {
+  const activeStoryPath = currentStory?.storyPath || null;
   const items = state.pendingActions.filter((item) => item.type === "session_retrospective");
 
   if (activeStoryPath) {
@@ -58,8 +58,16 @@ async function main() {
     : [];
   const blockedPool = currentStory ? blockedForCurrent : blockedActions;
   const pendingQcPool = currentStory ? pendingQcForCurrent : pendingQC;
+  const retrospectiveActions = summarizeRetrospectiveActions(state, currentStory);
+  const queuedLessons = summarizeQueuedLessons(state);
 
-  if (isTaskSettled(profile) && blockedPool.length === 0 && pendingQcPool.length === 0) {
+  if (
+    isTaskSettled(profile) &&
+    blockedPool.length === 0 &&
+    pendingQcPool.length === 0 &&
+    retrospectiveActions.length === 0 &&
+    queuedLessons.length === 0
+  ) {
     if (state.sessionContext.lastReminderText) {
       state.sessionContext.lastReminderText = "";
       saveRuntimeState(projectDir, state);
@@ -101,8 +109,7 @@ async function main() {
     );
   }
 
-  if (activeStories.length > 0) {
-    const retrospectiveActions = summarizeRetrospectiveActions(state, activeStories);
+  if (retrospectiveActions.length > 0 || queuedLessons.length > 0) {
     for (const item of retrospectiveActions) {
       pushReminder(
         40,
@@ -113,7 +120,6 @@ async function main() {
       }
     }
 
-    const queuedLessons = summarizeQueuedLessons(state);
     if (queuedLessons.length > 0) {
       const preview = queuedLessons
         .slice(-3)

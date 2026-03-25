@@ -28,7 +28,8 @@
 - `.claude/validation-profile.json`：结构化验证命令事实
 
 启用 hooks 后，会按需创建 `.claude/state/runtime-state.json`。
-只有当前任务显式启用 `/qc` 时，才会排队自动 QC 提醒。
+启用 orchestration 时，`PROGRESS.md` 使用 `## Current Work`，并可包含由 hooks 维护的 `Session Retrospective` 和 `Learning Queue` 区块。
+只有当前任务显式启用 `/qc` 时，才会排队自动 QC 提醒；即使是没有 tracked story path 的 direct 或 plan-driven 任务也一样。
 
 ## 文档
 

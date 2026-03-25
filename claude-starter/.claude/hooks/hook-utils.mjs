@@ -47,6 +47,37 @@ function findProjectDir(start) {
   return null;
 }
 
+function normalizeArtifactField(value) {
+  const raw = String(value || "").trim();
+  if (!raw || raw.toUpperCase() === "N/A" || /^\[[^\]]+\]$/.test(raw)) {
+    return null;
+  }
+  return raw;
+}
+
+function extractStoryPath(block) {
+  return normalizeArtifactField(
+    block.match(/\*\*Story\*\*:\s*`([^`]+)`/)?.[1] ||
+      block.match(/\*\*Implementation Plan\*\*:\s*`([^`]+)`/)?.[1] ||
+      block.match(/- Implementation Plan:\s*`([^`]+)`/)?.[1] ||
+      block.match(/- Story:\s*`([^`]+)`/)?.[1] ||
+      null
+  );
+}
+
+function extractSummaryPath(block) {
+  return normalizeArtifactField(
+    block.match(/- Plan Summary:\s*`([^`]+)`/)?.[1] ||
+      block.match(/\*\*Plan Summary\*\*:\s*`([^`]+)`/)?.[1] ||
+      block.match(/\*\*Story Summary\*\*:\s*`([^`]+)`/)?.[1] ||
+      null
+  );
+}
+
+function stripHtmlComments(text) {
+  return String(text || "").replace(/<!--[\s\S]*?-->/g, "");
+}
+
 export function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -235,38 +266,31 @@ export function parseActiveStories(progressPath) {
   }
 
   const text = fs.readFileSync(progressPath, "utf8");
-  const sectionMatch = text.match(/## Current Work([\s\S]*?)(?:\n## |\n---\n## |\n##$|$)/);
+  const sectionMatch = text.match(/## (?:Current|Active) Work([\s\S]*?)(?:\n---\s*\n\s*## |\n## |\n##$|$)/);
   if (!sectionMatch) {
     return [];
   }
 
-  const blocks = sectionMatch[1]
+  return stripHtmlComments(sectionMatch[1])
     .split(/\n(?=### )/g)
     .map((block) => block.trim())
-    .filter((block) => block.startsWith("### "));
+    .filter((block) => block.startsWith("### "))
+    .map((block) => {
+      const title = block.match(/^###\s+(.+)$/m)?.[1]?.trim() || "Unknown Plan";
+      const storyPath = extractStoryPath(block);
+      const summaryPath = extractSummaryPath(block);
+      const branch = normalizeArtifactField(block.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null);
+      const worktree = normalizeArtifactField(block.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null);
 
-  return blocks.map((block) => {
-    const title = block.match(/^###\s+(.+)$/m)?.[1]?.trim() || "Unknown Plan";
-    const storyPath =
-      block.match(/\*\*Story\*\*:\s*`([^`]+)`/)?.[1] ||
-      block.match(/- Implementation Plan:\s*`([^`]+)`/)?.[1] ||
-      null;
-    const summaryPath =
-      block.match(/- Plan Summary:\s*`([^`]+)`/)?.[1] ||
-      block.match(/\*\*Plan Summary\*\*:\s*`([^`]+)`/)?.[1] ||
-      block.match(/\*\*Story Summary\*\*:\s*`([^`]+)`/)?.[1] ||
-      null;
-    const branch = block.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null;
-    const worktree = block.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null;
-
-    return {
-      title,
-      storyPath,
-      summaryPath,
-      branch,
-      worktree
-    };
-  });
+      return {
+        title,
+        storyPath,
+        summaryPath,
+        branch,
+        worktree
+      };
+    })
+    .filter((item) => item.storyPath || item.branch || item.worktree);
 }
 
 function normalizeComparablePath(value) {
@@ -397,12 +421,18 @@ export function detectSubagentStatus(agentType, message) {
 
 export function detectQcPass(message) {
   const text = normalizeText(message);
-  return /QC 检查通过|QC passed|QC pass|Overall Verdict:\s*PASS\b|Overall Verdict:\s*PASS WITH WARNINGS/i.test(text);
+  if (!/\bQC\b|Overall Verdict:/i.test(text)) {
+    return false;
+  }
+  return /QC 检查通过|QC passed|QC pass|Overall Verdict:\s*PASS(?: WITH WARNINGS)?\b/i.test(text);
 }
 
 export function detectQcFail(message) {
   const text = normalizeText(message);
-  return /QC 检查失败|QC failure|QC failed|QC fail|Overall Verdict:\s*FAIL\b|FAKE TEST|MISSING TEST|NOT IMPLEMENTED/i.test(text);
+  if (!/\bQC\b|Overall Verdict:/i.test(text)) {
+    return false;
+  }
+  return /QC 检查失败|QC failure|QC failed|QC fail|Overall Verdict:\s*FAIL\b/i.test(text);
 }
 
 export function detectQcPhase(message) {
@@ -583,8 +613,39 @@ function updateQcRetryPatternLine(block, summary) {
   return `${block.trimEnd()}\n\n**Notes**:\n${line}\n`;
 }
 
+function ensureProgressSection(text, heading, emptyBody) {
+  const headingPattern = new RegExp(`^${heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "m");
+  if (headingPattern.test(text)) {
+    return text;
+  }
+
+  const section = `---\n\n${heading}\n\n${emptyBody}\n`;
+  const insertBefore = text.match(/^## Optional Checkpoint Guide\s*$/m);
+  if (insertBefore && typeof insertBefore.index === "number") {
+    const before = text.slice(0, insertBefore.index).replace(/\s*$/, "");
+    const after = text.slice(insertBefore.index);
+    return `${before}\n\n${section}\n${after}`;
+  }
+
+  return `${text.trimEnd()}\n\n${section}`;
+}
+
+function ensureProgressRuntimeSections(text, state) {
+  let next = text;
+
+  if (state.pendingActions.some((item) => item.type === "session_retrospective")) {
+    next = ensureProgressSection(next, "## Session Retrospective (Optional)", "<!-- No pending retrospective prompts -->");
+  }
+
+  if (state.learningQueue.length > 0) {
+    next = ensureProgressSection(next, "## Learning Queue (Optional)", "<!-- No queued lessons -->");
+  }
+
+  return next;
+}
+
 function updateCurrentWorkSection(text, activeStories, state) {
-  const match = text.match(/(## Current Work\s*\n\n)([\s\S]*?)(\n---\s*\n\s*## Completed|\n## Completed|$)/);
+  const match = text.match(/(## (?:Current|Active) Work\s*\n\n)([\s\S]*?)(\n---\s*\n\s*## Completed|\n## Completed|$)/);
   if (!match) {
     return text;
   }
@@ -592,24 +653,34 @@ function updateCurrentWorkSection(text, activeStories, state) {
   const prefix = match[1];
   const body = match[2];
   const suffix = match[3];
+  const segments = body.split(/(<!--[\s\S]*?-->)/g);
 
-  const chunks = body.split(/\n(?=### )/g);
+  const updatedBody = segments
+    .map((segment) => {
+      if (segment.startsWith("<!--")) {
+        return segment;
+      }
 
-  const updatedChunks = chunks.map((chunk) => {
-    if (!chunk.startsWith("### ")) {
-      return chunk;
-    }
+      return segment
+        .split(/\n(?=### )/g)
+        .map((chunk) => {
+          if (!chunk.startsWith("### ")) {
+            return chunk;
+          }
 
-    const storyPath = chunk.match(/\*\*Story\*\*:\s*`([^`]+)`/)?.[1] || null;
-    if (!storyPath) {
-      return chunk;
-    }
+          const storyPath = extractStoryPath(chunk);
+          if (!storyPath) {
+            return chunk;
+          }
 
-    const summary = summarizeRetryPattern(state, storyPath);
-    return updateQcRetryPatternLine(chunk, summary);
-  });
+          const summary = summarizeRetryPattern(state, storyPath);
+          return updateQcRetryPatternLine(chunk, summary);
+        })
+        .join("\n");
+    })
+    .join("");
 
-  return text.replace(match[0], `${prefix}${updatedChunks.join("\n")}${suffix}`);
+  return text.replace(match[0], `${prefix}${updatedBody}${suffix}`);
 }
 
 function buildLearningQueueBlock(entry) {
@@ -749,7 +820,7 @@ function nextRetrospectiveId(storyPath, existingIds) {
 }
 
 function updateSessionRetrospectiveSection(text, state) {
-  const match = text.match(/(## Session Retrospective \(Optional\)\s*\n\n)([\s\S]*?)(\n---\s*\n\s*## Learning Queue|\n## Learning Queue|$)/);
+  const match = text.match(/(## Session Retrospective \(Optional\)\s*\n\n)([\s\S]*?)(\n---\s*\n\s*## |\n## |\s*$)/);
   if (!match) {
     return text;
   }
@@ -829,7 +900,8 @@ export function syncProgressFromState(progressPath, activeStories, state) {
   }
 
   const original = fs.readFileSync(progressPath, "utf8");
-  const withRetryPattern = updateCurrentWorkSection(original, activeStories, state);
+  const withSections = ensureProgressRuntimeSections(original, state);
+  const withRetryPattern = updateCurrentWorkSection(withSections, activeStories, state);
   const withRetrospectives = updateSessionRetrospectiveSection(withRetryPattern, state);
   const withLearningQueue = updateLearningQueueSection(withRetrospectives, state);
 

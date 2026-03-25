@@ -8,7 +8,7 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
 
 ---
 
-## Active Work
+## Current Work
 
 ### [Work Item Name]
 - Task Class: `bugfix|feature|refactor|exploration`
@@ -72,12 +72,15 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
 
 ---
 
-## Session Notes (Optional)
+## Session Retrospective (Optional)
 
-### [YYYY-MM-DD HH:MM]
-- Decision: [important scope or sequencing decision]
-- Assumption Changed: [optional]
-- Writeback Candidate: `[none|/Aide|CLAUDE.md|agent/skill/template path]`
+<!-- No pending retrospective prompts -->
+
+---
+
+## Learning Queue (Optional)
+
+<!-- No queued lessons -->
 
 ---
 
