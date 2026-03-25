@@ -1,11 +1,11 @@
 # auto_qc - 自动质量检查
 
 > 类型：Skill（按需自动触发）
-> 作用：当项目或当前任务已启用 QC，并且 tester / coder 报告完成时，自动触发相应的 `/qc` 检查。
+> 作用：当当前任务明确启用 QC，并且 tester / coder 报告完成时，自动触发相应的 `/qc` 检查。
 
 ## 核心原则
 
-- 只有在 QC 模块已启用时才自动触发
+- 只有在 `project-profile.md` 明确启用 QC 时才自动触发
 - 自动触发的是**审计**，不是自动提交/自动推送
 - QC 通过后，由 Main Agent 决定下一步，而不是默认做 git 操作
 - QC 失败后，阻塞当前 handoff，并把问题反馈给对应角色修复
@@ -17,12 +17,12 @@
 同时满足以下条件时才触发：
 
 1. 收到 `tester` 或 `coder` 的完成报告
-2. `.claude/project-profile.md` 显示当前任务启用了 `/qc`，或当前任务被判定为需要质量门禁
+2. `.claude/project-profile.md` 的 `QC policy` 为 `enabled` 或 `required`，或 `Enabled modules` 明确包含 `/qc`
 3. 当前输入不是单纯的进度更新、求助或未完成状态
 
 ### 不触发场景
 
-- 当前项目仍处于轻量 direct 模式，且未启用 QC
+- 当前任务未启用 QC
 - subagent 报告阻塞、求助、仅同步进度
 - 用户手动运行 `/qc`
 
@@ -99,5 +99,4 @@
 若未触发，也应说明原因，例如：
 
 - 当前任务未启用 QC
-- 当前仍处于 direct 模式
 - 输入不构成完成报告

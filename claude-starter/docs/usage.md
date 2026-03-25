@@ -1,9 +1,9 @@
 # Usage
 
-## Install Into a Project
+## Install
 
 1. Copy `CLAUDE.md` and `.claude/` into the target repository root.
-2. Keep `.claude/settings.json` as-is unless you explicitly want runtime hooks.
+2. Leave `.claude/settings.json` unchanged unless you explicitly want runtime hooks.
 3. Start with `/Aide`.
 
 ## First Run
@@ -18,90 +18,44 @@ Use one of:
 On first run, `/Aide` should:
 
 - greet briefly
-- scan the repository
+- scan the repo
 - update `.claude/project-profile.md`
-- provide a short project brief
-- recommend the lightest role/module mix for the task
+- update `.claude/validation-profile.json` when validation signals are clear
+- recommend the lightest route for the task
 
-## Normal Follow-Up
+On later turns, `/Aide` should usually skip greetings, reuse stored state, and mention routing changes only when they actually change.
 
-On later turns, `/Aide` should usually:
+## Commands
 
-- skip repeated greetings
-- reuse the stored project brief
-- respond directly to the task
-- mention routing changes only when task type, risk, or module mix changes
+| Command | Use it when |
+| --- | --- |
+| `/Aide` | starting work, refreshing state, routing, governance |
+| `/qc` | the task is higher risk or you want an explicit audit |
+| `/follow` | code is already pushed and CI or release follow-through matters |
 
-## Typical Task Paths
+## Typical Paths
 
-### Small bugfix
-
-```text
-/Aide -> direct implementation -> focused validation
-```
-
-Usually skip:
-
-- `prd`
-- `architect`
-- `plan`
-- `workspace prep`
-- `tester`
-- `coder`
-- orchestration
-- `/qc`
-- `/follow`
-
-### Feature work
-
-```text
-/Aide -> optional prd -> optional architect -> conduct -> optional plan -> implementation
-```
-
-Use `prd` when scope, MVP, or success criteria are unclear.
-
-Use `architect` when boundaries, interfaces, or integrations need durable design.
-
-Use `plan` when implementation guidance needs to be written down.
-
-### Refactor
-
-Start in `direct`.
-
-Promote only when:
-
-- the refactor touches shared interfaces
-- behavior guarantees need to be written down
-- multiple steps or handoffs appear
-
-### Release
-
-Start in `orchestrated`.
-
-Typical path:
-
-```text
-/Aide -> conduct -> optional /qc -> optional /follow
-```
+| Task | Typical path | Usually skipped |
+| --- | --- | --- |
+| small bugfix | `/Aide -> direct implementation -> focused validation` | `prd`, `architect`, `plan`, `tester`, `coder`, `/qc`, `/follow` |
+| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> implementation` | heavier modules that do not add value |
+| refactor | `start direct, promote only if contracts, risk, or handoffs grow` | orchestration for local low-risk refactors |
+| release | `/Aide -> conduct -> optional /qc -> optional /follow` | direct mode for multi-step release work |
 
 ## Workspace Prep
 
-`workspace prep` is owned by `conduct`, not `/Aide`.
+`workspace prep` belongs to `conduct`, not `/Aide`.
 
-It should run only when execution needs:
+Run it only when execution needs:
 
 - an isolated branch or worktree
 - dependency bootstrap or refresh
 - local services, databases, or containers
 - a narrow readiness check before coding or testing
 
-It should usually be skipped for:
+Skip it for small bugfixes, docs-only work, prompt/config edits, and already-ready workspaces.
 
-- small bugfixes
-- docs or prompt/config edits
-- already-ready workspaces
-
-## Governance Actions
+## Governance
 
 Use `/Aide` for durable governance actions:
 
@@ -113,26 +67,7 @@ Use `/Aide` for durable governance actions:
 /Aide Never let tester claim red phase without running a real command
 ```
 
-These actions cover:
-
-- audit
-- deduplication
-- writeback of durable lessons
-- address preference updates
-
-## QC and Follow
-
-Use `/qc` when:
-
-- the task is higher risk
-- you want an explicit audit
-- release confidence matters
-
-Use `/follow` when:
-
-- code has already been pushed
-- CI state matters
-- release follow-through is needed
+Change runtime routing rules in `.claude/routing-policy.md`, not in `.claude/project-profile.md`.
 
 ## Optional Hooks
 
@@ -145,3 +80,4 @@ Enable them only if the project benefits from runtime automation:
 3. make sure `node` is available on `PATH`
 
 When enabled, runtime state is created on demand at `.claude/state/runtime-state.json`.
+QC reminders are queued only when the current task explicitly enables `/qc`.

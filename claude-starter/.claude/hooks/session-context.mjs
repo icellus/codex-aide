@@ -4,14 +4,21 @@ import {
   basenameLabel,
   findProgressFile,
   getProjectDir,
+  isTaskSettled,
+  loadProjectProfileState,
   loadRuntimeState,
   parseActiveStories,
   resolveActiveStory,
-  readJsonStdin
+  readJsonStdin,
+  saveRuntimeState
 } from "./hook-utils.mjs";
 
 function summarizePendingQCActions(state) {
   return state.pendingActions.filter((item) => item.type === "run_qc");
+}
+
+function summarizeBlockedActions(state) {
+  return state.pendingActions.filter((item) => item.type === "blocked_review");
 }
 
 function summarizeQueuedLessons(state) {
@@ -38,63 +45,100 @@ async function main() {
   const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
   const activeStories = parseActiveStories(progressPath);
   const currentStory = resolveActiveStory(activeStories, input, projectDir);
+  const profile = loadProjectProfileState(projectDir);
   const state = loadRuntimeState(projectDir);
 
-  const lines = [];
-  let hasReminder = false;
+  const blockedActions = summarizeBlockedActions(state);
+  const blockedForCurrent = currentStory
+    ? blockedActions.filter((item) => item.storyPath === currentStory.storyPath)
+    : [];
+  const pendingQC = summarizePendingQCActions(state);
+  const pendingQcForCurrent = currentStory
+    ? pendingQC.filter((item) => item.storyPath === currentStory.storyPath)
+    : [];
+  const blockedPool = currentStory ? blockedForCurrent : blockedActions;
+  const pendingQcPool = currentStory ? pendingQcForCurrent : pendingQC;
+
+  if (isTaskSettled(profile) && blockedPool.length === 0 && pendingQcPool.length === 0) {
+    if (state.sessionContext.lastReminderText) {
+      state.sessionContext.lastReminderText = "";
+      saveRuntimeState(projectDir, state);
+    }
+    return;
+  }
+
+  const reminders = [];
+
+  const pushReminder = (priority, text) => {
+    if (!text) {
+      return;
+    }
+    reminders.push({ priority, text });
+  };
+
+  const blocked = blockedPool.slice(-1);
+  for (const item of blocked) {
+    pushReminder(
+      100,
+      `- Blocked handoff${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: review the structured blockage before resuming ${item.phase || "work"}.`
+    );
+  }
 
   if (currentStory) {
     const activePlan = currentStory;
-    lines.push("Runtime state reminder:");
-    hasReminder = true;
-    lines.push(`- Active plan: ${activePlan.title}${activePlan.storyPath ? ` (${basenameLabel(activePlan.storyPath)})` : ""}`);
+    pushReminder(
+      60,
+      `- Active plan: ${activePlan.title}${activePlan.storyPath ? ` (${basenameLabel(activePlan.storyPath)})` : ""}`
+    );
   } else if (activeStories.length > 1) {
-    lines.push("Runtime state reminder:");
-    hasReminder = true;
-    lines.push(`- Active plans: ${activeStories.length} (current plan unresolved from cwd/worktree)`);
+    pushReminder(55, `- Active plans: ${activeStories.length} (current plan unresolved from cwd/worktree)`);
   }
 
-  const pendingQC = summarizePendingQCActions(state);
-  for (const item of pendingQC.slice(-2)) {
-    if (!hasReminder) {
-      lines.push("Runtime state reminder:");
-      hasReminder = true;
-    }
-    lines.push(
+  for (const item of pendingQcPool.slice(-1)) {
+    pushReminder(
+      90,
       `- Pending QC: run /qc --phase=${item.phase}${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}`
     );
   }
 
-  const retrospectiveActions = summarizeRetrospectiveActions(state, activeStories);
-  for (const item of retrospectiveActions) {
-    if (!hasReminder) {
-      lines.push("Runtime state reminder:");
-      hasReminder = true;
+  if (activeStories.length > 0) {
+    const retrospectiveActions = summarizeRetrospectiveActions(state, activeStories);
+    for (const item of retrospectiveActions) {
+      pushReminder(
+        40,
+        `- Retrospective pending${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: capture decisions and writeback candidates before closing the orchestrated task.`
+      );
+      if (Array.isArray(item.categories) && item.categories.length > 0) {
+        pushReminder(35, `- Retrospective focus: ${item.categories.join(", ")}`);
+      }
     }
-    lines.push(
-      `- Retrospective pending${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: capture decisions, broken assumptions, and writeback candidates before resuming or closing.`
-    );
-    if (Array.isArray(item.categories) && item.categories.length > 0) {
-      lines.push(`- Retrospective focus: ${item.categories.join(", ")}`);
+
+    const queuedLessons = summarizeQueuedLessons(state);
+    if (queuedLessons.length > 0) {
+      const preview = queuedLessons
+        .slice(-3)
+        .map((item) => `${item.category} x${item.triggerCount}`)
+        .join(", ");
+      pushReminder(30, `- Candidate lessons: ${queuedLessons.length} queued for retrospective (${preview})`);
     }
   }
 
-  const queuedLessons = summarizeQueuedLessons(state);
-  if (queuedLessons.length > 0) {
-    if (!hasReminder) {
-      lines.push("Runtime state reminder:");
-      hasReminder = true;
-    }
-    const preview = queuedLessons
-      .slice(-3)
-      .map((item) => `${item.category} x${item.triggerCount}`)
-      .join(", ");
-    lines.push(`- Candidate lessons: ${queuedLessons.length} queued for retrospective (${preview})`);
-    lines.push("- Decide in the retrospective whether each candidate becomes /Aide guidance or is dismissed as plan-local noise.");
+  const selected = reminders
+    .sort((left, right) => right.priority - left.priority)
+    .slice(0, 2)
+    .map((item) => item.text);
+
+  const lines = selected.length > 0 ? ["Runtime state reminder:", ...selected] : [];
+  const reminderText = lines.join("\n");
+  const changed = state.sessionContext.lastReminderText !== reminderText;
+
+  if (changed) {
+    state.sessionContext.lastReminderText = reminderText;
+    saveRuntimeState(projectDir, state);
   }
 
-  if (lines.length > 0) {
-    process.stdout.write(`${lines.join("\n")}\n`);
+  if (changed && lines.length > 0 && reminderText) {
+    process.stdout.write(`${reminderText}\n`);
   }
 }
 

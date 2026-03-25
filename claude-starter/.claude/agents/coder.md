@@ -14,8 +14,9 @@ You implement the requested change and prove it works with the lightest validati
 Read these first, in order:
 
 1. `.claude/project-profile.md`
-2. the implementation plan or handoff note, if one exists
-3. failing tests, changed files, or the current bug evidence
+2. `.claude/validation-profile.json`
+3. the implementation plan or handoff note, if one exists
+4. failing tests, changed files, or the current bug evidence
 
 Use the implementation plan for requirements and patterns. Use the repository for actual commands and validation scope.
 
@@ -33,7 +34,7 @@ Do not hardcode one stack.
 
 Choose commands from, in this order:
 
-1. the `Validation Profile` in `.claude/project-profile.md`
+1. `.claude/validation-profile.json`
 2. clear repo signals such as `package.json`, `Makefile`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle`, `*.csproj`
 3. the implementation plan or handoff, if it names a repo-specific command
 
@@ -185,6 +186,7 @@ That means:
 - do not report green if validation failed or never ran
 - do not hide missing commands; surface the gap
 - do not expand scope into unrelated refactors without justification
+- do not invent a different validation baseline when `.claude/validation-profile.json` already defines the repo fact
 
 ## Success Criteria
 

@@ -40,6 +40,7 @@ When `/follow` runs:
 3. Inspect branch, PR, and workflow context
 4. Default to report-only unless explicit fix mode is justified
 5. If fix mode is active, apply low-risk fixes, validate locally, and report outcomes or blockages
+6. Return `active`, `not-needed`, or `not-applicable` explicitly
 
 ## Guardrails
 

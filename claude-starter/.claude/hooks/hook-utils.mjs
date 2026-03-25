@@ -58,7 +58,23 @@ export function createEmptyState() {
     recentSubagentEvents: [],
     pendingActions: [],
     failurePatterns: {},
-    learningQueue: []
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
   };
 }
 
@@ -74,9 +90,32 @@ export function loadRuntimeState(projectDir) {
 
   try {
     const parsed = JSON.parse(fs.readFileSync(statePath, "utf8"));
+    const emptyState = createEmptyState();
     return {
-      ...createEmptyState(),
-      ...parsed
+      ...emptyState,
+      ...parsed,
+      qualityMetrics: {
+        ...emptyState.qualityMetrics,
+        ...(parsed.qualityMetrics || {}),
+        qcByPhase: {
+          tester: {
+            ...emptyState.qualityMetrics.qcByPhase.tester,
+            ...(parsed.qualityMetrics?.qcByPhase?.tester || {})
+          },
+          coder: {
+            ...emptyState.qualityMetrics.qcByPhase.coder,
+            ...(parsed.qualityMetrics?.qcByPhase?.coder || {})
+          },
+          manual: {
+            ...emptyState.qualityMetrics.qcByPhase.manual,
+            ...(parsed.qualityMetrics?.qcByPhase?.manual || {})
+          }
+        }
+      },
+      sessionContext: {
+        ...emptyState.sessionContext,
+        ...(parsed.sessionContext || {})
+      }
     };
   } catch {
     return createEmptyState();
@@ -89,6 +128,81 @@ export function saveRuntimeState(projectDir, state) {
 
   ensureDir(stateDir);
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+function normalizeProfileValue(value) {
+  return String(value || "").replace(/`/g, "").trim();
+}
+
+function readProfileField(text, label) {
+  const prefix = `- ${label}:`;
+  const line = String(text || "")
+    .split(/\r?\n/)
+    .find((entry) => entry.startsWith(prefix));
+  if (!line) {
+    return "";
+  }
+  return line.slice(prefix.length).trim();
+}
+
+function parseProfileList(value) {
+  return normalizeProfileValue(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function loadProjectProfileState(projectDir) {
+  const profilePath = path.join(projectDir, ".claude", "project-profile.md");
+  if (!fs.existsSync(profilePath)) {
+    return {
+      task: null,
+      taskStatus: "idle",
+      taskClass: null,
+      riskLevel: null,
+      deliveryMode: null,
+      enabledRoles: [],
+      enabledModules: [],
+      qcPolicy: null,
+      followPolicy: null,
+      validationProfileStatus: null
+    };
+  }
+
+  const text = fs.readFileSync(profilePath, "utf8");
+  return {
+    task: normalizeProfileValue(readProfileField(text, "Current task")) || null,
+    taskStatus: normalizeProfileValue(readProfileField(text, "Task status")) || "idle",
+    taskClass: normalizeProfileValue(readProfileField(text, "Task class")) || null,
+    riskLevel: normalizeProfileValue(readProfileField(text, "Risk level")) || null,
+    deliveryMode: normalizeProfileValue(readProfileField(text, "Selected delivery mode")) || null,
+    routeRationale: normalizeProfileValue(readProfileField(text, "Route rationale")) || null,
+    enabledRoles: parseProfileList(readProfileField(text, "Enabled roles")),
+    enabledModules: parseProfileList(readProfileField(text, "Enabled modules")),
+    qcPolicy: normalizeProfileValue(readProfileField(text, "QC policy")) || null,
+    followPolicy: normalizeProfileValue(readProfileField(text, "Follow policy")) || null,
+    validationProfileStatus: normalizeProfileValue(readProfileField(text, "Validation profile status")) || null
+  };
+}
+
+export function isQcEnabled(profile = {}) {
+  const qcPolicy = String(profile.qcPolicy || "").toLowerCase();
+  if (qcPolicy === "enabled" || qcPolicy === "required") {
+    return true;
+  }
+
+  return Array.isArray(profile.enabledModules)
+    ? profile.enabledModules.some((item) => /(^|\/)qc\b|quality gate/i.test(String(item)))
+    : false;
+}
+
+export function isTaskSettled(profile = {}) {
+  const taskStatus = String(profile.taskStatus || "").toLowerCase();
+  return taskStatus === "done" || taskStatus === "idle";
+}
+
+export function isOrchestratedProfile(profile = {}) {
+  return String(profile.deliveryMode || "").toLowerCase() === "orchestrated";
 }
 
 export function findProgressFile(startDir) {
@@ -291,6 +405,17 @@ export function detectQcFail(message) {
   return /QC 检查失败|QC failure|QC failed|QC fail|Overall Verdict:\s*FAIL\b|FAKE TEST|MISSING TEST|NOT IMPLEMENTED/i.test(text);
 }
 
+export function detectQcPhase(message) {
+  const text = normalizeText(message);
+  const match = text.match(/(?:--phase=|phase\s*[:=]\s*|trigger phase\s*[:=]\s*)(tester|coder)/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+export function detectTaskCompletionMessage(message) {
+  const text = normalizeText(message);
+  return /(?:task status:\s*done|final status:\s*done|task complete|task completed|completed the task|任务完成|已完成当前任务)/i.test(text);
+}
+
 export function detectFailureCategories(message) {
   const text = normalizeText(message);
   const categories = new Set();
@@ -410,6 +535,8 @@ export function trimRuntimeState(state) {
   state.recentSubagentEvents = state.recentSubagentEvents.slice(-25);
   state.pendingActions = state.pendingActions.slice(-20);
   state.learningQueue = state.learningQueue.slice(-25);
+  state.completedTasks = state.completedTasks.slice(-20);
+  state.qualityMetrics.recentQcRuns = state.qualityMetrics.recentQcRuns.slice(-25);
   state.updatedAt = new Date().toISOString();
 }
 

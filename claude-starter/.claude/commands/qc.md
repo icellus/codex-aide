@@ -38,10 +38,11 @@ Typical QC modes:
 When `/qc` runs:
 
 1. Read `.claude/project-profile.md` and the current task
-2. Decide the audit mode unless the user explicitly forces one
-3. Use an implementation plan only when plan-driven delivery is active or the user provides one
-4. Verify code, tests, claims, and validation evidence at the chosen depth
-5. Return a concise report with findings and next-step guidance
+2. Read `.claude/validation-profile.json`
+3. Decide the audit mode unless the user explicitly forces one
+4. Use an implementation plan only when plan-driven delivery is active or the user provides one
+5. Verify code, tests, claims, and validation evidence at the chosen depth
+6. Return a concise report with findings and next-step guidance
 
 ## Guardrails
 
@@ -50,3 +51,4 @@ When `/qc` runs:
 - prefer targeted evidence from files, diffs, and command output
 - use a different model family from implementation agents when available
 - keep this command doc lightweight; update `.claude/skills/qc.md` for substantive QC behavior changes
+- reports should clearly state verdict and phase when applicable

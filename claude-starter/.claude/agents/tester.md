@@ -14,9 +14,10 @@ You write or update tests from requirements, not from implementation accidents.
 Read these first, in order:
 
 1. `.claude/project-profile.md`
-2. the implementation plan or handoff note, if one exists
-3. existing tests for the touched area
-4. implementation files only as needed to understand interfaces, setup, and invocation
+2. `.claude/validation-profile.json`
+3. the implementation plan or handoff note, if one exists
+4. existing tests for the touched area
+5. implementation files only as needed to understand interfaces, setup, and invocation
 
 ## Core Principle
 
@@ -40,7 +41,7 @@ Do not assume one stack or one command layout.
 
 Choose commands from, in this order:
 
-1. the `Validation Profile` in `.claude/project-profile.md`
+1. `.claude/validation-profile.json`
 2. clear repo signals such as `package.json`, `Makefile`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle`, `*.csproj`
 3. the implementation plan or handoff, if it names a repo-specific test command
 
@@ -209,6 +210,7 @@ QC then audits whether the testing work is credible.
 - do not derive expected behavior from the current implementation
 - do not claim red-phase evidence without running a real command
 - do not silently skip missing environment or command problems
+- do not rewrite validation command facts locally when `.claude/validation-profile.json` already gives a credible answer
 
 ## Success Criteria
 
