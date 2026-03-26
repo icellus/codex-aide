@@ -19,13 +19,15 @@ On first run, `/Aide` should:
 
 - greet briefly
 - scan the repo
+- update `.codex/state/task-context.json`
+- update `.codex/state/repo-context.json`
 - update `.codex/project-profile.md`
 - update `.codex/validation-profile.json` when validation signals are clear
 - recommend the lightest route for the task
 
 On later turns, `/Aide` should usually skip greetings, reuse stored state, and mention routing changes only when they actually change.
 
-The checked-in `.codex/project-profile.md` and `.codex/validation-profile.json` are starter defaults.
+The checked-in `.codex/state/*.json`, `.codex/project-profile.md`, and `.codex/validation-profile.json` are starter defaults.
 Keep them generic in the starter repo; let `/Aide` rewrite them after copying the starter into a real project.
 
 ## Commands
@@ -86,6 +88,7 @@ Useful entrypoints:
 
 Runtime state is created on demand at `.codex/state/runtime-state.json`.
 QC reminders are queued only when the current task explicitly enables `/qc`.
+`PROGRESS.md` is for active checkpoints only; runtime reminders and learning state stay in `.codex/state/runtime-state.json`.
 
 ## Smoke Test
 

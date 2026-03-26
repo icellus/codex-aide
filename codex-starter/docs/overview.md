@@ -22,8 +22,10 @@
 | `.codex/agents/*.toml` | custom subagent definitions |
 | `.codex/config.toml` | subagent concurrency defaults |
 | `.codex/routing-policy.md` | routing and module-activation authority |
-| `.codex/project-profile.md` | current repo facts and current task state |
+| `.codex/state/task-context.json` | hot task state and collaboration preferences |
+| `.codex/state/repo-context.json` | cached repo facts |
 | `.codex/validation-profile.json` | structured validation commands and constraints |
+| `.codex/project-profile.md` | short human summary |
 | `.codex/scripts/*.mjs` | optional runtime helpers for reminders, git validation, and runtime-state sync |
 
 ## Roles and Modules
@@ -54,12 +56,16 @@ Exact task defaults and upgrade triggers live in `.codex/routing-policy.md`.
 ## Durable Artifacts
 
 - `.codex/project-profile.md`: current repo facts and current task state
+- `.codex/state/task-context.json`: hot task state and preferences
+- `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: structured validation command facts
 - `PRD.md` or scoped PRD file: optional product scope
 - `ARCHITECTURE.md` or scoped architecture file: optional system design
 - `Implementation Plan`: optional implementation guidance
 - `PROGRESS.md`: orchestration-only progress state
 - `.codex/state/runtime-state.json`: runtime memory created on demand by `.codex/scripts/*.mjs`
+
+`PROGRESS.md` should track checkpoints and next actions, not runtime-managed retrospectives or learning queues.
 
 ## Runtime Automation
 

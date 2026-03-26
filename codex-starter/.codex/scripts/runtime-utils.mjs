@@ -82,6 +82,50 @@ export function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
+export function createEmptyTaskContext() {
+  return {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "boss",
+      greeting_style: "brief",
+      first_startup_greeting_completed: false
+    },
+    task: {
+      current_task: "",
+      status: "idle",
+      class: "unknown",
+      risk: "unknown",
+      delivery_mode: "direct",
+      route_rationale: "",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["startup scan or cached repo context", "direct implementation", "focused validation"],
+      qc_policy: "disabled",
+      follow_policy: "disabled",
+      validation_profile_status: "not-set",
+      open_questions: []
+    }
+  };
+}
+
+export function createEmptyRepoContext() {
+  return {
+    version: 1,
+    updated_at: null,
+    scan_status: "not-scanned",
+    project_type: "Unknown",
+    scale: "Unknown",
+    primary_languages: [],
+    frameworks: [],
+    repo_shape: "",
+    ci_or_deployment_signals: [],
+    release_path: "",
+    validation_signals: [],
+    notes: []
+  };
+}
+
 export function createEmptyState() {
   return {
     version: 1,
@@ -107,6 +151,18 @@ export function createEmptyState() {
       lastReminderText: ""
     }
   };
+}
+
+function loadJsonFile(filePath, fallbackFactory) {
+  if (!fs.existsSync(filePath)) {
+    return fallbackFactory();
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return fallbackFactory();
+  }
 }
 
 export function loadRuntimeState(projectDir) {
@@ -165,6 +221,22 @@ function normalizeProfileValue(value) {
   return String(value || "").replace(/`/g, "").trim();
 }
 
+function normalizeListValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeProfileValue(item)).filter(Boolean);
+  }
+
+  const normalized = normalizeProfileValue(value);
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function readProfileField(text, label) {
   const prefix = `- ${label}:`;
   const line = String(text || "")
@@ -183,7 +255,44 @@ function parseProfileList(value) {
     .filter(Boolean);
 }
 
+function mapTaskContextToProfile(parsed = {}) {
+  const empty = createEmptyTaskContext();
+  const collaboration = {
+    ...empty.collaboration,
+    ...(parsed.collaboration || {})
+  };
+  const task = {
+    ...empty.task,
+    ...(parsed.task || {})
+  };
+
+  return {
+    task: normalizeProfileValue(task.current_task) || null,
+    taskStatus: normalizeProfileValue(task.status) || "idle",
+    taskClass: normalizeProfileValue(task.class) || null,
+    riskLevel: normalizeProfileValue(task.risk) || null,
+    deliveryMode: normalizeProfileValue(task.delivery_mode) || null,
+    routeRationale: normalizeProfileValue(task.route_rationale) || null,
+    routingOverrides: normalizeListValue(task.routing_overrides),
+    enabledRoles: normalizeListValue(task.enabled_roles),
+    enabledModules: normalizeListValue(task.enabled_modules),
+    qcPolicy: normalizeProfileValue(task.qc_policy) || null,
+    followPolicy: normalizeProfileValue(task.follow_policy) || null,
+    validationProfileStatus: normalizeProfileValue(task.validation_profile_status) || null,
+    openQuestions: normalizeListValue(task.open_questions),
+    preferredAddress: normalizeProfileValue(collaboration.preferred_address) || "boss",
+    greetingStyle: normalizeProfileValue(collaboration.greeting_style) || "brief",
+    firstStartupGreetingCompleted: Boolean(collaboration.first_startup_greeting_completed)
+  };
+}
+
 export function loadProjectProfileState(projectDir) {
+  const taskContextPath = path.join(projectDir, ".codex", "state", "task-context.json");
+  if (fs.existsSync(taskContextPath)) {
+    const parsed = loadJsonFile(taskContextPath, createEmptyTaskContext);
+    return mapTaskContextToProfile(parsed);
+  }
+
   const profilePath = path.join(projectDir, ".codex", "project-profile.md");
   if (!fs.existsSync(profilePath)) {
     return {
@@ -196,7 +305,11 @@ export function loadProjectProfileState(projectDir) {
       enabledModules: [],
       qcPolicy: null,
       followPolicy: null,
-      validationProfileStatus: null
+      validationProfileStatus: null,
+      preferredAddress: "boss",
+      greetingStyle: "brief",
+      firstStartupGreetingCompleted: false,
+      openQuestions: []
     };
   }
 
@@ -212,7 +325,12 @@ export function loadProjectProfileState(projectDir) {
     enabledModules: parseProfileList(readProfileField(text, "Enabled modules")),
     qcPolicy: normalizeProfileValue(readProfileField(text, "QC policy")) || null,
     followPolicy: normalizeProfileValue(readProfileField(text, "Follow policy")) || null,
-    validationProfileStatus: normalizeProfileValue(readProfileField(text, "Validation profile status")) || null
+    validationProfileStatus: normalizeProfileValue(readProfileField(text, "Validation profile status")) || null,
+    preferredAddress: normalizeProfileValue(readProfileField(text, "Preferred address")) || "boss",
+    greetingStyle: normalizeProfileValue(readProfileField(text, "Greeting style")) || "brief",
+    firstStartupGreetingCompleted:
+      normalizeProfileValue(readProfileField(text, "First startup greeting completed")).toLowerCase() === "yes",
+    openQuestions: parseProfileList(readProfileField(text, "Open questions"))
   };
 }
 
@@ -615,11 +733,18 @@ export function upsertLearningQueueItem(state, entry) {
 }
 
 export function trimRuntimeState(state) {
-  state.recentSubagentEvents = state.recentSubagentEvents.slice(-25);
-  state.pendingActions = state.pendingActions.slice(-20);
-  state.learningQueue = state.learningQueue.slice(-25);
-  state.completedTasks = state.completedTasks.slice(-20);
-  state.qualityMetrics.recentQcRuns = state.qualityMetrics.recentQcRuns.slice(-25);
+  const failurePatternEntries = Object.entries(state.failurePatterns || {}).sort((left, right) => {
+    const leftSeen = new Date(left[1]?.lastSeenAt || left[1]?.firstSeenAt || 0).getTime();
+    const rightSeen = new Date(right[1]?.lastSeenAt || right[1]?.firstSeenAt || 0).getTime();
+    return rightSeen - leftSeen;
+  });
+
+  state.recentSubagentEvents = state.recentSubagentEvents.slice(-15);
+  state.pendingActions = state.pendingActions.slice(-12);
+  state.learningQueue = state.learningQueue.slice(-12);
+  state.completedTasks = state.completedTasks.slice(-12);
+  state.qualityMetrics.recentQcRuns = state.qualityMetrics.recentQcRuns.slice(-15);
+  state.failurePatterns = Object.fromEntries(failurePatternEntries.slice(0, 24));
   state.updatedAt = new Date().toISOString();
 }
 
@@ -953,12 +1078,9 @@ export function syncProgressFromState(progressPath, activeStories, state) {
   }
 
   const original = fs.readFileSync(progressPath, "utf8");
-  const withSections = ensureProgressRuntimeSections(original, state);
-  const withRetryPattern = updateCurrentWorkSection(withSections, activeStories, state);
-  const withRetrospectives = updateSessionRetrospectiveSection(withRetryPattern, state);
-  const withLearningQueue = updateLearningQueueSection(withRetrospectives, state);
+  const withRetryPattern = updateCurrentWorkSection(original, activeStories, state);
 
-  if (withLearningQueue !== original) {
-    fs.writeFileSync(progressPath, withLearningQueue, "utf8");
+  if (withRetryPattern !== original) {
+    fs.writeFileSync(progressPath, withRetryPattern, "utf8");
   }
 }

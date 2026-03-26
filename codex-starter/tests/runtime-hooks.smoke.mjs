@@ -6,6 +6,7 @@ import path from "node:path";
 
 import {
   detectQcFail,
+  loadProjectProfileState,
   parseActiveStories,
   syncProgressFromState
 } from "../.codex/scripts/runtime-utils.mjs";
@@ -116,10 +117,104 @@ function testProgressSyncSupportsLegacyShape() {
   const next = fs.readFileSync(progressPath, "utf8");
   assert.match(next, /## Current Work/);
   assert.match(next, /- QC retry pattern: missing-test x2/);
-  assert.match(next, /## Session Retrospective \(Optional\)/);
-  assert.match(next, /## Learning Queue \(Optional\)/);
-  assert.match(next, /### retrospective-demo-md/);
-  assert.match(next, /### lesson-demo/);
+  assert.doesNotMatch(next, /## Session Retrospective \(Optional\)/);
+  assert.doesNotMatch(next, /## Learning Queue \(Optional\)/);
+}
+
+function testTaskContextJsonOverridesMarkdownProfile() {
+  const dir = makeTempDir("codex-starter-task-context-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
+    ["- Task status: `idle`", "- Task status: `done`"],
+    ["- Selected delivery mode: `direct`", "- Selected delivery mode: `orchestrated`"]
+  ]);
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "boss",
+      greeting_style: "brief",
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "Tighten hot runtime context",
+      status: "active",
+      class: "refactor",
+      risk: "medium",
+      delivery_mode: "direct",
+      route_rationale: "cached JSON state should win on the hot path",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["direct implementation"],
+      qc_policy: "disabled",
+      follow_policy: "disabled",
+      validation_profile_status: "inferred",
+      open_questions: []
+    }
+  });
+
+  const profile = loadProjectProfileState(dir);
+  assert.equal(profile.task, "Tighten hot runtime context");
+  assert.equal(profile.taskStatus, "active");
+  assert.equal(profile.deliveryMode, "direct");
+}
+
+function testTrimRuntimeStateDropsOldFailurePatterns() {
+  const dir = makeTempDir("codex-starter-failure-patterns-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
+    ["- Selected delivery mode: `direct`", "- Selected delivery mode: `orchestrated`"],
+    ["- QC policy: `disabled`", "- QC policy: `enabled`"]
+  ]);
+  fs.writeFileSync(
+    path.join(dir, "PROGRESS.md"),
+    [
+      "# Project Progress",
+      "",
+      "## Current Work",
+      "",
+      "### Demo",
+      "**Story**: `plans/demo.md`",
+      "",
+      "---",
+      "## Completed"
+    ].join("\n"),
+    "utf8"
+  );
+
+  for (let index = 0; index < 30; index += 1) {
+    runNode(
+      runtimeStateScript,
+      {
+        event: "subagent_result",
+        cwd: dir,
+        role: "qc",
+        message: [
+          "## QC Report",
+          "Overall Verdict: FAIL",
+          "Phase: coder",
+          "",
+          "## Structured Result",
+          "```json",
+          JSON.stringify(
+            {
+              role: "qc",
+              status: "complete",
+              phase: "coder",
+              verdict: "FAIL",
+              categories: [`missing-test-${index}`]
+            },
+            null,
+            2
+          ),
+          "```"
+        ].join("\n"),
+        story_path: "plans/demo.md"
+      },
+      { CODEX_PROJECT_DIR: dir }
+    );
+  }
+
+  const state = readRuntimeState(dir);
+  assert.equal(Object.keys(state.failurePatterns).length, 24);
 }
 
 function testSubagentStopQueuesQcWithoutStory() {
@@ -284,6 +379,8 @@ function testQcReviewerAliasRecordsStructuredFail() {
 
 testQcDetectionRequiresQcMarkers();
 testProgressSyncSupportsLegacyShape();
+testTaskContextJsonOverridesMarkdownProfile();
+testTrimRuntimeStateDropsOldFailurePatterns();
 testSubagentStopQueuesQcWithoutStory();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
 testValidateGitRejectsBroadAdd();

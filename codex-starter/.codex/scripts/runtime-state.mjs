@@ -323,7 +323,7 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile) 
     agentType: role,
     status,
     storyPath,
-    summary: compactText(message)
+    summary: compactText(message, 120)
   });
 
   if ((role === "tester" || role === "coder") && status === "complete" && isQcEnabled(profile)) {

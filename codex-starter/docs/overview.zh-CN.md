@@ -1,0 +1,99 @@
+# 概览
+
+## 这个 Starter 主要优化什么
+
+`codex-starter` 适合这样一类仓库：
+
+- 大多数工作应该保持轻量、直接
+- 但在任务需要时，仍然要能启用更强的规划、审计和发布控制
+
+它的目标不是让每个任务都走重流程，而是：
+
+- 默认轻量
+- 按需升级
+- 把运行时上下文保持在必要的最小范围内
+
+## 设计原则
+
+- 默认从轻开始
+- 用户可见命令面保持小
+- 验证命令尽量从仓库中推导
+- 运行时权威尽量单一
+- 将 intake / governance 与 delivery routing 分开
+- 只有在协调真正需要时才引入 durable state
+
+## 运行时权威文件
+
+| 文件 | 作用 |
+| --- | --- |
+| `AGENTS.md` | 全局入口、命令映射、少量全局规则 |
+| `.agents/skills/*/SKILL.md` | repo-local skills 与 slash command 协议 |
+| `.codex/agents/*.toml` | 自定义子代理定义 |
+| `.codex/config.toml` | 子代理并发默认配置 |
+| `.codex/routing-policy.md` | 路由与模块启用策略 |
+| `.codex/state/task-context.json` | 热任务状态与协作偏好 |
+| `.codex/state/repo-context.json` | 仓库缓存事实 |
+| `.codex/validation-profile.json` | 结构化验证命令与限制 |
+| `.codex/project-profile.md` | 给人看的短摘要 |
+| `.codex/scripts/*.mjs` | 可选的运行时辅助脚本 |
+
+## 角色与模块
+
+| 项目 | 作用 | 默认状态 |
+| --- | --- | --- |
+| `/Aide` | 入口、当前状态维护、治理 | 启用 |
+| `conduct` | delivery routing 与 `workspace prep` | 关闭 |
+| `prd` | WHAT / WHY / MVP 澄清 | 关闭 |
+| `architect` | HOW 层面的系统设计 | 关闭 |
+| `plan` | 实施计划与 handoff | 关闭 |
+| `auto_qc` | 在符合条件时为 tester / coder 完成结果追加 QC 跟进 | 关闭 |
+| `tester` | 测试设计与验证优先工作 | 关闭 |
+| `coder` | 实现与 focused validation | 关闭 |
+| `/qc` | 质量审计 gate | 关闭 |
+| `/follow` | 推送后或发布后的跟进 | 关闭 |
+| runtime helpers | Node 辅助自动化 | 默认关闭 |
+
+## 三种交付形态
+
+- `direct`：小范围、局部、清晰任务
+- `plan-driven`：需要一个明确实施计划的任务
+- `orchestrated`：跨 session、多 checkpoint、发布或更高风险任务
+
+`workspace prep` 属于 `conduct`，不属于 `/Aide`。  
+具体任务默认模式和升级条件在 `.codex/routing-policy.md`。
+
+## 持久化产物
+
+- `.codex/state/task-context.json`：热任务状态
+- `.codex/state/repo-context.json`：仓库缓存事实
+- `.codex/validation-profile.json`：验证命令事实
+- `.codex/project-profile.md`：人类可读短摘要
+- `PRD.md` 或 scoped PRD：可选需求文档
+- `ARCHITECTURE.md` 或 scoped architecture：可选架构文档
+- `Implementation Plan`：可选实施计划
+- `PROGRESS.md`：仅 orchestration 时使用的 checkpoint 跟踪
+- `.codex/state/runtime-state.json`：运行时 memory，由脚本按需生成
+
+`PROGRESS.md` 应只承载 checkpoint、next step、blockers 等可恢复信息，不应承担运行时学习队列或大量机器态。
+
+## 运行时自动化
+
+runtime helpers 是可选的。
+
+启用后可以提供：
+
+- session 提醒
+- git 安全校验
+- runtime state 跟踪
+- 可选的 auto QC 跟进
+
+Auto QC 只应在当前任务明确启用了 `/qc` 时出现。
+
+## 最适合什么团队
+
+这个 starter 更适合：
+
+- 小到中型仓库
+- 大多数任务是 bugfix、局部 feature、局部 refactor
+- 希望有 optional controls，但不想默认重流程
+- 希望主会话保持干净，具体执行尽量交给角色化子代理

@@ -72,18 +72,6 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
 
 ---
 
-## Session Retrospective (Optional)
-
-<!-- No pending retrospective prompts -->
-
----
-
-## Learning Queue (Optional)
-
-<!-- No queued lessons -->
-
----
-
 ## Optional Checkpoint Guide
 
 - `align`: confirm scope, files, owners, and the minimum modules needed

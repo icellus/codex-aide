@@ -4,7 +4,7 @@ model = "gpt-5.4-mini"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-Read .codex/project-profile.md and .codex/validation-profile.json first.
+Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
 Design tests from expected behavior, not from accidental implementation details.
 Use repository evidence before asking questions.
 Search with rg when available. Read files selectively. Use apply_patch for manual edits.

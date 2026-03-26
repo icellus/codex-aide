@@ -1,11 +1,14 @@
 # Project Profile
 
-This file is maintained by `/Aide`.
+Human-readable summary for the starter.
 
-Keep it limited to current repo facts and current task state.
+Hot runtime files:
+
+- `.codex/state/task-context.json`
+- `.codex/state/repo-context.json`
+- `.codex/validation-profile.json`
 
 Routing policy lives in `.codex/routing-policy.md`.
-Validation command facts live in `.codex/validation-profile.json`.
 
 ## Project Facts
 
@@ -40,11 +43,9 @@ Validation command facts live in `.codex/validation-profile.json`.
 - QC policy: `disabled`
 - Follow policy: `disabled`
 - Validation profile status: `not-set`
+- Open questions:
 
-## Open Questions
+## Summary
 
-- None
-
-## Last Aide Summary
-
-- Not reviewed yet.
+- Keep this file short.
+- Prefer updating the JSON state files above during active work.
