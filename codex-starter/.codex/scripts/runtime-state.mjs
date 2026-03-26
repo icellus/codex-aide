@@ -49,6 +49,10 @@ function normalizeEventName(input = {}) {
     return "session_end";
   }
 
+  if (raw === "task-stop" || raw === "task_complete" || raw === "task-complete" || raw === "task-settled") {
+    return "task_settled";
+  }
+
   return raw;
 }
 
@@ -557,6 +561,25 @@ function recordSessionEnd(input, state, activeStories, projectDir, profile) {
   }
 }
 
+function recordTaskSettled(input, state, activeStories, projectDir, profile) {
+  const message = normalizeMessage(input) || `Task status: ${String(input.task_status || input.status || "done")}`;
+  const activeStory = resolveActiveStory(activeStories, input, projectDir);
+  const storyPath = activeStory?.storyPath || null;
+
+  if (storyPath && isLongRunningProfile(profile)) {
+    upsertSessionRetrospective(state, storyPath, {
+      trigger: "task_settled",
+      note: `Task settled for ${basenameLabel(storyPath)}. Before archival, capture durable decisions, wrong assumptions, and whether any lesson should route through /Aide.`
+    });
+  }
+
+  processQcOutcome(state, storyPath, profile, message);
+
+  if (shouldCompressCompletedTask(profile, state, storyPath, message)) {
+    clearHotTaskState(state, storyPath, profile, message);
+  }
+}
+
 async function main() {
   try {
     const input = await readJsonStdin();
@@ -571,6 +594,8 @@ async function main() {
       recordSubagentResult(input, state, activeStories, projectDir, profile);
     } else if (eventName === "session_end") {
       recordSessionEnd(input, state, activeStories, projectDir, profile);
+    } else if (eventName === "task_settled") {
+      recordTaskSettled(input, state, activeStories, projectDir, profile);
     }
 
     trimRuntimeState(state);

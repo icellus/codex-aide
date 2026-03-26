@@ -22,8 +22,10 @@
 | `.codex/agents/*.toml` | custom subagent definitions |
 | `.codex/config.toml` | subagent concurrency defaults |
 | `.codex/routing-policy.md` | routing and module-activation authority |
+| `.codex/evolution-policy.json` | automatic evolution thresholds and allowed low-risk writebacks |
 | `.codex/state/task-context.json` | hot task state and collaboration preferences |
 | `.codex/state/task-registry.json` | cold task registry for current, unfinished, and completed tasks |
+| `.codex/state/evolution-registry.json` | cold evolution candidates and settled-task review history |
 | `.codex/state/repo-context.json` | cached repo facts |
 | `.codex/validation-profile.json` | repository validation baseline and constraints |
 | `.codex/project-profile.md` | short human summary |
@@ -53,6 +55,7 @@
 - Dedup: `/Aide` finds duplicated rules across Agent and Skill files and pushes the repo back toward one clear authority per rule.
 - Governance ratings: `/Aide` grades issues from `L1` through `L4` so routing and writeback pressure stay proportional.
 - Knowledge capture: `architect`, not `conduct`, closes every design session with a structured retrospective. `/Aide` uses those decisions, wrong assumptions, and writeback candidates as governance input.
+- Low-cost evolution sweep: `/Aide` should still consider durable lessons at startup even when the flow stayed lightweight and skipped `architect`.
 
 ## Delivery Shape
 
@@ -66,8 +69,10 @@ Exact task defaults and upgrade triggers live in `.codex/routing-policy.md`.
 ## Durable Artifacts
 
 - `.codex/project-profile.md`: short human summary
+- `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk writeback rules
 - `.codex/state/task-context.json`: hot task state and preferences
 - `.codex/state/task-registry.json`: cold task registry and on-demand task history
+- `.codex/state/evolution-registry.json`: cold evolution queue and settled-task review log
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: repository validation baseline
 - `.codex/templates/validation-handoff.md`: optional tester-owned validation handoff template
@@ -88,10 +93,12 @@ When used, they can provide:
 - session reminders
 - git validation
 - runtime state tracking
+- low-cost `/Aide` evolution sweep
 - optional auto QC follow-up
-- automatic `/Aide` governance review from repeated QC failures, blocked handoffs, unfinished-task reconciliation, and architect retrospectives
+- automatic `/Aide` governance review from repeated QC failures, blocked handoffs, unfinished-task reconciliation, settled-task review, and architect retrospectives
 
 Auto QC reminders should appear only when the current task explicitly enables `/qc`.
+Prefer task-settled hooks over session-end hooks for real task completion; session-end remains best-effort cleanup.
 
 ## Best Fit
 

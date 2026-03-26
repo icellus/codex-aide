@@ -15,6 +15,8 @@
 /Aide 修复登录回调 bug
 ```
 
+如果新线程一开始没有显式 slash command，那么用户的第一条消息也应默认按 `/Aide` intake 处理。
+
 首次运行时，`/Aide` 应该：
 
 - 简短打招呼
@@ -31,6 +33,9 @@
 - 先汇报当前 active task 和历史未结束任务
 - 复用已有状态
 - 只有在路由确实变化时才说明变化
+- 启动低成本 evolution sweep，但不阻塞首个 route 输出
+
+在真正的冷启动第一回合里，`/Aide` 还应额外用一行简短提醒用户可用的 `/Aide`、`/qc`、`/follow`。
 
 仓库里提交的 `.codex/state/*.json`、`.codex/project-profile.md`、`.codex/validation-profile.json` 都只是 starter 默认值。  
 将 starter 拷贝到真实项目后，应由 `/Aide` 重写为项目专用状态。
@@ -52,6 +57,7 @@
 - 去重：`/Aide` 查找跨 Agent / Skill 文件的重复规则，并提出收敛到单一权威的方案。
 - 定级：`/Aide` 应先用 `L1` 到 `L4` 给治理问题定级，再决定是提醒、排队还是 writeback。
 - 结构化知识捕获归 `architect`，不归 `conduct`。每次 architect 会话都应收尾到“做了什么决策、哪个假设错了、哪些经验值得写回”。
+- 即使轻流程跳过了 `architect`，`/Aide` 也应在启动时做一次低成本进化检查。
 
 ## 常见路径
 
@@ -94,6 +100,7 @@
 ```
 
 如果要改运行时路由规则，应修改 `.codex/routing-policy.md`，而不是 `.codex/project-profile.md`。
+如果要改自动进化阈值或允许的低风险自动写回规则，应修改 `.codex/evolution-policy.json`。
 
 `/Aide` 的三项核心治理能力是：
 
@@ -116,22 +123,26 @@ runtime helpers 位于 `.codex/scripts/`。
 常用入口：
 
 1. `node .codex/scripts/task-overview.mjs`
-2. `node .codex/scripts/aide-governance.mjs`
-3. `node .codex/scripts/session-context.mjs`
-4. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
-5. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
+2. `node .codex/scripts/aide-evolution.mjs`
+3. `node .codex/scripts/aide-governance.mjs`
+4. `node .codex/scripts/session-context.mjs`
+5. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
+6. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
 runtime state 会按需写到 `.codex/state/runtime-state.json`。
 任务注册表会落到 `.codex/state/task-registry.json`，用于保留当前任务、历史未结束任务，以及按需查询的已完成任务。
+evolution registry 会落到 `.codex/state/evolution-registry.json`，用于记录后台 sweep 结果和 settled-task review 历史。
+evolution policy 位于 `.codex/evolution-policy.json`，用于决定哪些重复信号类别允许自动做低风险 writeback。
 
 需要注意：
 
 - `/Aide` 默认只汇报当前任务和未结束任务；已完成任务按需查询
-- `/Aide` 的治理审查也可以被自动触发，例如重复 QC 失败、blocked handoff、任务未正常收口、architect 的结构化回顾
+- `/Aide` 的治理审查也可以被自动触发，例如重复 QC 失败、blocked handoff、任务未正常收口、settled-task review、architect 的结构化回顾
 - architect 的结构化回顾是每次会话结束都应发生的知识捕获，不是只在失败后触发
 - QC 提醒只在当前任务明确启用了 `/qc` 时生成
 - `PROGRESS.md` 只记录 active checkpoint
 - runtime 提醒和学习状态留在 `.codex/state/runtime-state.json`
+- 真正表示任务完成时，优先使用 `task_settled`，不要依赖 `session_end`
 
 对于非平凡功能或行为修改，`tester` 应负责任务级验证 handoff。  
 可以使用 tester 内联报告，或复用 `.codex/templates/validation-handoff.md`，明确写出：

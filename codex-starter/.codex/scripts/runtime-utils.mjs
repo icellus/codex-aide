@@ -162,6 +162,23 @@ export function createEmptyTaskRegistry() {
   };
 }
 
+export function createEmptyEvolutionRegistry() {
+  return {
+    version: 1,
+    updatedAt: null,
+    lastSweep: {
+      checkedAt: null,
+      trigger: null,
+      background: false,
+      candidateCount: 0,
+      settledTaskCount: 0,
+      note: ""
+    },
+    candidates: [],
+    settledTaskReviews: []
+  };
+}
+
 function loadJsonFile(filePath, fallbackFactory) {
   if (!fs.existsSync(filePath)) {
     return fallbackFactory();
@@ -252,6 +269,46 @@ export function loadTaskRegistry(projectDir) {
 export function saveTaskRegistry(projectDir, registry) {
   const stateDir = path.join(projectDir, ".codex", "state");
   const registryPath = path.join(stateDir, "task-registry.json");
+
+  ensureDir(stateDir);
+  fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n", "utf8");
+}
+
+export function loadEvolutionRegistry(projectDir) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const registryPath = path.join(stateDir, "evolution-registry.json");
+
+  ensureDir(stateDir);
+
+  if (!fs.existsSync(registryPath)) {
+    return createEmptyEvolutionRegistry();
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+    const emptyRegistry = createEmptyEvolutionRegistry();
+    return {
+      ...emptyRegistry,
+      ...parsed,
+      lastSweep: {
+        ...emptyRegistry.lastSweep,
+        ...(parsed.lastSweep || {})
+      },
+      candidates: Array.isArray(parsed.candidates)
+        ? parsed.candidates.filter((item) => item && typeof item === "object")
+        : [],
+      settledTaskReviews: Array.isArray(parsed.settledTaskReviews)
+        ? parsed.settledTaskReviews.filter((item) => item && typeof item === "object")
+        : []
+    };
+  } catch {
+    return createEmptyEvolutionRegistry();
+  }
+}
+
+export function saveEvolutionRegistry(projectDir, registry) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const registryPath = path.join(stateDir, "evolution-registry.json");
 
   ensureDir(stateDir);
   fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n", "utf8");

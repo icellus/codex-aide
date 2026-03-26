@@ -31,8 +31,10 @@
 | `.codex/agents/*.toml` | 自定义子代理定义 |
 | `.codex/config.toml` | 子代理并发默认配置 |
 | `.codex/routing-policy.md` | 路由与模块启用策略 |
+| `.codex/evolution-policy.json` | 自动进化阈值与允许的低风险自动写回策略 |
 | `.codex/state/task-context.json` | 热任务状态与协作偏好 |
 | `.codex/state/task-registry.json` | 冷任务注册表，用于当前任务、未结束任务和已完成历史 |
+| `.codex/state/evolution-registry.json` | 冷进化候选与 settled-task review 历史 |
 | `.codex/state/repo-context.json` | 仓库缓存事实 |
 | `.codex/validation-profile.json` | 仓库级验证基线与限制 |
 | `.codex/project-profile.md` | 给人看的短摘要 |
@@ -62,6 +64,7 @@
 - 去重：`/Aide` 查找跨 Agent / Skill 文件的重复规则，把同一条规则收敛回单一权威。
 - 治理评级：`/Aide` 用 `L1` 到 `L4` 给问题定级，决定是提醒、排队还是直接 writeback。
 - 知识捕获：每次设计会话结束后，负责结构化回顾的是 `architect`，不是 `conduct`。`/Aide` 会把这些设计决策、错误假设和写回候选当成治理输入。
+- 低成本进化检查：即使流程保持 lightweight、没有启用 `architect`，`/Aide` 也应在启动时做一次后台 evolution sweep。
 
 ## 三种交付形态
 
@@ -75,7 +78,9 @@
 ## 持久化产物
 
 - `.codex/state/task-context.json`：热任务状态
+- `.codex/evolution-policy.json`：自动进化阈值与低风险 writeback 规则
 - `.codex/state/task-registry.json`：冷任务注册表与按需查询的任务历史
+- `.codex/state/evolution-registry.json`：冷进化候选队列与 settled-task review 记录
 - `.codex/state/repo-context.json`：仓库缓存事实
 - `.codex/validation-profile.json`：仓库级验证基线
 - `.codex/templates/validation-handoff.md`：可选的 tester 任务级验证 handoff 模板
@@ -97,10 +102,12 @@ runtime helpers 是可选的。
 - session 提醒
 - git 安全校验
 - runtime state 跟踪
+- 低成本 `/Aide` evolution sweep
 - 可选的 auto QC 跟进
-- 来自重复 QC 失败、blocked handoff、任务未正常收口、architect 回顾的自动 `/Aide` 治理触发
+- 来自重复 QC 失败、blocked handoff、任务未正常收口、settled-task review、architect 回顾的自动 `/Aide` 治理触发
 
 Auto QC 只应在当前任务明确启用了 `/qc` 时出现。
+真正表示任务完成时，优先使用 task-settled hook；session-end 只保留为 best-effort cleanup。
 
 ## 最适合什么团队
 

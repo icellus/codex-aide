@@ -7,6 +7,7 @@ import {
   compareGovernanceSeverity,
   compactText,
   getProjectDir,
+  loadEvolutionRegistry,
   loadRuntimeState,
   normalizeGovernanceSeverity,
   readJsonStdin
@@ -349,6 +350,42 @@ function renderPendingReviews(lines, state, limit) {
   });
 }
 
+function collectActiveEvolutionCandidates(projectDir) {
+  const registry = loadEvolutionRegistry(projectDir);
+  return (Array.isArray(registry.candidates) ? registry.candidates : [])
+    .filter((item) => String(item.status || "queued").trim().toLowerCase() === "queued")
+    .sort((left, right) => {
+      const severityOrder = compareGovernanceSeverity(left.severity, right.severity);
+      if (severityOrder !== 0) {
+        return severityOrder;
+      }
+
+      const leftTime = new Date(left.updatedAt || left.lastSeenAt || left.createdAt || 0).getTime();
+      const rightTime = new Date(right.updatedAt || right.lastSeenAt || right.createdAt || 0).getTime();
+      return rightTime - leftTime;
+    });
+}
+
+function renderEvolutionCandidates(lines, projectDir, limit) {
+  const candidates = collectActiveEvolutionCandidates(projectDir);
+  lines.push("Evolution candidates:");
+
+  if (candidates.length === 0) {
+    lines.push("- none");
+    return;
+  }
+
+  candidates.slice(0, limit).forEach((item) => {
+    const capability = item.capability ? ` [${item.capability}]` : "";
+    lines.push(
+      `- [${normalizeGovernanceSeverity(item.severity || "L2")}]${capability} ${compactText(
+        item.summary || "candidate queued",
+        120
+      )}`
+    );
+  });
+}
+
 function renderAuditFindings(lines, projectDir, limit) {
   const findings = collectAuditFindings(projectDir);
   lines.push("Quality audit findings:");
@@ -397,6 +434,8 @@ async function main() {
   if (mode === "investigate") {
     lines.push("Aide governance investigation:");
     renderPendingReviews(lines, state, limit);
+    lines.push("");
+    renderEvolutionCandidates(lines, projectDir, limit);
   } else if (mode === "audit") {
     lines.push("Aide quality audit:");
     renderAuditFindings(lines, projectDir, limit);
@@ -406,6 +445,8 @@ async function main() {
   } else {
     lines.push("Aide governance summary:");
     renderPendingReviews(lines, state, limit);
+    lines.push("");
+    renderEvolutionCandidates(lines, projectDir, Math.min(limit, 3));
     lines.push("");
     renderAuditFindings(lines, projectDir, Math.min(limit, 3));
     lines.push("");

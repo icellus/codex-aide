@@ -15,11 +15,13 @@ const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), ".
 const runtimeStateScript = path.join(rootDir, ".codex", "scripts", "runtime-state.mjs");
 const sessionContextScript = path.join(rootDir, ".codex", "scripts", "session-context.mjs");
 const taskOverviewScript = path.join(rootDir, ".codex", "scripts", "task-overview.mjs");
+const aideEvolutionScript = path.join(rootDir, ".codex", "scripts", "aide-evolution.mjs");
 const aideGovernanceScript = path.join(rootDir, ".codex", "scripts", "aide-governance.mjs");
 const validateGitScript = path.join(rootDir, ".codex", "scripts", "validate-git.mjs");
 const progressTemplatePath = path.join(rootDir, ".codex", "templates", "progress.md");
 const projectProfilePath = path.join(rootDir, ".codex", "project-profile.md");
 const validationProfilePath = path.join(rootDir, ".codex", "validation-profile.json");
+const evolutionPolicyPath = path.join(rootDir, ".codex", "evolution-policy.json");
 const testerAgentPath = path.join(rootDir, ".codex", "agents", "tester.toml");
 const validationHandoffTemplatePath = path.join(rootDir, ".codex", "templates", "validation-handoff.md");
 
@@ -62,6 +64,10 @@ function readRuntimeState(projectDir) {
 
 function readTaskRegistry(projectDir) {
   return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "task-registry.json"), "utf8"));
+}
+
+function readEvolutionRegistry(projectDir) {
+  return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "evolution-registry.json"), "utf8"));
 }
 
 function prepareProjectProfile(targetPath, replacements = []) {
@@ -610,6 +616,207 @@ function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
   assert.equal(registry.currentTaskId, null);
 }
 
+function testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry() {
+  const dir = makeTempDir("codex-starter-task-settled-sync-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "boss",
+      greeting_style: "brief",
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "Finish task without session-end hook",
+      status: "active",
+      class: "bugfix",
+      risk: "medium",
+      delivery_mode: "lightweight",
+      route_rationale: "task-settled should be enough",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["lightweight implementation"],
+      qc_policy: "disabled",
+      follow_policy: "disabled",
+      validation_profile_status: "inferred",
+      open_questions: []
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "task_settled",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const registry = readTaskRegistry(dir);
+  const task = registry.tasks.find((entry) => entry.title === "Finish task without session-end hook");
+
+  assert.equal(task.status, "done");
+  assert.equal(registry.currentTaskId, null);
+}
+
+function testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals() {
+  const dir = makeTempDir("codex-starter-evolution-sweep-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-25T00:00:00Z",
+    currentTaskId: null,
+    tasks: [
+      {
+        id: "demo-task-1",
+        matchKey: "task:demo-task",
+        title: "Demo settled task",
+        status: "done",
+        createdAt: "2026-03-25T00:00:00Z",
+        updatedAt: "2026-03-25T00:30:00Z",
+        completedAt: "2026-03-25T00:30:00Z",
+        source: "task-context"
+      }
+    ]
+  });
+
+  runNode(aideEvolutionScript, { cwd: dir, trigger: "startup", background: true }, { CODEX_PROJECT_DIR: dir });
+
+  const evolutionRegistry = readEvolutionRegistry(dir);
+
+  assert.equal(evolutionRegistry.lastSweep.trigger, "startup");
+  assert.equal(evolutionRegistry.lastSweep.background, true);
+  assert.equal(evolutionRegistry.settledTaskReviews.length, 1);
+  assert.equal(evolutionRegistry.settledTaskReviews[0].outcome, "no-candidates");
+}
+
+function testAideEvolutionSweepPromotesSettledTasksWithGovernanceSignals() {
+  const dir = makeTempDir("codex-starter-evolution-task-signal-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-25T00:00:00Z",
+    currentTaskId: null,
+    tasks: [
+      {
+        id: "story-demo-1",
+        matchKey: "story:plans/demo.md",
+        title: "Demo story",
+        status: "done",
+        storyPath: "plans/demo.md",
+        createdAt: "2026-03-25T00:00:00Z",
+        updatedAt: "2026-03-25T00:30:00Z",
+        completedAt: "2026-03-25T00:30:00Z",
+        source: "progress"
+      }
+    ]
+  });
+
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "aide-review:demo",
+        type: "aide_review",
+        severity: "L3",
+        capability: "audit",
+        storyPath: "plans/demo.md",
+        note: "Review repeated missing-test failures before archiving.",
+        createdAt: "2026-03-25T00:10:00Z",
+        updatedAt: "2026-03-25T00:10:00Z"
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  runNode(aideEvolutionScript, { cwd: dir, trigger: "startup" }, { CODEX_PROJECT_DIR: dir });
+
+  const evolutionRegistry = readEvolutionRegistry(dir);
+  const queuedIds = evolutionRegistry.candidates
+    .filter((item) => item.status === "queued")
+    .map((item) => item.id);
+
+  assert.ok(queuedIds.includes("aide-review:aide-review:demo"));
+  assert.ok(queuedIds.includes("task-settled:story-demo-1"));
+  assert.equal(evolutionRegistry.settledTaskReviews[0].outcome, "signals-present");
+}
+
+function testAideEvolutionAutoAppliesKnownLearningGuidance() {
+  const dir = makeTempDir("codex-starter-evolution-auto-apply-");
+  fs.mkdirSync(path.join(dir, ".codex", "agents"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+  fs.copyFileSync(testerAgentPath, path.join(dir, ".codex", "agents", "tester.toml"));
+  fs.copyFileSync(evolutionPolicyPath, path.join(dir, ".codex", "evolution-policy.json"));
+
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [],
+    failurePatterns: {},
+    learningQueue: [
+      {
+        id: "lesson-demo-missing-test",
+        source: "plans/demo.md",
+        category: "missing-test",
+        triggerCount: 2,
+        suggestedRoute: [".codex/agents/tester.toml"],
+        lesson: "Every requirement needs a real test.",
+        status: "queued"
+      }
+    ],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  runNode(aideEvolutionScript, { cwd: dir, trigger: "startup" }, { CODEX_PROJECT_DIR: dir });
+
+  const evolutionRegistry = readEvolutionRegistry(dir);
+  const appliedCandidate = evolutionRegistry.candidates.find((item) => item.id === "learning-queue:lesson-demo-missing-test");
+  const testerText = fs.readFileSync(path.join(dir, ".codex", "agents", "tester.toml"), "utf8");
+
+  assert.equal(appliedCandidate.status, "applied");
+  assert.match(
+    testerText,
+    /Do not mark validation complete until every claimed requirement has at least one real test or explicit justified gap\./
+  );
+}
+
 function testArchitectCompletionQueuesGovernanceRetrospective() {
   const dir = makeTempDir("codex-starter-architect-review-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
@@ -892,6 +1099,10 @@ testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();
 testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished();
 testTaskOverviewCanQueryCompletedTasksOnDemand();
 testRuntimeStateSyncsCompletedTasksIntoTaskRegistry();
+testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry();
+testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals();
+testAideEvolutionSweepPromotesSettledTasksWithGovernanceSignals();
+testAideEvolutionAutoAppliesKnownLearningGuidance();
 testArchitectCompletionQueuesGovernanceRetrospective();
 testRepeatedQcFailuresQueueAideAuditReview();
 testAideGovernanceInvestigateReportsPendingReviews();
