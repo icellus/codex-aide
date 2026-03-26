@@ -24,7 +24,7 @@
 | `.codex/routing-policy.md` | routing and module-activation authority |
 | `.codex/state/task-context.json` | hot task state and collaboration preferences |
 | `.codex/state/repo-context.json` | cached repo facts |
-| `.codex/validation-profile.json` | structured validation commands and constraints |
+| `.codex/validation-profile.json` | repository validation baseline and constraints |
 | `.codex/project-profile.md` | short human summary |
 | `.codex/scripts/*.mjs` | optional runtime helpers for reminders, git validation, and runtime-state sync |
 
@@ -38,8 +38,8 @@
 | `architect` | HOW at system level | disabled |
 | `plan` | implementation handoff | disabled |
 | `auto_qc` | internal QC follow-up when enabled tasks finish a tester or coder handoff | disabled |
-| `tester` | test design and validation-first work | disabled |
-| `coder` | implementation and focused validation | disabled |
+| `tester` | task-level validation ownership and test design | disabled |
+| `coder` | implementation and sanity checks | disabled |
 | `/qc` | audit gate | disabled |
 | `/follow` | post-push follow-through | disabled |
 | runtime helpers | optional Node-assisted automation | disabled by default |
@@ -55,10 +55,11 @@ Exact task defaults and upgrade triggers live in `.codex/routing-policy.md`.
 
 ## Durable Artifacts
 
-- `.codex/project-profile.md`: current repo facts and current task state
+- `.codex/project-profile.md`: short human summary
 - `.codex/state/task-context.json`: hot task state and preferences
 - `.codex/state/repo-context.json`: cached repo facts
-- `.codex/validation-profile.json`: structured validation command facts
+- `.codex/validation-profile.json`: repository validation baseline
+- `.codex/templates/validation-handoff.md`: optional tester-owned validation handoff template
 - `PRD.md` or scoped PRD file: optional product scope
 - `ARCHITECTURE.md` or scoped architecture file: optional system design
 - `Implementation Plan`: optional implementation guidance

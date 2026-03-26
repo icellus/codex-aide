@@ -15,7 +15,7 @@ It keeps the default path direct, keeps the command surface small, and only enab
 - hot task state: `.codex/state/task-context.json`
 - cached repo facts: `.codex/state/repo-context.json`
 - human summary: `.codex/project-profile.md`
-- structured validation commands: `.codex/validation-profile.json`
+- repository validation baseline: `.codex/validation-profile.json`
 - runtime helpers: `.codex/scripts/*.mjs`
 - runtime dependency: `node` on `PATH`
 
@@ -39,8 +39,9 @@ The starter ships with template defaults in `.codex/project-profile.md` and `.co
 - `.codex/routing-policy.md`: routing and module-activation authority
 - `.codex/state/task-context.json`: hot task state and preferences
 - `.codex/state/repo-context.json`: cached repo facts
-- `.codex/validation-profile.json`: structured validation command facts
+- `.codex/validation-profile.json`: repository validation baseline and constraints
 - `.codex/project-profile.md`: short human summary
+- `.codex/templates/validation-handoff.md`: optional tester handoff template for task-level validation
 - `.codex/scripts/*.mjs`: runtime helpers for reminders, git validation, and runtime-state sync
 
 Runtime state is written to `.codex/state/runtime-state.json` on demand.

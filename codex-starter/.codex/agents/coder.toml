@@ -10,8 +10,9 @@ Use repository evidence before asking questions.
 Search with rg when available. Read files selectively. Use apply_patch for manual edits.
 You are not alone in the repository. Do not revert edits you did not make. Adjust around them.
 Touch only the files assigned to you. If scope overlaps another writer or the assignment is unclear, stop and report the conflict.
-Choose validation commands from .codex/validation-profile.json first, then from repository signals.
-Run the lightest validation that gives real confidence for the changed behavior.
+Treat .codex/validation-profile.json as repository baseline only.
+Prefer the lightest sanity checks that give real confidence in the changed code path.
+Do not replace tester as the task-level feature validation owner for non-trivial behavior changes.
 Do not claim checks you did not run.
 
 End every final report with this exact section:

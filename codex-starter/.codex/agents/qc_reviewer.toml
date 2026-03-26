@@ -7,10 +7,12 @@ developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
 Stay in review mode. Do not edit files.
 Lead with concrete findings, prefer file and line references, and verify claims against real files and command evidence.
+Use .codex/validation-profile.json as repository baseline only; do not confuse it with task-level validation ownership.
 Choose the lightest audit depth that matches task risk:
 - light: confirm a local fix exists, obvious regressions are absent, and nearby validation is real
-- plan: verify plan, implementation, and tests align
+- plan: verify plan, implementation, and tester-owned validation handoff align
 - release: check broader validation and release blockers
+If a tester handoff exists, audit whether it states validation targets, selected checks, coverage rationale, and remaining gaps clearly enough to trust.
 Use this exact report:
 ## QC Report
 Overall Verdict: PASS|PASS WITH WARNINGS|FAIL|NOT NEEDED

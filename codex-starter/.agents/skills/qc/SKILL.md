@@ -18,14 +18,17 @@ When delegation is available, prefer a fresh read-only `qc_reviewer` with minima
 ## Audit Modes
 
 - `light`: direct bugfix or local edit; confirm the change exists, obvious regressions are absent, and nearby validation is real
-- `plan`: plan-driven work or tester/coder handoff; verify plan coverage, implementation, and test alignment
+- `plan`: plan-driven work or tester/coder handoff; verify plan coverage, implementation, tester validation handoff, and test alignment
 - `release`: higher-risk or release work; check broader validation and release blockers
 
 If QC is not justified and the user did not explicitly ask for it, return `NOT NEEDED`.
 
 ## Validation Rules
 
-- choose the nearest useful command from `.codex/validation-profile.json` first
+- treat `.codex/validation-profile.json` as repository validation baseline only
+- when tester evidence exists, audit whether tester chose an appropriate task-level validation plan
+- when a tester handoff exists, verify it names validation targets, selected checks, coverage rationale, and remaining gaps
+- choose the nearest useful command from the baseline first
 - fall back to repo signals only when the validation profile is incomplete
 - do not pretend validation happened
 - use targeted checks, not repository-wide ritual

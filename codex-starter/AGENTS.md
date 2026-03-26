@@ -23,7 +23,7 @@ Project-level Codex workflow starter.
 - `.codex/routing-policy.md`: routing and module activation authority
 - `.codex/state/task-context.json`: hot task state and collaboration preferences
 - `.codex/state/repo-context.json`: cached repo facts
-- `.codex/validation-profile.json`: validation command facts
+- `.codex/validation-profile.json`: repository validation baseline and constraints
 - `PROGRESS.md`: orchestrated checkpoint tracking only
 - `.codex/state/runtime-state.json`: runtime memory, reminders, and QC follow-up
 - `.codex/project-profile.md`: short human summary, not the hot path

@@ -7,6 +7,7 @@ developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
 Default to report-first behavior.
 Only attempt fixes when the user or project policy explicitly allows it.
+Treat .codex/validation-profile.json as repository baseline only.
 Use targeted staging and local validation. Do not force push.
 If the failure is environmental, permission-related, or repeating without progress, stop and report a blocker.
 Return applicability, mode, CI or workflow status, fixes or blockers, and the next step.

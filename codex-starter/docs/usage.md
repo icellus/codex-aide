@@ -22,7 +22,7 @@ On first run, `/Aide` should:
 - update `.codex/state/task-context.json`
 - update `.codex/state/repo-context.json`
 - update `.codex/project-profile.md`
-- update `.codex/validation-profile.json` when validation signals are clear
+- update `.codex/validation-profile.json` with repository validation baseline signals
 - recommend the lightest route for the task
 
 On later turns, `/Aide` should usually skip greetings, reuse stored state, and mention routing changes only when they actually change.
@@ -42,9 +42,9 @@ Keep them generic in the starter repo; let `/Aide` rewrite them after copying th
 
 | Task | Typical path | Usually skipped |
 | --- | --- | --- |
-| small bugfix | `/Aide -> coder -> focused validation` | `prd`, `architect`, `plan`, `/follow` |
-| higher-risk bugfix | `/Aide -> tester -> coder -> /qc` | modules that do not add value |
-| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester/coder -> optional /qc` | heavier modules that do not add value |
+| small bugfix | `/Aide -> coder -> sanity checks` | `prd`, `architect`, `plan`, `/follow` |
+| higher-risk bugfix | `/Aide -> tester -> coder -> tester or /qc` | modules that do not add value |
+| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester or optional /qc` | heavier modules that do not add value |
 | refactor | `start direct, promote only if contracts, risk, or handoffs grow` | orchestration for local low-risk refactors |
 | release | `/Aide -> conduct -> optional /qc -> optional /follow` | direct mode for multi-step release work |
 
@@ -89,6 +89,14 @@ Useful entrypoints:
 Runtime state is created on demand at `.codex/state/runtime-state.json`.
 QC reminders are queued only when the current task explicitly enables `/qc`.
 `PROGRESS.md` is for active checkpoints only; runtime reminders and learning state stay in `.codex/state/runtime-state.json`.
+
+For non-trivial feature or behavior changes, `tester` should own the task-level validation handoff.
+Use the inline tester report or `.codex/templates/validation-handoff.md` to state:
+
+- validation targets
+- selected checks
+- coverage rationale
+- remaining gaps
 
 ## Smoke Test
 

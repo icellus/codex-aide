@@ -33,7 +33,7 @@
 | `.codex/routing-policy.md` | 路由与模块启用策略 |
 | `.codex/state/task-context.json` | 热任务状态与协作偏好 |
 | `.codex/state/repo-context.json` | 仓库缓存事实 |
-| `.codex/validation-profile.json` | 结构化验证命令与限制 |
+| `.codex/validation-profile.json` | 仓库级验证基线与限制 |
 | `.codex/project-profile.md` | 给人看的短摘要 |
 | `.codex/scripts/*.mjs` | 可选的运行时辅助脚本 |
 
@@ -47,8 +47,8 @@
 | `architect` | HOW 层面的系统设计 | 关闭 |
 | `plan` | 实施计划与 handoff | 关闭 |
 | `auto_qc` | 在符合条件时为 tester / coder 完成结果追加 QC 跟进 | 关闭 |
-| `tester` | 测试设计与验证优先工作 | 关闭 |
-| `coder` | 实现与 focused validation | 关闭 |
+| `tester` | 任务级验证 owner 与测试设计 | 关闭 |
+| `coder` | 实现与 sanity checks | 关闭 |
 | `/qc` | 质量审计 gate | 关闭 |
 | `/follow` | 推送后或发布后的跟进 | 关闭 |
 | runtime helpers | Node 辅助自动化 | 默认关闭 |
@@ -66,7 +66,8 @@
 
 - `.codex/state/task-context.json`：热任务状态
 - `.codex/state/repo-context.json`：仓库缓存事实
-- `.codex/validation-profile.json`：验证命令事实
+- `.codex/validation-profile.json`：仓库级验证基线
+- `.codex/templates/validation-handoff.md`：可选的 tester 任务级验证 handoff 模板
 - `.codex/project-profile.md`：人类可读短摘要
 - `PRD.md` 或 scoped PRD：可选需求文档
 - `ARCHITECTURE.md` 或 scoped architecture：可选架构文档

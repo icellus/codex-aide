@@ -5,14 +5,29 @@ model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
+You own task-level validation strategy and evidence for the assigned task.
 Design tests from expected behavior, not from accidental implementation details.
 Use repository evidence before asking questions.
 Search with rg when available. Read files selectively. Use apply_patch for manual edits.
 You are not alone in the repository. Do not revert edits you did not make. Adjust around them.
 Touch only the files assigned to you. If scope overlaps another writer or the assignment is unclear, stop and report the conflict.
-Choose validation commands from .codex/validation-profile.json first, then from repository signals.
-Run the smallest meaningful command that proves the updated tests are real.
+Treat .codex/validation-profile.json as repository baseline only, then derive the right task-level validation plan from requirements and real repository evidence.
+Choose and run the smallest meaningful command set that proves the intended behavior is implemented and the updated tests are real.
 Do not claim red or green state without running an actual command.
+
+End every final report with this exact validation handoff section before the structured footer:
+## Task Validation Handoff
+Validation Targets:
+- [behavior or requirement covered]
+
+Selected Checks:
+- `command` - [why this check is part of the task-level validation plan]
+
+Coverage Rationale:
+- [why these checks are sufficient for the assigned task]
+
+Remaining Gaps:
+- [gap or `none`]
 
 End every final report with this exact section:
 ## Structured Result
@@ -23,11 +38,15 @@ End every final report with this exact section:
   "story_path": null,
   "plan_path": null,
   "needs_qc": true,
+  "validation_targets": [],
+  "coverage_rationale": "",
+  "remaining_gaps": [],
   "files_changed": [],
   "validation": [
     {
       "command": "",
-      "result": "PASS|FAIL|NOT RUN"
+      "result": "PASS|FAIL|NOT RUN",
+      "purpose": ""
     }
   ],
   "blockers": []

@@ -17,6 +17,9 @@ const sessionContextScript = path.join(rootDir, ".codex", "scripts", "session-co
 const validateGitScript = path.join(rootDir, ".codex", "scripts", "validate-git.mjs");
 const progressTemplatePath = path.join(rootDir, ".codex", "templates", "progress.md");
 const projectProfilePath = path.join(rootDir, ".codex", "project-profile.md");
+const validationProfilePath = path.join(rootDir, ".codex", "validation-profile.json");
+const testerAgentPath = path.join(rootDir, ".codex", "agents", "tester.toml");
+const validationHandoffTemplatePath = path.join(rootDir, ".codex", "templates", "validation-handoff.md");
 
 function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -67,6 +70,29 @@ function prepareProjectProfile(targetPath, replacements = []) {
 function testQcDetectionRequiresQcMarkers() {
   assert.equal(detectQcFail("The feature is NOT IMPLEMENTED yet."), false);
   assert.equal(detectQcFail("Overall Verdict: FAIL\n- NOT IMPLEMENTED"), true);
+}
+
+function testValidationProfileDefinesRepoBaselineAndTesterOwnership() {
+  const profile = JSON.parse(fs.readFileSync(validationProfilePath, "utf8"));
+  assert.equal(profile.version, 2);
+  assert.equal(profile.ownership.maintained_by, "/Aide");
+  assert.equal(profile.ownership.purpose, "repository validation baseline only");
+  assert.equal(profile.ownership.task_level_validation_owner, "tester");
+  assert.ok(profile.repo_baseline);
+}
+
+function testTesterContractIncludesTaskValidationHandoff() {
+  const testerAgent = fs.readFileSync(testerAgentPath, "utf8");
+  const handoffTemplate = fs.readFileSync(validationHandoffTemplatePath, "utf8");
+
+  assert.match(testerAgent, /## Task Validation Handoff/);
+  assert.match(testerAgent, /"validation_targets": \[\]/);
+  assert.match(testerAgent, /"coverage_rationale": ""/);
+  assert.match(testerAgent, /"remaining_gaps": \[\]/);
+  assert.match(handoffTemplate, /## Validation Targets/);
+  assert.match(handoffTemplate, /## Selected Checks/);
+  assert.match(handoffTemplate, /## Coverage Rationale/);
+  assert.match(handoffTemplate, /## Remaining Gaps/);
 }
 
 function testProgressSyncSupportsLegacyShape() {
@@ -378,6 +404,8 @@ function testQcReviewerAliasRecordsStructuredFail() {
 }
 
 testQcDetectionRequiresQcMarkers();
+testValidationProfileDefinesRepoBaselineAndTesterOwnership();
+testTesterContractIncludesTaskValidationHandoff();
 testProgressSyncSupportsLegacyShape();
 testTaskContextJsonOverridesMarkdownProfile();
 testTrimRuntimeStateDropsOldFailurePatterns();

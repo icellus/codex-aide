@@ -39,7 +39,7 @@ Routing policy lives in `.codex/routing-policy.md`.
 - Route rationale:
 - Active routing overrides: none
 - Enabled roles: `Aide`, main agent
-- Enabled modules: startup scan or cached repo context, direct implementation, focused validation
+- Enabled modules: startup scan or cached repo context, direct implementation, targeted sanity checks
 - QC policy: `disabled`
 - Follow policy: `disabled`
 - Validation profile status: `not-set`

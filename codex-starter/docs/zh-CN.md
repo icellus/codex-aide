@@ -61,7 +61,7 @@
 
 - 扫描仓库
 - 更新热状态文件
-- 推断验证命令
+- 更新仓库级验证基线
 - 选择当前任务最轻的路线
 
 ## 3. 目录结构说明
@@ -106,7 +106,7 @@
 - `.codex/state/*.json`：热状态和运行时状态
 - `.codex/scripts/*.mjs`：运行时辅助脚本
 - `.codex/routing-policy.md`：路由策略
-- `.codex/validation-profile.json`：验证命令配置
+- `.codex/validation-profile.json`：仓库级验证基线配置
 
 可以把它理解为“运行时层”。
 
@@ -163,15 +163,29 @@
 
 ### `.codex/validation-profile.json`
 
-结构化验证命令。
+仓库级验证基线。
 
 它描述：
 
-- 快速反馈命令
-- focused validation
-- build / lint / typecheck / integration / e2e
+- smoke / lint / typecheck / build
+- unit / integration / e2e
 - 哪些命令昂贵
 - 哪些命令依赖外部服务
+
+它的职责是记录仓库“有哪些验证能力”，而不是决定某个具体任务应该怎样验收。
+
+真正的任务级功能验证，应该由 `tester` 根据需求和真实代码来决定。
+
+### `.codex/templates/validation-handoff.md`
+
+这是可选模板。
+
+它用于帮助 `tester` 输出任务级验证 handoff，内容应明确包括：
+
+- 要验证的目标
+- 选择了哪些检查
+- 为什么这些检查足够
+- 还剩哪些缺口
 
 ### `.codex/project-profile.md`
 
@@ -205,7 +219,7 @@
 典型路径：
 
 ```text
-/Aide -> coder -> focused validation -> done
+/Aide -> coder -> sanity checks -> done
 ```
 
 ### `plan-driven`
@@ -218,7 +232,7 @@
 典型路径：
 
 ```text
-/Aide -> conduct -> optional plan -> tester/coder -> validate
+/Aide -> conduct -> optional plan -> tester -> coder -> tester rerun -> validate
 ```
 
 ### `orchestrated`

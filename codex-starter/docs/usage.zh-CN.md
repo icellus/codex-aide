@@ -22,7 +22,7 @@
 - 更新 `.codex/state/task-context.json`
 - 更新 `.codex/state/repo-context.json`
 - 更新 `.codex/project-profile.md`
-- 在验证信号清晰时更新 `.codex/validation-profile.json`
+- 在验证信号清晰时更新 `.codex/validation-profile.json` 中的仓库级验证基线
 - 推荐当前任务最轻且合理的路线
 
 后续回合里，`/Aide` 一般应：
@@ -46,9 +46,9 @@
 
 | 任务 | 常见路径 | 通常会跳过 |
 | --- | --- | --- |
-| 小 bugfix | `/Aide -> coder -> focused validation` | `prd`、`architect`、`plan`、`/follow` |
-| 较高风险 bugfix | `/Aide -> tester -> coder -> /qc` | 不增加价值的模块 |
-| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester/coder -> optional /qc` | 不增加价值的重模块 |
+| 小 bugfix | `/Aide -> coder -> sanity checks` | `prd`、`architect`、`plan`、`/follow` |
+| 较高风险 bugfix | `/Aide -> tester -> coder -> tester 或 /qc` | 不增加价值的模块 |
+| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester 或 optional /qc` | 不增加价值的重模块 |
 | refactor | 先 direct，只有在契约、风险、handoff 变大时才升级 | 低风险局部 refactor 的 orchestration |
 | release | `/Aide -> conduct -> optional /qc -> optional /follow` | 多步骤发布任务中的 direct 模式 |
 
@@ -102,6 +102,14 @@ runtime state 会按需写到 `.codex/state/runtime-state.json`。
 - QC 提醒只在当前任务明确启用了 `/qc` 时生成
 - `PROGRESS.md` 只记录 active checkpoint
 - runtime 提醒和学习状态留在 `.codex/state/runtime-state.json`
+
+对于非平凡功能或行为修改，`tester` 应负责任务级验证 handoff。  
+可以使用 tester 内联报告，或复用 `.codex/templates/validation-handoff.md`，明确写出：
+
+- validation targets
+- selected checks
+- coverage rationale
+- remaining gaps
 
 ## Smoke Test
 

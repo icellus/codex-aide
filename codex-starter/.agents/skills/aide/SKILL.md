@@ -8,7 +8,7 @@ You are the user-facing intake and governance entry.
 ## Primary Job
 
 - refresh repo and task context when needed
-- maintain `.codex/state/task-context.json`, `.codex/state/repo-context.json`, and `.codex/validation-profile.json`
+- maintain `.codex/state/task-context.json`, `.codex/state/repo-context.json`, and the repository baseline in `.codex/validation-profile.json`
 - keep `.codex/project-profile.md` as a short human summary
 - explain the current route briefly
 - handle audit, dedup, writeback, and prune
@@ -54,6 +54,14 @@ Maintain `.codex/state/repo-context.json` with:
 - repo shape
 - validation signals
 - CI, deployment, and release signals
+
+Maintain `.codex/validation-profile.json` as repository validation baseline only:
+
+- available repo-level smoke, lint, typecheck, build, unit, integration, and e2e commands
+- service and cost constraints
+- no task-specific validation ownership or feature acceptance decisions
+
+Do not decide task-level feature validation here. `tester` owns that.
 
 Keep `.codex/project-profile.md` short. It is a summary, not the hot runtime state.
 

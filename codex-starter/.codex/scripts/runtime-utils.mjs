@@ -100,7 +100,7 @@ export function createEmptyTaskContext() {
       route_rationale: "",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["startup scan or cached repo context", "direct implementation", "focused validation"],
+      enabled_modules: ["startup scan or cached repo context", "direct implementation", "targeted sanity checks"],
       qc_policy: "disabled",
       follow_policy: "disabled",
       validation_profile_status: "not-set",
