@@ -12,6 +12,14 @@
 2. 如果需要 runtime helpers 或 smoke tests，确保 `node` 在 `PATH` 上可用。
 3. 从 `/Aide` 开始。
 
+也可以在目标仓库根目录执行：
+
+```bash
+bash /path/to/codex-starter/install.sh
+```
+
+这个脚本会复制 starter 文件，并把需要的 `.codex` runtime-state 条目补到 `.gitignore`。
+
 ## 首次运行
 
 使用下面任意一种：

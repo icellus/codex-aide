@@ -35,6 +35,14 @@ For analysis, Q&A, and option-comparison work with no durable artifact, `/Aide` 
 3. Start with `/Aide` or `/Aide [your goal]`.
 4. Let `/Aide` scan the repo, update current state, and recommend the lightest route.
 
+If you want a local installer, run this from the target repository root:
+
+```bash
+bash /path/to/codex-starter/install.sh
+```
+
+The installer copies `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`, then creates or updates `.gitignore` with the starter's runtime-state entries.
+
 There is currently no dedicated repo-scan script.
 Repo scans are performed by `/Aide` through targeted repository inspection and optional read-only exploration.
 

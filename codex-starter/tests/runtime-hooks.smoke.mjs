@@ -21,6 +21,7 @@ const taskOverviewScript = path.join(rootDir, ".codex", "scripts", "task-overvie
 const aideEvolutionScript = path.join(rootDir, ".codex", "scripts", "aide-evolution.mjs");
 const aideGovernanceScript = path.join(rootDir, ".codex", "scripts", "aide-governance.mjs");
 const validateGitScript = path.join(rootDir, ".codex", "scripts", "validate-git.mjs");
+const installScriptPath = path.join(rootDir, "install.sh");
 const progressTemplatePath = path.join(rootDir, ".codex", "templates", "progress.md");
 const projectProfilePath = path.join(rootDir, ".codex", "project-profile.md");
 const validationProfilePath = path.join(rootDir, ".codex", "validation-profile.json");
@@ -680,6 +681,32 @@ function testValidateGitRejectsBroadAdd() {
   const result = runNodeResult(validateGitScript, { command: "git add ." });
   assert.equal(result.status, 2);
   assert.match(result.stdout, /broad_git_add_denied/);
+}
+
+function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
+  const dir = makeTempDir("codex-starter-install-");
+  fs.writeFileSync(path.join(dir, ".gitignore"), "node_modules/\n", "utf8");
+
+  const result = spawnSync("bash", [installScriptPath], {
+    cwd: dir,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /Installed codex-starter files into/);
+  assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
+  assert.ok(fs.existsSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md")));
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "routing-policy.md")));
+  assert.ok(fs.existsSync(path.join(dir, ".product", "registry.json")));
+
+  const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf8");
+  assert.match(gitignore, /node_modules\//);
+  assert.match(gitignore, /# codex-starter/);
+  assert.match(gitignore, /\.codex\/settings\.local\.json/);
+  assert.match(gitignore, /\.codex\/state\/\*/);
+  assert.match(gitignore, /!\.codex\/state\/task-context\.json/);
+  assert.match(gitignore, /!\.codex\/state\/repo-context\.json/);
+  assert.match(gitignore, /!\.codex\/state\/task-registry\.json/);
 }
 
 function testQcReviewerAliasRecordsStructuredFail() {
@@ -1676,6 +1703,7 @@ testQcPassQueuesSubmitAfterCoderAudit();
 testSessionContextShowsPendingSubmitReminder();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
 testValidateGitRejectsBroadAdd();
+testInstallScriptCopiesStarterFilesAndUpdatesGitignore();
 testQcReviewerAliasRecordsStructuredFail();
 testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();
 testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished();

@@ -9,6 +9,14 @@ Runtime authority lives in `AGENTS.md`, `.agents/skills/*/SKILL.md`, and `.codex
 2. Ensure `node` is available on `PATH` if you want runtime helpers or smoke tests.
 3. Start with `/Aide`.
 
+You can also install from the target repository root with:
+
+```bash
+bash /path/to/codex-starter/install.sh
+```
+
+The installer copies the starter files and adds the required `.codex` runtime-state entries to `.gitignore`.
+
 ## First Run
 
 Use one of:
