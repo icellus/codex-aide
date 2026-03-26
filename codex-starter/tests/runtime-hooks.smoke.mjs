@@ -6,8 +6,11 @@ import path from "node:path";
 
 import {
   detectQcFail,
+  loadRepoContext,
   loadProjectProfileState,
   parseActiveStories,
+  saveRepoContext,
+  saveTaskContext,
   syncProgressFromState
 } from "../.codex/scripts/runtime-utils.mjs";
 
@@ -236,6 +239,51 @@ function testTaskContextJsonOverridesMarkdownProfile() {
   assert.equal(profile.task, "Tighten hot runtime context");
   assert.equal(profile.taskStatus, "active");
   assert.equal(profile.deliveryMode, "lightweight");
+}
+
+function testTaskContextHelpersWriteNormalizedState() {
+  const dir = makeTempDir("codex-starter-save-task-context-");
+
+  saveTaskContext(dir, {
+    collaboration: {
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "Review the routing flow",
+      status: "active",
+      enabled_roles: ["Aide"],
+      open_questions: ["Should conduct run?"]
+    }
+  });
+
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, ".codex", "state", "task-context.json"), "utf8"));
+  assert.equal(saved.version, 1);
+  assert.equal(saved.collaboration.greeting_style, "brief");
+  assert.equal(saved.collaboration.first_startup_greeting_completed, true);
+  assert.equal(saved.task.current_task, "Review the routing flow");
+  assert.deepEqual(saved.task.enabled_roles, ["Aide"]);
+  assert.deepEqual(saved.task.open_questions, ["Should conduct run?"]);
+}
+
+function testRepoContextHelpersWriteNormalizedState() {
+  const dir = makeTempDir("codex-starter-save-repo-context-");
+
+  saveRepoContext(dir, {
+    scan_status: "scanned",
+    project_type: "Node service",
+    primary_languages: ["JavaScript"],
+    frameworks: ["Express"],
+    validation_signals: ["npm test"]
+  });
+
+  const saved = loadRepoContext(dir);
+  assert.equal(saved.version, 1);
+  assert.equal(saved.scan_status, "scanned");
+  assert.equal(saved.project_type, "Node service");
+  assert.deepEqual(saved.primary_languages, ["JavaScript"]);
+  assert.deepEqual(saved.frameworks, ["Express"]);
+  assert.deepEqual(saved.validation_signals, ["npm test"]);
+  assert.deepEqual(saved.notes, []);
 }
 
 function testTrimRuntimeStateDropsOldFailurePatterns() {
@@ -1575,6 +1623,8 @@ testTesterContractIncludesTaskValidationHandoff();
 testProductAssistantContractAndDefaultsExist();
 testProgressSyncSupportsLegacyShape();
 testTaskContextJsonOverridesMarkdownProfile();
+testTaskContextHelpersWriteNormalizedState();
+testRepoContextHelpersWriteNormalizedState();
 testLegacyDeliveryModeNamesNormalizeToCurrentNames();
 testTrimRuntimeStateDropsOldFailurePatterns();
 testSubagentStopQueuesQcWithoutStory();

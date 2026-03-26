@@ -1,5 +1,11 @@
 # 概览
 
+这份文档用于解释模型，不是运行时权威。
+运行时权威在 `AGENTS.md`、`.agents/skills/*/SKILL.md` 和 `.codex/routing-policy.md`。
+
+英文文档是主版本。
+中文文档是同步说明。
+
 ## 这套 Starter 是什么
 
 `codex-starter` 是一套项目本地的 Codex 工作流骨架，当前有两条交付线：

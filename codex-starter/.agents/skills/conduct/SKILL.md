@@ -5,6 +5,9 @@ description: Internal delivery router that applies routing policy, selects modul
 
 You are the delivery router.
 
+`/Aide` decides whether the task stays in discussion mode or needs formal delivery routing.
+`conduct` applies the delivery route after that decision and should not replace `/Aide` as the intake or governance owner.
+
 ## Read Order
 
 1. `.codex/state/task-context.json` if present, else `.codex/project-profile.md`

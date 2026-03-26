@@ -2,6 +2,12 @@
 
 Project-local Codex workflow starter.
 
+English documentation is canonical.
+Chinese documentation is synchronized guidance and may lag briefly behind the English source of truth.
+
+Explanation docs explain the framework.
+Runtime authority lives in `AGENTS.md`, `.agents/skills/*/SKILL.md`, and `.codex/routing-policy.md`.
+
 It keeps the default path lightweight, routes work through a small set of clear authorities, and supports two current delivery lines:
 
 - coding: code, tests, validation, governed delivery
@@ -28,6 +34,9 @@ For analysis, Q&A, and option-comparison work with no durable artifact, `/Aide` 
 2. Ensure `node` is available if you want runtime helpers and smoke tests.
 3. Start with `/Aide` or `/Aide [your goal]`.
 4. Let `/Aide` scan the repo, update current state, and recommend the lightest route.
+
+There is currently no dedicated repo-scan script.
+Repo scans are performed by `/Aide` through targeted repository inspection and optional read-only exploration.
 
 If a fresh thread starts without a slash command, treat the first user turn as `/Aide` intake by default.
 
@@ -56,6 +65,9 @@ If a fresh thread starts without a slash command, treat the first user turn as `
 - background evolution review without blocking the first route
 
 For product work, `/Aide` should not replace `product_assistant` in doing the business work. It should review whether `.product/*` writeback is justified by the real conversation and whether the current task actually belongs on the product line.
+
+`conduct` is narrower than `/Aide`.
+`/Aide` decides whether formal delivery routing is needed at all, then `conduct` applies the active delivery route when environment setup, module activation, or longer execution planning matters.
 
 For discussion-shaped work, `/Aide` should stay lightweight:
 
@@ -86,12 +98,13 @@ The `.product/*.json` files ship with starter schemas and starter policy only. R
 
 ## Docs
 
-- 中文指南: [`docs/zh-CN.md`](./docs/zh-CN.md)
+- Overview: [`docs/overview.md`](./docs/overview.md)
+- Usage: [`docs/usage.md`](./docs/usage.md)
+- Detailed guide: [`docs/detailed-guide.md`](./docs/detailed-guide.md)
+- 中文索引: [`docs/zh-CN.md`](./docs/zh-CN.md)
 - 中文概览: [`docs/overview.zh-CN.md`](./docs/overview.zh-CN.md)
 - 中文使用说明: [`docs/usage.zh-CN.md`](./docs/usage.zh-CN.md)
 - 中文详细说明: [`docs/detailed-guide.zh-CN.md`](./docs/detailed-guide.zh-CN.md)
-- Overview: [`docs/overview.md`](./docs/overview.md)
-- Usage: [`docs/usage.md`](./docs/usage.md)
 
 ## Smoke Test
 

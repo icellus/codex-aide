@@ -1,5 +1,11 @@
 # 详细说明
 
+这份文档用于解释当前设计，不是运行时权威。
+运行时权威在 `AGENTS.md`、`.agents/skills/*/SKILL.md` 和 `.codex/routing-policy.md`。
+
+英文文档是主版本。
+中文文档是同步说明。
+
 这份文档面向需要真正改造或扩展 `codex-starter` 的人。
 
 它描述的是当前这版 starter 的最新设计，而不是历史演化过程。
@@ -79,6 +85,11 @@
 
 - `/Aide` 负责 intake、路由、治理
 - `conduct` 负责 delivery routing 和 `environment setup`
+
+更直接地说：
+
+- `/Aide` 先判断任务是否需要进入正式执行流
+- `conduct` 只在需要正式 delivery routing 时接手应用路由
 
 ### `.codex/`
 

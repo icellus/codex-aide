@@ -384,6 +384,92 @@ export function saveTaskRegistry(projectDir, registry) {
   fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n", "utf8");
 }
 
+export function loadTaskContext(projectDir) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const taskContextPath = path.join(stateDir, "task-context.json");
+
+  ensureDir(stateDir);
+
+  const parsed = loadJsonFile(taskContextPath, createEmptyTaskContext);
+  const empty = createEmptyTaskContext();
+
+  return {
+    ...empty,
+    ...parsed,
+    collaboration: {
+      ...empty.collaboration,
+      ...(parsed.collaboration || {})
+    },
+    task: {
+      ...empty.task,
+      ...(parsed.task || {})
+    }
+  };
+}
+
+export function saveTaskContext(projectDir, taskContext) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const taskContextPath = path.join(stateDir, "task-context.json");
+  const empty = createEmptyTaskContext();
+  const merged = {
+    ...empty,
+    ...(taskContext || {}),
+    collaboration: {
+      ...empty.collaboration,
+      ...((taskContext && taskContext.collaboration) || {})
+    },
+    task: {
+      ...empty.task,
+      ...((taskContext && taskContext.task) || {})
+    }
+  };
+
+  ensureDir(stateDir);
+  fs.writeFileSync(taskContextPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+}
+
+export function loadRepoContext(projectDir) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const repoContextPath = path.join(stateDir, "repo-context.json");
+
+  ensureDir(stateDir);
+
+  const parsed = loadJsonFile(repoContextPath, createEmptyRepoContext);
+  const empty = createEmptyRepoContext();
+
+  return {
+    ...empty,
+    ...parsed,
+    primary_languages: Array.isArray(parsed.primary_languages) ? parsed.primary_languages : [],
+    frameworks: Array.isArray(parsed.frameworks) ? parsed.frameworks : [],
+    ci_or_deployment_signals: Array.isArray(parsed.ci_or_deployment_signals)
+      ? parsed.ci_or_deployment_signals
+      : [],
+    validation_signals: Array.isArray(parsed.validation_signals) ? parsed.validation_signals : [],
+    notes: Array.isArray(parsed.notes) ? parsed.notes : []
+  };
+}
+
+export function saveRepoContext(projectDir, repoContext) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const repoContextPath = path.join(stateDir, "repo-context.json");
+  const empty = createEmptyRepoContext();
+  const merged = {
+    ...empty,
+    ...(repoContext || {}),
+    primary_languages: Array.isArray(repoContext?.primary_languages) ? repoContext.primary_languages : [],
+    frameworks: Array.isArray(repoContext?.frameworks) ? repoContext.frameworks : [],
+    ci_or_deployment_signals: Array.isArray(repoContext?.ci_or_deployment_signals)
+      ? repoContext.ci_or_deployment_signals
+      : [],
+    validation_signals: Array.isArray(repoContext?.validation_signals) ? repoContext.validation_signals : [],
+    notes: Array.isArray(repoContext?.notes) ? repoContext.notes : []
+  };
+
+  ensureDir(stateDir);
+  fs.writeFileSync(repoContextPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+}
+
 export function loadEvolutionRegistry(projectDir) {
   const stateDir = path.join(projectDir, ".codex", "state");
   const registryPath = path.join(stateDir, "evolution-registry.json");
@@ -522,10 +608,15 @@ function mapTaskContextToProfile(parsed = {}) {
 }
 
 export function loadProjectProfileState(projectDir) {
-  const taskContextPath = path.join(projectDir, ".codex", "state", "task-context.json");
-  if (fs.existsSync(taskContextPath)) {
-    const parsed = loadJsonFile(taskContextPath, createEmptyTaskContext);
-    return mapTaskContextToProfile(parsed);
+  const taskContext = loadTaskContext(projectDir);
+  const hasTaskContext =
+    normalizeProfileValue(taskContext.task.current_task) ||
+    normalizeProfileValue(taskContext.task.status) !== "idle" ||
+    normalizeProfileValue(taskContext.task.route_rationale) ||
+    Boolean(taskContext.collaboration.first_startup_greeting_completed);
+
+  if (hasTaskContext) {
+    return mapTaskContextToProfile(taskContext);
   }
 
   const profilePath = path.join(projectDir, ".codex", "project-profile.md");

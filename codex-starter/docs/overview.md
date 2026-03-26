@@ -1,5 +1,8 @@
 # Overview
 
+This document explains the model.
+Runtime authority lives in `AGENTS.md`, `.agents/skills/*/SKILL.md`, and `.codex/routing-policy.md`.
+
 ## What This Starter Is
 
 `codex-starter` is a lightweight Codex workflow starter with two current delivery lines:
@@ -8,6 +11,9 @@
 - product: documentation and other non-code deliverables
 
 It is built for repositories that want a small default surface and stronger controls only when the task actually needs them.
+
+English documentation is canonical.
+Chinese documentation is synchronized guidance.
 
 ## Core Principles
 

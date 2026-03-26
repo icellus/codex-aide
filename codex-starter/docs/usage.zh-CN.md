@@ -1,5 +1,11 @@
 # 使用说明
 
+这份文档用于解释使用方式，不是运行时权威。
+运行时权威在 `AGENTS.md`、`.agents/skills/*/SKILL.md` 和 `.codex/routing-policy.md`。
+
+英文文档是主版本。
+中文文档是同步说明。
+
 ## 安装
 
 1. 将 `AGENTS.md`、`.agents/skills/`、`.codex/`、`.product/` 复制到目标仓库根目录。
@@ -26,6 +32,9 @@
 - 更新 `.codex/project-profile.md`
 - 更新 `.codex/validation-profile.json`
 - 选择当前任务最轻且合理的路线
+
+当前没有独立的 repo scan 脚本。
+`/Aide` 通过针对性的仓库检索和可选的只读探索完成 scan。
 
 后续回合通常应：
 

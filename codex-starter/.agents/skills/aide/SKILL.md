@@ -60,6 +60,7 @@ Keep `Aide` as the direct owner for discussion-shaped work:
 - run a full scan only when repo context is missing, stale, or explicitly requested
 - otherwise reuse cached repo context and inspect only the touched area
 - during a full scan, capture languages, frameworks, repo shape, validation commands, and CI or release signals
+- there is currently no dedicated repo-scan script; `/Aide` performs the scan through targeted manual inspection or read-only exploration
 - use `repo_explorer` fan-out only when one local scan is clearly not enough
 - for analysis, Q&A, and discussion turns, prefer the minimum local context needed to answer well
 - do not trigger a full scan only because the user asked a lightweight question

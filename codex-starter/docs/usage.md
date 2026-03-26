@@ -1,5 +1,8 @@
 # Usage
 
+This document explains usage patterns.
+Runtime authority lives in `AGENTS.md`, `.agents/skills/*/SKILL.md`, and `.codex/routing-policy.md`.
+
 ## Install
 
 1. Copy `AGENTS.md`, `.agents/skills/`, `.codex/`, and `.product/` into the target repository root.
@@ -26,6 +29,9 @@ On first run, `/Aide` should:
 - update `.codex/project-profile.md`
 - update `.codex/validation-profile.json` with repository validation baseline signals
 - recommend the lightest route for the task
+
+There is currently no dedicated repo-scan script.
+`/Aide` performs repo scans through targeted repository inspection and optional read-only exploration.
 
 Later turns should usually:
 
