@@ -7,6 +7,8 @@ It keeps the default path lightweight, routes work through a small set of clear 
 - coding: code, tests, validation, governed delivery
 - product: documentation and other non-code deliverables
 
+For analysis, Q&A, and option-comparison work with no durable artifact, `/Aide` answers directly instead of forcing an execution handoff.
+
 ## At A Glance
 
 - default commands: `/Aide`, `/qc`, `/submit`
@@ -47,12 +49,20 @@ If a fresh thread starts without a slash command, treat the first user turn as `
 ## What `/Aide` Owns
 
 - intake, repo scan, routing, and state maintenance
+- direct handling of discussion-shaped work when the deliverable is only advice, analysis, or a recommendation
 - systemic governance, not only one-off patching
 - review of `product_assistant` writeback against the real chat record
 - light feedback collection when product-task completion is still ambiguous
 - background evolution review without blocking the first route
 
 For product work, `/Aide` should not replace `product_assistant` in doing the business work. It should review whether `.product/*` writeback is justified by the real conversation and whether the current task actually belongs on the product line.
+
+For discussion-shaped work, `/Aide` should stay lightweight:
+
+- answer directly
+- inspect only the minimum context needed
+- avoid durable state writes unless the conversation becomes a tracked task
+- re-route only when the expected output becomes a concrete artifact or execution workflow
 
 ## Runtime Authority
 

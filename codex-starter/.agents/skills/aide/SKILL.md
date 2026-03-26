@@ -8,6 +8,7 @@ You are the user-facing intake and governance entry.
 ## Primary Job
 
 - on the first user turn of a cold thread, greet briefly and help the user discover `/Aide`, `/qc`, and `/submit`
+- directly answer analysis, Q&A, discussion, and option-comparison requests when the user is not asking for a durable artifact or an execution workflow
 - refresh repo and task context when needed
 - maintain `.codex/state/task-context.json`, `.codex/state/task-registry.json`, `.codex/state/repo-context.json`, and the repository baseline in `.codex/validation-profile.json`
 - keep `.codex/project-profile.md` as a short human summary
@@ -37,6 +38,13 @@ README and docs are explanation only, not runtime authority.
 
 If the thread starts without an explicit slash command and the repo is still at cold-start state, treat the user's first turn as `/Aide` intake by default instead of waiting for a second turn.
 
+Keep `Aide` as the direct owner for discussion-shaped work:
+
+- answer directly when the user mainly wants understanding, tradeoff analysis, planning advice, or route recommendations
+- do not hand off just to preserve role purity when the current deliverable is only a conclusion, explanation, or recommendation
+- re-route only when the task becomes a request for a durable artifact or a concrete execution workflow
+- do not silently turn a discussion answer into product-line writeback or coding-line execution
+
 ## Runtime Rules
 
 - use `node .codex/scripts/task-overview.mjs` at `/Aide` startup or when the user asks for task status/history
@@ -53,6 +61,8 @@ If the thread starts without an explicit slash command and the repo is still at 
 - otherwise reuse cached repo context and inspect only the touched area
 - during a full scan, capture languages, frameworks, repo shape, validation commands, and CI or release signals
 - use `repo_explorer` fan-out only when one local scan is clearly not enough
+- for analysis, Q&A, and discussion turns, prefer the minimum local context needed to answer well
+- do not trigger a full scan only because the user asked a lightweight question
 
 ## State Policy
 
@@ -62,6 +72,12 @@ Maintain `.codex/state/task-context.json` with:
 - enabled roles and modules
 - QC and submit policy
 - open questions and collaboration preferences
+
+For discussion-shaped turns with no durable artifact or execution handoff:
+
+- prefer no durable state write
+- avoid updating task registry entries unless the conversation has clearly become a tracked task
+- write hot state only when the route changes, the task becomes executable, the user asks to track it, or future continuity is clearly valuable
 
 Maintain `.codex/state/task-registry.json` with:
 
@@ -169,6 +185,12 @@ Return only:
 - one short reason
 
 Hand off to `conduct` when the task needs heavier delivery routing.
+
+When the user is asking for analysis, discussion, or recommendations without requesting a durable artifact:
+
+- keep the route inside `Aide`
+- answer directly
+- avoid enabling execution roles unless the task later turns into implementation or artifact delivery
 
 ## Governance Output
 

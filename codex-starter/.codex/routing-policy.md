@@ -11,6 +11,7 @@ This file is the routing authority.
 - Prefer the lightest workflow that can safely finish the task.
 - Keep `lightweight` as the default for small, local, low-risk work.
 - Add durable artifacts only when coordination, uncertainty, or risk requires them.
+- Keep discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow.
 - When execution roles are active, prefer real subagents when delegation is available.
 - Route directly to `product_assistant` when the primary deliverable is a non-code artifact.
 - `environment setup` belongs to `conduct`.
@@ -26,6 +27,12 @@ This file is the routing authority.
 - `release` -> `long-running`
 - `exploration` -> `lightweight`
 
+For `exploration`, `analysis`, and discussion-shaped work with no durable artifact:
+
+- default owner: `Aide`
+- default state behavior: no durable state write
+- escalate only when the task turns into implementation, validation ownership, or artifact delivery
+
 ## Upgrade Triggers
 
 - enable `prd` when scope, MVP, or success criteria are unstable
@@ -36,6 +43,9 @@ This file is the routing authority.
 - enable `long-running` mode and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
 - enable `/qc` when risk is high, the user asks for an audit, or release confidence needs it
 - enable `/submit` when the task should finish with governed commit, push, or optional post-push delivery follow-through
+
+Do not upgrade a lightweight discussion into an execution route only because the topic is technical or complex.
+Upgrade only when the expected output changes from advice to a concrete deliverable.
 
 ## Environment Setup
 

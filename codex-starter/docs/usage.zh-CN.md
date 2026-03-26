@@ -35,6 +35,13 @@
 - 只有在路由真的变化时才提变化
 - 启动低成本 evolution sweep，但不阻塞首条 route
 
+如果当前回合只是问答、分析、方案讨论或选项比较，而用户没有要求持久产物：
+
+- `/Aide` 直接回答
+- 默认不启用执行角色
+- 默认不写持久状态
+- 只读取回答当前问题所需的最小上下文
+
 仓库里的 `.codex/*.json`、`.codex/project-profile.md`、`.product/*.json` 都是 starter 默认值。真实项目中应在正常使用里持续演进。
 
 ## 用户命令
@@ -52,6 +59,7 @@
 | 小 bugfix | `/Aide -> coder -> sanity checks -> /submit` |
 | 较高风险 bugfix | `/Aide -> tester -> coder -> tester 或 /qc -> /submit` |
 | feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> optional /qc -> /submit` |
+| discussion / Q&A | `/Aide` 直接处理 |
 | product | `/Aide -> product_assistant` |
 | release | `/Aide -> conduct -> optional /qc -> /submit` |
 

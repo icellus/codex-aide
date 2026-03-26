@@ -35,6 +35,13 @@ Later turns should usually:
 - mention routing changes only when they really changed
 - start the low-cost evolution sweep without blocking the route
 
+If the current turn is only Q&A, analysis, discussion, or option comparison and the user is not asking for a durable artifact:
+
+- `/Aide` answers directly
+- execution roles stay disabled by default
+- durable state is not written by default
+- only the minimum context needed for a good answer should be read
+
 The checked-in `.codex/*.json`, `.codex/project-profile.md`, and `.product/*.json` files are starter defaults. Real projects should evolve them during normal use.
 
 ## Commands
@@ -52,6 +59,7 @@ The checked-in `.codex/*.json`, `.codex/project-profile.md`, and `.product/*.jso
 | small bugfix | `/Aide -> coder -> sanity checks -> /submit` |
 | higher-risk bugfix | `/Aide -> tester -> coder -> tester or /qc -> /submit` |
 | feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> optional /qc -> /submit` |
+| discussion / Q&A | `/Aide` direct |
 | product | `/Aide -> product_assistant` |
 | release | `/Aide -> conduct -> optional /qc -> /submit` |
 

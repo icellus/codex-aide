@@ -15,6 +15,7 @@ It is built for repositories that want a small default surface and stronger cont
 - keep the user-facing command surface small
 - keep runtime authority explicit
 - let `/Aide` own intake and governance
+- let `/Aide` answer discussion-shaped work directly
 - let execution roles own concrete delivery
 - keep product memory lightweight and revisable
 
@@ -55,6 +56,15 @@ It is built for repositories that want a small default surface and stronger cont
 
 ## Delivery Lines
 
+Outside the two delivery lines, discussion-shaped work stays inside `/Aide` by default:
+
+- Q&A
+- analysis
+- option comparison
+- route recommendations
+
+When the user is not asking for a durable artifact, this work should not automatically spawn execution roles or durable state writes.
+
 ### Coding line
 
 Use the coding line when the primary deliverable is:
@@ -91,6 +101,7 @@ Typical route:
 ## What `/Aide` Optimizes
 
 - the lightest correct route for the current task
+- direct answers for discussion-shaped work that only needs analysis or recommendations
 - systemic governance instead of cosmetic cleanup
 - product-line review based on the real chat record
 - light user feedback when product-task completion is still ambiguous
