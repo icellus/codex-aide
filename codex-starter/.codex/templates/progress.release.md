@@ -1,6 +1,6 @@
 # Release Progress
 
-**Mode**: release orchestration
+**Mode**: release long-running tracking
 **Last Updated**: YYYY-MM-DD HH:MM
 **Release Goal**: [version, milestone, or deployment objective]
 **Current Checkpoint**: `[readiness|pre-release-checks|promote|follow-through|close]`

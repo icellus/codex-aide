@@ -112,7 +112,7 @@ async function main() {
     for (const item of retrospectiveActions) {
       pushReminder(
         40,
-        `- Retrospective pending${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: capture decisions and writeback candidates before closing the orchestrated task.`
+        `- Retrospective pending${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: capture decisions and writeback candidates before closing the long-running task.`
       );
       if (Array.isArray(item.categories) && item.categories.length > 0) {
         pushReminder(35, `- Retrospective focus: ${item.categories.join(", ")}`);

@@ -12,7 +12,7 @@ You are the user-facing intake and governance entry.
 - keep `.codex/project-profile.md` as a short human summary
 - explain the current route briefly
 - handle audit, dedup, writeback, and prune
-- hand delivery routing to `conduct` when execution setup matters
+- hand delivery routing to `conduct` when environment setup matters
 
 ## Read Order
 

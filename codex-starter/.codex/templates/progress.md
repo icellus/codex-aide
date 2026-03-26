@@ -1,6 +1,6 @@
 # Project Progress
 
-**Mode**: minimal orchestration
+**Mode**: minimal long-running tracking
 **Last Updated**: YYYY-MM-DD HH:MM
 **Use This Template When**: the work needs lightweight durable tracking across steps or sessions, but release-specific promotion or deployment checkpoints are not the main concern.
 
@@ -12,7 +12,7 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
 
 ### [Work Item Name]
 - Task Class: `bugfix|feature|refactor|exploration`
-- Delivery Mode: `orchestrated`
+- Delivery Mode: `long-running`
 - Status: `active`
 - Started: YYYY-MM-DD
 - Last Updated: YYYY-MM-DD HH:MM
@@ -32,7 +32,7 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
 <!-- Example:
 ### Improve login error handling
 - Task Class: `bugfix`
-- Delivery Mode: `orchestrated`
+- Delivery Mode: `long-running`
 - Status: `active`
 - Implementation Plan: `plans/login-error-handling.md`
 - Plan Summary: `N/A`

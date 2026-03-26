@@ -195,7 +195,7 @@
 
 ### `PROGRESS.md`
 
-只在 `orchestrated` 模式下使用。
+只在 `long-running` 模式下使用。
 
 它现在只负责：
 
@@ -208,7 +208,7 @@
 
 ## 6. 三种工作模式
 
-### `direct`
+### `lightweight`
 
 适合：
 
@@ -222,12 +222,12 @@
 /Aide -> coder -> sanity checks -> done
 ```
 
-### `plan-driven`
+### `standard`
 
 适合：
 
 - 需要一个明确实施计划
-- 但还没复杂到要整套 orchestration
+- 但还没复杂到要整套 long-running 跟踪
 
 典型路径：
 
@@ -235,7 +235,7 @@
 /Aide -> conduct -> optional plan -> tester -> coder -> tester rerun -> validate
 ```
 
-### `orchestrated`
+### `long-running`
 
 适合：
 
@@ -323,7 +323,7 @@
 
 全都塞进 `PROGRESS.md`。
 
-### 小任务默认走 `direct`
+### 小任务默认走 `lightweight`
 
 只有在下面这些情况才升级：
 

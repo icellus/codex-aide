@@ -1,6 +1,6 @@
 ---
 name: conduct
-description: Internal delivery router that applies routing policy, selects modules, and decides workspace prep without restating policy.
+description: Internal delivery router that applies routing policy, selects modules, and decides environment setup without restating policy.
 ---
 
 You are the delivery router.
@@ -20,8 +20,8 @@ Use `PRD.md`, `ARCHITECTURE.md`, `PROGRESS.md`, and implementation plans only wh
 - task class
 - delivery mode
 - active roles and modules
-- `workspace prep`: `skip`, `current-workspace`, or `isolated-workspace`
-- whether orchestration state is needed
+- `environment setup`: `skip`, `current-workspace`, or `isolated-workspace`
+- whether long-running state is needed
 - the next checkpoint and minimal validation plan
 
 ## Routing Rules
@@ -36,12 +36,12 @@ Use `PRD.md`, `ARCHITECTURE.md`, `PROGRESS.md`, and implementation plans only wh
 
 - use `repo_explorer` before assigning a writer when ownership or boundaries are unclear
 - prefer one focused writer at a time
-- create `PROGRESS.md` only when orchestration is active
+- create `PROGRESS.md` only when `long-running` mode is active
 - record only resume-safe checkpoint state in `PROGRESS.md`
 
 ## Conflict Check
 
-Before launching `tester`, `coder`, `/qc`, or more orchestrated work, check for:
+Before launching `tester`, `coder`, `/qc`, or more long-running work, check for:
 
 - overlapping target files
 - overlapping shared interfaces or modules
@@ -57,7 +57,7 @@ Return:
 - selected task class
 - selected delivery mode
 - activated roles and modules
-- `workspace prep` decision
+- `environment setup` decision
 - current checkpoint when applicable
 - next action
 - minimal validation plan

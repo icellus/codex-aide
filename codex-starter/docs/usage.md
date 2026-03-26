@@ -45,12 +45,12 @@ Keep them generic in the starter repo; let `/Aide` rewrite them after copying th
 | small bugfix | `/Aide -> coder -> sanity checks` | `prd`, `architect`, `plan`, `/follow` |
 | higher-risk bugfix | `/Aide -> tester -> coder -> tester or /qc` | modules that do not add value |
 | feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester or optional /qc` | heavier modules that do not add value |
-| refactor | `start direct, promote only if contracts, risk, or handoffs grow` | orchestration for local low-risk refactors |
-| release | `/Aide -> conduct -> optional /qc -> optional /follow` | direct mode for multi-step release work |
+| refactor | `start lightweight, promote only if contracts, risk, or handoffs grow` | long-running tracking for local low-risk refactors |
+| release | `/Aide -> conduct -> optional /qc -> optional /follow` | `long-running` mode for multi-step release work |
 
-## Workspace Prep
+## Environment Setup
 
-`workspace prep` belongs to `conduct`, not `/Aide`.
+`environment setup` belongs to `conduct`, not `/Aide`.
 
 Run it only when execution needs:
 

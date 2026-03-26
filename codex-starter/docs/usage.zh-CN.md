@@ -49,12 +49,12 @@
 | 小 bugfix | `/Aide -> coder -> sanity checks` | `prd`、`architect`、`plan`、`/follow` |
 | 较高风险 bugfix | `/Aide -> tester -> coder -> tester 或 /qc` | 不增加价值的模块 |
 | feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester 或 optional /qc` | 不增加价值的重模块 |
-| refactor | 先 direct，只有在契约、风险、handoff 变大时才升级 | 低风险局部 refactor 的 orchestration |
-| release | `/Aide -> conduct -> optional /qc -> optional /follow` | 多步骤发布任务中的 direct 模式 |
+| refactor | 先 lightweight，只有在契约、风险、handoff 变大时才升级 | 低风险局部 refactor 不需要 long-running 跟踪 |
+| release | `/Aide -> conduct -> optional /qc -> optional /follow` | 多步骤发布任务中的 `long-running` 模式 |
 
-## Workspace Prep
+## Environment Setup
 
-`workspace prep` 属于 `conduct`，不属于 `/Aide`。
+`environment setup` 属于 `conduct`，不属于 `/Aide`。
 
 只有在执行确实需要时才运行：
 

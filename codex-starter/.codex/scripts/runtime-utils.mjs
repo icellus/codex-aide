@@ -96,11 +96,11 @@ export function createEmptyTaskContext() {
       status: "idle",
       class: "unknown",
       risk: "unknown",
-      delivery_mode: "direct",
+      delivery_mode: "lightweight",
       route_rationale: "",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["startup scan or cached repo context", "direct implementation", "targeted sanity checks"],
+      enabled_modules: ["startup scan or cached repo context", "lightweight implementation", "targeted sanity checks"],
       qc_policy: "disabled",
       follow_policy: "disabled",
       validation_profile_status: "not-set",
@@ -221,6 +221,33 @@ function normalizeProfileValue(value) {
   return String(value || "").replace(/`/g, "").trim();
 }
 
+function normalizeDeliveryModeValue(value) {
+  const normalized = normalizeProfileValue(value);
+  const legacy = normalized.toLowerCase();
+
+  if (legacy === "direct") {
+    return "lightweight";
+  }
+
+  if (legacy === "plan-driven") {
+    return "standard";
+  }
+
+  if (legacy === "orchestrated") {
+    return "long-running";
+  }
+
+  return normalized;
+}
+
+function normalizeEnabledModuleValue(value) {
+  const normalized = normalizeProfileValue(value);
+  if (normalized.toLowerCase() === "direct implementation") {
+    return "lightweight implementation";
+  }
+  return normalized;
+}
+
 function normalizeListValue(value) {
   if (Array.isArray(value)) {
     return value.map((item) => normalizeProfileValue(item)).filter(Boolean);
@@ -271,11 +298,11 @@ function mapTaskContextToProfile(parsed = {}) {
     taskStatus: normalizeProfileValue(task.status) || "idle",
     taskClass: normalizeProfileValue(task.class) || null,
     riskLevel: normalizeProfileValue(task.risk) || null,
-    deliveryMode: normalizeProfileValue(task.delivery_mode) || null,
+    deliveryMode: normalizeDeliveryModeValue(task.delivery_mode) || null,
     routeRationale: normalizeProfileValue(task.route_rationale) || null,
     routingOverrides: normalizeListValue(task.routing_overrides),
     enabledRoles: normalizeListValue(task.enabled_roles),
-    enabledModules: normalizeListValue(task.enabled_modules),
+    enabledModules: normalizeListValue(task.enabled_modules).map((item) => normalizeEnabledModuleValue(item)),
     qcPolicy: normalizeProfileValue(task.qc_policy) || null,
     followPolicy: normalizeProfileValue(task.follow_policy) || null,
     validationProfileStatus: normalizeProfileValue(task.validation_profile_status) || null,
@@ -319,7 +346,7 @@ export function loadProjectProfileState(projectDir) {
     taskStatus: normalizeProfileValue(readProfileField(text, "Task status")) || "idle",
     taskClass: normalizeProfileValue(readProfileField(text, "Task class")) || null,
     riskLevel: normalizeProfileValue(readProfileField(text, "Risk level")) || null,
-    deliveryMode: normalizeProfileValue(readProfileField(text, "Selected delivery mode")) || null,
+    deliveryMode: normalizeDeliveryModeValue(readProfileField(text, "Selected delivery mode")) || null,
     routeRationale: normalizeProfileValue(readProfileField(text, "Route rationale")) || null,
     enabledRoles: parseProfileList(readProfileField(text, "Enabled roles")),
     enabledModules: parseProfileList(readProfileField(text, "Enabled modules")),
@@ -350,8 +377,12 @@ export function isTaskSettled(profile = {}) {
   return taskStatus === "done" || taskStatus === "idle";
 }
 
+export function isLongRunningProfile(profile = {}) {
+  return normalizeDeliveryModeValue(profile.deliveryMode).toLowerCase() === "long-running";
+}
+
 export function isOrchestratedProfile(profile = {}) {
-  return String(profile.deliveryMode || "").toLowerCase() === "orchestrated";
+  return isLongRunningProfile(profile);
 }
 
 export function findProgressFile(startDir) {
@@ -950,7 +981,7 @@ function buildRetrospectiveBlock(entry, blockId) {
     `**Story**: \`${entry.storyPath || "unknown"}\``,
     `**Trigger**: \`${entry.trigger || "pending"}\``,
     "**Decisions Made**:",
-    "- Pending capture during the next internal orchestration handoff or session close.",
+    "- Pending capture during the next internal long-running handoff or session close.",
     "**Wrong Assumptions**:",
     `- Prompt: ${entry.note || "Capture the assumption that failed."}`,
     "**Candidate Lessons**:",
@@ -972,7 +1003,7 @@ function parseRetrospectiveChunk(chunk) {
 function isPendingAutoRetrospective(parsed) {
   return (
     parsed.writebackDecision === "pending retrospective" &&
-    parsed.chunk.includes("Pending capture during the next internal orchestration handoff or session close.") &&
+    parsed.chunk.includes("Pending capture during the next internal long-running handoff or session close.") &&
     parsed.chunk.includes("- Prompt:")
   );
 }

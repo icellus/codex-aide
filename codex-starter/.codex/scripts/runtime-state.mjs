@@ -12,7 +12,7 @@ import {
   extractStructuredResult,
   findProgressFile,
   getProjectDir,
-  isOrchestratedProfile,
+  isLongRunningProfile,
   isQcEnabled,
   isTaskSettled,
   lessonForCategory,
@@ -254,7 +254,7 @@ function processQcOutcome(state, storyPath, profile, message) {
         (item) => item.status === "queued" && (item.source || "unknown") === storyPath
       );
 
-      if (queuedForStory.length > 0 && isOrchestratedProfile(profile)) {
+      if (queuedForStory.length > 0 && isLongRunningProfile(profile)) {
         upsertSessionRetrospective(state, storyPath, {
           trigger: "qc_pass_after_retries",
           categories: Array.from(new Set(queuedForStory.map((item) => item.category))),
@@ -300,7 +300,7 @@ function processQcOutcome(state, storyPath, profile, message) {
         }
       }
 
-      if (categories.length > 0 && isOrchestratedProfile(profile)) {
+      if (categories.length > 0 && isLongRunningProfile(profile)) {
         upsertSessionRetrospective(state, storyPath, {
           trigger: "qc_failure",
           categories,
@@ -358,7 +358,7 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile) 
       storyPath,
       note: `Recent ${role} blockage detected. Review structured handoff before continuing.`
     });
-    if (storyPath && isOrchestratedProfile(profile)) {
+    if (storyPath && isLongRunningProfile(profile)) {
       upsertSessionRetrospective(state, storyPath, {
         trigger: "blocked",
         phase: role,
@@ -377,7 +377,7 @@ function recordSessionEnd(input, state, activeStories, projectDir, profile) {
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
 
-  if (storyPath && isOrchestratedProfile(profile)) {
+  if (storyPath && isLongRunningProfile(profile)) {
     upsertSessionRetrospective(state, storyPath, {
       trigger: "session_close",
       note: `Session paused around ${basenameLabel(storyPath)}. Capture key decisions, broken assumptions, and whether any queued lesson should write back through /Aide.`

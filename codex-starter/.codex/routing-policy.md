@@ -9,20 +9,20 @@ This file is the routing authority.
 ## Core Rules
 
 - Prefer the lightest workflow that can safely finish the task.
-- Keep `direct` as the default for small, local, low-risk work.
+- Keep `lightweight` as the default for small, local, low-risk work.
 - Add durable artifacts only when coordination, uncertainty, or risk requires them.
 - When execution roles are active, prefer real subagents when delegation is available.
-- `workspace prep` belongs to `conduct`.
+- `environment setup` belongs to `conduct`.
 - `/qc` is optional unless the task or policy explicitly enables it.
 - `/follow` matters only after push, promotion, or release follow-through.
 
 ## Default Modes
 
-- `bugfix` -> `direct`
-- `feature` -> `plan-driven`
-- `refactor` -> `direct`
-- `release` -> `orchestrated`
-- `exploration` -> `direct`
+- `bugfix` -> `lightweight`
+- `feature` -> `standard`
+- `refactor` -> `lightweight`
+- `release` -> `long-running`
+- `exploration` -> `lightweight`
 
 ## Upgrade Triggers
 
@@ -30,11 +30,11 @@ This file is the routing authority.
 - enable `architect` when interfaces, boundaries, or integration design are unstable
 - enable `plan` when implementation guidance needs a durable artifact
 - enable `tester` and `coder` when explicit red/green separation or handoff value is real
-- enable orchestration and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
+- enable `long-running` mode and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
 - enable `/qc` when risk is high, the user asks for an audit, or release confidence needs it
 - enable `/follow` when pushed code, CI, deployment, or release follow-through matters
 
-## Workspace Prep
+## Environment Setup
 
 - default: `skip`
 - choose `current-workspace` for small readiness checks or bootstrap steps
@@ -45,7 +45,7 @@ This file is the routing authority.
 - `.codex/state/task-context.json`: hot task state
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: validation commands and constraints
-- `PROGRESS.md`: orchestrated checkpoints only
+- `PROGRESS.md`: long-running checkpoints only
 - `.codex/state/runtime-state.json`: reminders, QC follow-up, and runtime memory
 - `.codex/project-profile.md`: human summary only
 

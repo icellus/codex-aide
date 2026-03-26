@@ -151,7 +151,7 @@ function testTaskContextJsonOverridesMarkdownProfile() {
   const dir = makeTempDir("codex-starter-task-context-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
     ["- Task status: `idle`", "- Task status: `done`"],
-    ["- Selected delivery mode: `direct`", "- Selected delivery mode: `orchestrated`"]
+    ["- Selected delivery mode: `lightweight`", "- Selected delivery mode: `long-running`"]
   ]);
   writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
     version: 1,
@@ -166,11 +166,11 @@ function testTaskContextJsonOverridesMarkdownProfile() {
       status: "active",
       class: "refactor",
       risk: "medium",
-      delivery_mode: "direct",
+      delivery_mode: "lightweight",
       route_rationale: "cached JSON state should win on the hot path",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["direct implementation"],
+      enabled_modules: ["lightweight implementation"],
       qc_policy: "disabled",
       follow_policy: "disabled",
       validation_profile_status: "inferred",
@@ -181,13 +181,13 @@ function testTaskContextJsonOverridesMarkdownProfile() {
   const profile = loadProjectProfileState(dir);
   assert.equal(profile.task, "Tighten hot runtime context");
   assert.equal(profile.taskStatus, "active");
-  assert.equal(profile.deliveryMode, "direct");
+  assert.equal(profile.deliveryMode, "lightweight");
 }
 
 function testTrimRuntimeStateDropsOldFailurePatterns() {
   const dir = makeTempDir("codex-starter-failure-patterns-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
-    ["- Selected delivery mode: `direct`", "- Selected delivery mode: `orchestrated`"],
+    ["- Selected delivery mode: `lightweight`", "- Selected delivery mode: `long-running`"],
     ["- QC policy: `disabled`", "- QC policy: `enabled`"]
   ]);
   fs.writeFileSync(
@@ -247,7 +247,7 @@ function testSubagentStopQueuesQcWithoutStory() {
   const dir = makeTempDir("codex-starter-qc-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
     ["- QC policy: `disabled`", "- QC policy: `enabled`"],
-    ["- Selected delivery mode: `direct`", "- Selected delivery mode: `plan-driven`"]
+    ["- Selected delivery mode: `lightweight`", "- Selected delivery mode: `standard`"]
   ]);
 
   runNode(
@@ -297,7 +297,7 @@ function testSessionContextKeepsRetrospectiveReminderForDoneTask() {
   const dir = makeTempDir("codex-starter-retro-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
     ["- Task status: `idle`", "- Task status: `done`"],
-    ["- Selected delivery mode: `direct`", "- Selected delivery mode: `orchestrated`"]
+    ["- Selected delivery mode: `lightweight`", "- Selected delivery mode: `long-running`"]
   ]);
   fs.writeFileSync(
     path.join(dir, "PROGRESS.md"),
@@ -403,11 +403,44 @@ function testQcReviewerAliasRecordsStructuredFail() {
   assert.equal(state.qualityMetrics.failureCategoryCounts["missing-test"], 1);
 }
 
+function testLegacyDeliveryModeNamesNormalizeToCurrentNames() {
+  const dir = makeTempDir("codex-starter-legacy-modes-");
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "boss",
+      greeting_style: "brief",
+      first_startup_greeting_completed: false
+    },
+    task: {
+      current_task: "Legacy route",
+      status: "active",
+      class: "feature",
+      risk: "medium",
+      delivery_mode: "plan-driven",
+      route_rationale: "legacy starter state",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["direct implementation"],
+      qc_policy: "disabled",
+      follow_policy: "disabled",
+      validation_profile_status: "inferred",
+      open_questions: []
+    }
+  });
+
+  const profile = loadProjectProfileState(dir);
+  assert.equal(profile.deliveryMode, "standard");
+  assert.deepEqual(profile.enabledModules, ["lightweight implementation"]);
+}
+
 testQcDetectionRequiresQcMarkers();
 testValidationProfileDefinesRepoBaselineAndTesterOwnership();
 testTesterContractIncludesTaskValidationHandoff();
 testProgressSyncSupportsLegacyShape();
 testTaskContextJsonOverridesMarkdownProfile();
+testLegacyDeliveryModeNamesNormalizeToCurrentNames();
 testTrimRuntimeStateDropsOldFailurePatterns();
 testSubagentStopQueuesQcWithoutStory();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();

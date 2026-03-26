@@ -5,7 +5,7 @@ Project-level Codex workflow starter.
 ## Default Stance
 
 - Start light.
-- Default to direct, local implementation.
+- Default to lightweight, local implementation.
 - Upgrade only when scope, risk, or coordination require it.
 - Keep the main agent on intake, routing, governance, and result integration.
 - Prefer real subagents for `tester`, `coder`, `/qc`, and `/follow` when delegation adds value.
@@ -24,7 +24,7 @@ Project-level Codex workflow starter.
 - `.codex/state/task-context.json`: hot task state and collaboration preferences
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: repository validation baseline and constraints
-- `PROGRESS.md`: orchestrated checkpoint tracking only
+- `PROGRESS.md`: long-running checkpoint tracking only
 - `.codex/state/runtime-state.json`: runtime memory, reminders, and QC follow-up
 - `.codex/project-profile.md`: short human summary, not the hot path
 
@@ -38,7 +38,7 @@ Project-level Codex workflow starter.
 ## Guardrails
 
 - infer repo facts before asking
-- `workspace prep` belongs to `conduct`
+- `environment setup` belongs to `conduct`
 - `/qc` is opt-in per task need or policy
 - `/follow` applies only after push, CI, or release follow-through
 - only the main agent or runtime scripts write `.codex/state/*.json`, `.codex/project-profile.md`, or `PROGRESS.md`

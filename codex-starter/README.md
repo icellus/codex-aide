@@ -2,12 +2,12 @@
 
 Project-local Codex workflow starter.
 
-It keeps the default path direct, keeps the command surface small, and only enables heavier planning, QC, or release controls when the current task actually needs them.
+It keeps the default path lightweight, keeps the command surface small, and only enables heavier planning, QC, or release controls when the current task actually needs them.
 
 ## At A Glance
 
 - default commands: `/Aide`, `/qc`, `/follow`
-- default mode for small work: `direct`
+- default mode for small work: `lightweight`
 - preferred execution model: subagent-first for `tester`, `coder`, `/qc`, and `/follow`
 - official repo skill layout: `.agents/skills/*/SKILL.md`
 - official custom subagent layout: `.codex/agents/*.toml`
@@ -25,7 +25,7 @@ It keeps the default path direct, keeps the command surface small, and only enab
 2. Ensure `node` is available if you want runtime helpers and smoke tests.
 3. Start with `/Aide` or `/Aide [your goal]`.
 4. Let `/Aide` scan the repo, update current state, and recommend the lightest route.
-5. Stay direct unless the task clearly needs planning, orchestration, QC, or follow-through.
+5. Stay lightweight unless the task clearly needs planning, long-running tracking, QC, or follow-through.
 
 The starter ships with template defaults in `.codex/project-profile.md` and `.codex/validation-profile.json`.
 `/Aide` should replace them and the JSON state files in `.codex/state/` with repo-specific state on the first real run.
@@ -45,8 +45,8 @@ The starter ships with template defaults in `.codex/project-profile.md` and `.co
 - `.codex/scripts/*.mjs`: runtime helpers for reminders, git validation, and runtime-state sync
 
 Runtime state is written to `.codex/state/runtime-state.json` on demand.
-When orchestration is active, `PROGRESS.md` is for checkpoint tracking only.
-Auto QC reminders are queued only when the current task explicitly enables `/qc`, including direct or plan-driven work that does not have a tracked story path yet.
+When `long-running` mode is active, `PROGRESS.md` is for checkpoint tracking only.
+Auto QC reminders are queued only when the current task explicitly enables `/qc`, including lightweight or standard work that does not have a tracked story path yet.
 
 ## Docs
 

@@ -2,7 +2,7 @@
 
 ## What This Starter Optimizes For
 
-`codex-starter` is for repositories where most work should stay light and direct, but stronger planning, auditing, and release controls must still be available when the task justifies them.
+`codex-starter` is for repositories where most work should stay lightweight, but stronger planning, auditing, and release controls must still be available when the task justifies them.
 
 ## Design Principles
 
@@ -33,7 +33,7 @@
 | Item | Responsibility | Default |
 | --- | --- | --- |
 | `/Aide` | intake, current state, governance | enabled |
-| `conduct` | delivery routing and `workspace prep` | disabled |
+| `conduct` | delivery routing and `environment setup` | disabled |
 | `prd` | WHAT, WHY, MVP clarification | disabled |
 | `architect` | HOW at system level | disabled |
 | `plan` | implementation handoff | disabled |
@@ -46,11 +46,11 @@
 
 ## Delivery Shape
 
-- `direct`: small, local, clear work
-- `plan-driven`: work that benefits from one implementation plan
-- `orchestrated`: multi-step, cross-session, release, or higher-risk work
+- `lightweight`: small, local, clear work
+- `standard`: work that benefits from one implementation plan
+- `long-running`: multi-step, cross-session, release, or higher-risk work
 
-`workspace prep` belongs to `conduct`, not `/Aide`.
+`environment setup` belongs to `conduct`, not `/Aide`.
 Exact task defaults and upgrade triggers live in `.codex/routing-policy.md`.
 
 ## Durable Artifacts
@@ -63,7 +63,7 @@ Exact task defaults and upgrade triggers live in `.codex/routing-policy.md`.
 - `PRD.md` or scoped PRD file: optional product scope
 - `ARCHITECTURE.md` or scoped architecture file: optional system design
 - `Implementation Plan`: optional implementation guidance
-- `PROGRESS.md`: orchestration-only progress state
+- `PROGRESS.md`: long-running progress state
 - `.codex/state/runtime-state.json`: runtime memory created on demand by `.codex/scripts/*.mjs`
 
 `PROGRESS.md` should track checkpoints and next actions, not runtime-managed retrospectives or learning queues.

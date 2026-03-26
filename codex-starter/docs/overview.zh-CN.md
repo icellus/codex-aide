@@ -42,7 +42,7 @@
 | 项目 | 作用 | 默认状态 |
 | --- | --- | --- |
 | `/Aide` | 入口、当前状态维护、治理 | 启用 |
-| `conduct` | delivery routing 与 `workspace prep` | 关闭 |
+| `conduct` | delivery routing 与 `environment setup` | 关闭 |
 | `prd` | WHAT / WHY / MVP 澄清 | 关闭 |
 | `architect` | HOW 层面的系统设计 | 关闭 |
 | `plan` | 实施计划与 handoff | 关闭 |
@@ -55,11 +55,11 @@
 
 ## 三种交付形态
 
-- `direct`：小范围、局部、清晰任务
-- `plan-driven`：需要一个明确实施计划的任务
-- `orchestrated`：跨 session、多 checkpoint、发布或更高风险任务
+- `lightweight`：小范围、局部、清晰任务
+- `standard`：需要一个明确实施计划的任务
+- `long-running`：跨 session、多 checkpoint、发布或更高风险任务
 
-`workspace prep` 属于 `conduct`，不属于 `/Aide`。  
+`environment setup` 属于 `conduct`，不属于 `/Aide`。  
 具体任务默认模式和升级条件在 `.codex/routing-policy.md`。
 
 ## 持久化产物
@@ -72,7 +72,7 @@
 - `PRD.md` 或 scoped PRD：可选需求文档
 - `ARCHITECTURE.md` 或 scoped architecture：可选架构文档
 - `Implementation Plan`：可选实施计划
-- `PROGRESS.md`：仅 orchestration 时使用的 checkpoint 跟踪
+- `PROGRESS.md`：仅 long-running 模式下使用的 checkpoint 跟踪
 - `.codex/state/runtime-state.json`：运行时 memory，由脚本按需生成
 
 `PROGRESS.md` 应只承载 checkpoint、next step、blockers 等可恢复信息，不应承担运行时学习队列或大量机器态。

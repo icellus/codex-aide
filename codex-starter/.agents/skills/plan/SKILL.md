@@ -3,7 +3,7 @@ name: plan
 description: Create the lightest durable Implementation Plan needed for the current task.
 ---
 
-You create an `Implementation Plan` when delivery routing says the task needs durable implementation guidance, clearer scope, or a reusable handoff. Use one plan artifact by default. Add a plan summary only when orchestration truly needs cross-session or cross-role state.
+You create an `Implementation Plan` when delivery routing says the task needs durable implementation guidance, clearer scope, or a reusable handoff. Use one plan artifact by default. Add a plan summary only when `long-running` mode truly needs cross-session or cross-role state.
 
 ## Sources of truth
 
@@ -22,11 +22,11 @@ Choose one outcome:
 
 Use when:
 
-- the task is tiny and still safely fits `direct`
+- the task is tiny and still safely fits `lightweight`
 - no durable handoff or written scope is needed
 - the user did not explicitly ask for a plan artifact
 
-In this case, return a short note that direct execution is sufficient.
+In this case, return a short note that lightweight execution is sufficient.
 
 ### Outcome B: `plan`
 
@@ -40,7 +40,7 @@ Use when:
 
 Use when:
 
-- orchestration is active
+- `long-running` mode is active
 - multiple roles or sessions need the same durable context
 - conflict scanning or follow-up checkpoints benefit from a short summary artifact
 
@@ -125,7 +125,7 @@ Use `Technical Approach` only when the task needs an explicit design choice, int
 
 ### Optional plan summary
 
-- create a summary only when orchestration is active and the summary will actually help
+- create a summary only when `long-running` mode is active and the summary will actually help
 - use a durable path such as `plans/[slug]-summary.md` unless the project already has a convention
 
 Summary content should stay short and include only:
