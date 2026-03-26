@@ -43,6 +43,7 @@ This file is the routing authority.
 ## Durable State
 
 - `.codex/state/task-context.json`: hot task state
+- `.codex/state/task-registry.json`: cold task registry for current and unfinished task management
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: validation commands and constraints
 - `PROGRESS.md`: long-running checkpoints only

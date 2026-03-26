@@ -32,6 +32,7 @@
 | `.codex/config.toml` | 子代理并发默认配置 |
 | `.codex/routing-policy.md` | 路由与模块启用策略 |
 | `.codex/state/task-context.json` | 热任务状态与协作偏好 |
+| `.codex/state/task-registry.json` | 冷任务注册表，用于当前任务、未结束任务和已完成历史 |
 | `.codex/state/repo-context.json` | 仓库缓存事实 |
 | `.codex/validation-profile.json` | 仓库级验证基线与限制 |
 | `.codex/project-profile.md` | 给人看的短摘要 |
@@ -65,6 +66,7 @@
 ## 持久化产物
 
 - `.codex/state/task-context.json`：热任务状态
+- `.codex/state/task-registry.json`：冷任务注册表与按需查询的任务历史
 - `.codex/state/repo-context.json`：仓库缓存事实
 - `.codex/validation-profile.json`：仓库级验证基线
 - `.codex/templates/validation-handoff.md`：可选的 tester 任务级验证 handoff 模板

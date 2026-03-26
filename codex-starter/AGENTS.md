@@ -22,6 +22,7 @@ Project-level Codex workflow starter.
 
 - `.codex/routing-policy.md`: routing and module activation authority
 - `.codex/state/task-context.json`: hot task state and collaboration preferences
+- `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed task history
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: repository validation baseline and constraints
 - `PROGRESS.md`: long-running checkpoint tracking only
@@ -31,6 +32,7 @@ Project-level Codex workflow starter.
 ## Runtime Hooks
 
 - `node .codex/scripts/session-context.mjs`
+- `node .codex/scripts/task-overview.mjs`
 - `node .codex/scripts/runtime-state.mjs`
 - `node .codex/scripts/validate-git.mjs`
 - prefer `{"event":"subagent_result",...}` and `{"event":"session_end",...}` payloads

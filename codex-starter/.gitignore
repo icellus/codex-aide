@@ -1,2 +1,5 @@
 .codex/settings.local.json
-.codex/state/
+.codex/state/*
+!.codex/state/task-context.json
+!.codex/state/repo-context.json
+!.codex/state/task-registry.json

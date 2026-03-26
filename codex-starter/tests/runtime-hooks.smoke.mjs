@@ -14,6 +14,7 @@ import {
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const runtimeStateScript = path.join(rootDir, ".codex", "scripts", "runtime-state.mjs");
 const sessionContextScript = path.join(rootDir, ".codex", "scripts", "session-context.mjs");
+const taskOverviewScript = path.join(rootDir, ".codex", "scripts", "task-overview.mjs");
 const validateGitScript = path.join(rootDir, ".codex", "scripts", "validate-git.mjs");
 const progressTemplatePath = path.join(rootDir, ".codex", "templates", "progress.md");
 const projectProfilePath = path.join(rootDir, ".codex", "project-profile.md");
@@ -56,6 +57,10 @@ function runNodeResult(scriptPath, input, env = {}) {
 
 function readRuntimeState(projectDir) {
   return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "runtime-state.json"), "utf8"));
+}
+
+function readTaskRegistry(projectDir) {
+  return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "task-registry.json"), "utf8"));
 }
 
 function prepareProjectProfile(targetPath, replacements = []) {
@@ -435,6 +440,175 @@ function testLegacyDeliveryModeNamesNormalizeToCurrentNames() {
   assert.deepEqual(profile.enabledModules, ["lightweight implementation"]);
 }
 
+function testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks() {
+  const dir = makeTempDir("codex-starter-task-overview-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "boss",
+      greeting_style: "brief",
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "New routing cleanup",
+      status: "active",
+      class: "refactor",
+      risk: "medium",
+      delivery_mode: "standard",
+      route_rationale: "current hot task",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["plan", "tester", "coder"],
+      qc_policy: "disabled",
+      follow_policy: "disabled",
+      validation_profile_status: "inferred",
+      open_questions: []
+    }
+  });
+
+  writeJson(path.join(dir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-24T00:00:00Z",
+    currentTaskId: "old-task-1",
+    tasks: [
+      {
+        id: "old-task-1",
+        matchKey: "task:old-routing-cleanup",
+        title: "Old routing cleanup",
+        status: "active",
+        createdAt: "2026-03-24T00:00:00Z",
+        updatedAt: "2026-03-24T00:00:00Z",
+        lastSeenAt: "2026-03-24T00:00:00Z",
+        source: "task-context"
+      }
+    ]
+  });
+
+  const stdout = runNode(taskOverviewScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  const registry = readTaskRegistry(dir);
+  const oldTask = registry.tasks.find((task) => task.title === "Old routing cleanup");
+  const currentTask = registry.tasks.find((task) => task.title === "New routing cleanup");
+
+  assert.match(stdout, /Current task: New routing cleanup \[active\]/);
+  assert.match(stdout, /Historical unfinished tasks: 1/);
+  assert.match(stdout, /Unfinished: Old routing cleanup \[parked\]/);
+  assert.doesNotMatch(stdout, /Completed tasks:/);
+  assert.equal(oldTask.status, "parked");
+  assert.equal(currentTask.status, "active");
+  assert.equal(registry.currentTaskId, currentTask.id);
+}
+
+function testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished() {
+  const dir = makeTempDir("codex-starter-task-reconcile-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  writeJson(path.join(dir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-24T00:00:00Z",
+    currentTaskId: "dangling-task-1",
+    tasks: [
+      {
+        id: "dangling-task-1",
+        matchKey: "task:manual-cleanup",
+        title: "Manual cleanup",
+        status: "active",
+        createdAt: "2026-03-24T00:00:00Z",
+        updatedAt: "2026-03-24T00:00:00Z",
+        lastSeenAt: "2026-03-24T00:00:00Z",
+        source: "task-context"
+      }
+    ]
+  });
+
+  const stdout = runNode(taskOverviewScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  const registry = readTaskRegistry(dir);
+  const task = registry.tasks.find((entry) => entry.title === "Manual cleanup");
+
+  assert.match(stdout, /Current task: none/);
+  assert.match(stdout, /Historical unfinished tasks: 1/);
+  assert.match(stdout, /Unfinished: Manual cleanup \[parked\]/);
+  assert.equal(task.status, "parked");
+  assert.match(task.reason, /Hot task cleared without explicit closure/);
+  assert.equal(registry.currentTaskId, null);
+}
+
+function testTaskOverviewCanQueryCompletedTasksOnDemand() {
+  const dir = makeTempDir("codex-starter-task-history-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  writeJson(path.join(dir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-24T00:00:00Z",
+    currentTaskId: null,
+    tasks: [
+      {
+        id: "completed-task-1",
+        matchKey: "task:release-cleanup",
+        title: "Release cleanup",
+        status: "done",
+        createdAt: "2026-03-24T00:00:00Z",
+        updatedAt: "2026-03-25T00:00:00Z",
+        completedAt: "2026-03-25T00:00:00Z",
+        summary: "Closed the rollout tasks.",
+        source: "runtime-state"
+      }
+    ]
+  });
+
+  const stdout = runNode(taskOverviewScript, { cwd: dir, status: "done" }, { CODEX_PROJECT_DIR: dir });
+
+  assert.match(stdout, /Task history:/);
+  assert.match(stdout, /Completed tasks: 1/);
+  assert.match(stdout, /Completed: Release cleanup \[done\]/);
+}
+
+function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
+  const dir = makeTempDir("codex-starter-task-registry-sync-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "boss",
+      greeting_style: "brief",
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "Finish API cleanup",
+      status: "active",
+      class: "bugfix",
+      risk: "medium",
+      delivery_mode: "lightweight",
+      route_rationale: "close the current hot task",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["lightweight implementation"],
+      qc_policy: "disabled",
+      follow_policy: "disabled",
+      validation_profile_status: "inferred",
+      open_questions: []
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "session_end",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const registry = readTaskRegistry(dir);
+  const task = registry.tasks.find((entry) => entry.title === "Finish API cleanup");
+
+  assert.equal(task.status, "done");
+  assert.equal(registry.currentTaskId, null);
+}
+
 testQcDetectionRequiresQcMarkers();
 testValidationProfileDefinesRepoBaselineAndTesterOwnership();
 testTesterContractIncludesTaskValidationHandoff();
@@ -446,5 +620,9 @@ testSubagentStopQueuesQcWithoutStory();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
 testValidateGitRejectsBroadAdd();
 testQcReviewerAliasRecordsStructuredFail();
+testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();
+testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished();
+testTaskOverviewCanQueryCompletedTasksOnDemand();
+testRuntimeStateSyncsCompletedTasksIntoTaskRegistry();
 
 process.stdout.write("runtime helper smoke tests passed\n");

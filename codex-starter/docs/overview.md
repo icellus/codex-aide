@@ -23,6 +23,7 @@
 | `.codex/config.toml` | subagent concurrency defaults |
 | `.codex/routing-policy.md` | routing and module-activation authority |
 | `.codex/state/task-context.json` | hot task state and collaboration preferences |
+| `.codex/state/task-registry.json` | cold task registry for current, unfinished, and completed tasks |
 | `.codex/state/repo-context.json` | cached repo facts |
 | `.codex/validation-profile.json` | repository validation baseline and constraints |
 | `.codex/project-profile.md` | short human summary |
@@ -57,6 +58,7 @@ Exact task defaults and upgrade triggers live in `.codex/routing-policy.md`.
 
 - `.codex/project-profile.md`: short human summary
 - `.codex/state/task-context.json`: hot task state and preferences
+- `.codex/state/task-registry.json`: cold task registry and on-demand task history
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: repository validation baseline
 - `.codex/templates/validation-handoff.md`: optional tester-owned validation handoff template

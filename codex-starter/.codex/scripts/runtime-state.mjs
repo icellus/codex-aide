@@ -24,6 +24,7 @@ import {
   resolveActiveStory,
   saveRuntimeState,
   suggestedRoutesForCategory,
+  syncTaskRegistry,
   syncProgressFromState,
   toLessonId,
   trimRuntimeState,
@@ -409,6 +410,11 @@ async function main() {
 
     trimRuntimeState(state);
     saveRuntimeState(projectDir, state);
+    syncTaskRegistry(projectDir, {
+      profile,
+      runtimeState: state,
+      progressPath
+    });
     syncProgressFromState(progressPath, activeStories, state);
   } catch (error) {
     process.stderr.write(`runtime-state error: ${error instanceof Error ? error.message : String(error)}\n`);

@@ -153,6 +153,15 @@ export function createEmptyState() {
   };
 }
 
+export function createEmptyTaskRegistry() {
+  return {
+    version: 1,
+    updatedAt: null,
+    currentTaskId: null,
+    tasks: []
+  };
+}
+
 function loadJsonFile(filePath, fallbackFactory) {
   if (!fs.existsSync(filePath)) {
     return fallbackFactory();
@@ -215,6 +224,37 @@ export function saveRuntimeState(projectDir, state) {
 
   ensureDir(stateDir);
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+export function loadTaskRegistry(projectDir) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const registryPath = path.join(stateDir, "task-registry.json");
+
+  ensureDir(stateDir);
+
+  if (!fs.existsSync(registryPath)) {
+    return createEmptyTaskRegistry();
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+    const emptyRegistry = createEmptyTaskRegistry();
+    return {
+      ...emptyRegistry,
+      ...parsed,
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks.filter((item) => item && typeof item === "object") : []
+    };
+  } catch {
+    return createEmptyTaskRegistry();
+  }
+}
+
+export function saveTaskRegistry(projectDir, registry) {
+  const stateDir = path.join(projectDir, ".codex", "state");
+  const registryPath = path.join(stateDir, "task-registry.json");
+
+  ensureDir(stateDir);
+  fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n", "utf8");
 }
 
 function normalizeProfileValue(value) {
@@ -442,6 +482,97 @@ export function parseActiveStories(progressPath) {
     .filter((item) => item.storyPath || item.branch || item.worktree);
 }
 
+function extractSectionBody(text, sectionNamePattern) {
+  const match = String(text || "").match(
+    new RegExp(`## ${sectionNamePattern}([\\s\\S]*?)(?:\\n---\\s*\\n\\s*## |\\n## |\\n##$|$)`)
+  );
+  return match?.[1] || "";
+}
+
+function splitProgressBlocks(sectionBody) {
+  return stripHtmlComments(sectionBody)
+    .split(/\n(?=### )/g)
+    .map((block) => block.trim())
+    .filter((block) => block.startsWith("### "));
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractBulletField(block, label) {
+  return normalizeArtifactField(block.match(new RegExp(`^- ${escapeRegExp(label)}:\\s*(.+)$`, "m"))?.[1] || null);
+}
+
+function extractTitle(block) {
+  return normalizeArtifactField(block.match(/^###\s+(.+)$/m)?.[1] || null);
+}
+
+function parseCurrentWorkItems(text) {
+  return splitProgressBlocks(extractSectionBody(text, "(?:Current|Active) Work"))
+    .map((block) => ({
+      title: extractTitle(block),
+      storyPath: extractStoryPath(block),
+      summaryPath: extractSummaryPath(block),
+      branch: normalizeArtifactField(block.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null),
+      worktree: normalizeArtifactField(block.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null),
+      taskClass: extractBulletField(block, "Task Class"),
+      deliveryMode: extractBulletField(block, "Delivery Mode"),
+      status: extractBulletField(block, "Status") || "active",
+      checkpoint: extractBulletField(block, "Current Checkpoint"),
+      nextStep: extractBulletField(block, "Next Step")
+    }))
+    .filter((item) => item.title || item.storyPath || item.branch || item.worktree);
+}
+
+function parseParkedWorkItems(text) {
+  return splitProgressBlocks(extractSectionBody(text, "(?:Parked or Blocked|Blockers or Exceptions)"))
+    .map((block) => ({
+      title: extractTitle(block),
+      storyPath: extractStoryPath(block),
+      summaryPath: extractSummaryPath(block),
+      branch: normalizeArtifactField(block.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null),
+      worktree: normalizeArtifactField(block.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null),
+      status: extractBulletField(block, "Status") || "blocked",
+      checkpoint: extractBulletField(block, "Current Checkpoint") || extractBulletField(block, "Checkpoint"),
+      reason: extractBulletField(block, "Reason"),
+      owner: extractBulletField(block, "Owner"),
+      nextStep: extractBulletField(block, "Suggested Resume Point") || extractBulletField(block, "Unblock Action")
+    }))
+    .filter((item) => item.title || item.storyPath || item.reason || item.nextStep);
+}
+
+function parseCompletedWorkItems(text) {
+  return splitProgressBlocks(extractSectionBody(text, "(?:Completed|Completed Releases or Milestones)"))
+    .map((block) => ({
+      title: extractTitle(block),
+      storyPath: extractStoryPath(block),
+      summaryPath: extractSummaryPath(block),
+      completedAt: extractBulletField(block, "Completed"),
+      summary: extractBulletField(block, "Outcome") || extractBulletField(block, "Summary"),
+      validation: extractBulletField(block, "Validation"),
+      nextStep: extractBulletField(block, "Follow-up")
+    }))
+    .filter((item) => item.title || item.storyPath || item.summary);
+}
+
+export function parseProgressTasks(progressPath) {
+  if (!progressPath || !fs.existsSync(progressPath)) {
+    return {
+      current: [],
+      parked: [],
+      completed: []
+    };
+  }
+
+  const text = fs.readFileSync(progressPath, "utf8");
+  return {
+    current: parseCurrentWorkItems(text),
+    parked: parseParkedWorkItems(text),
+    completed: parseCompletedWorkItems(text)
+  };
+}
+
 function normalizeComparablePath(value) {
   return path.resolve(String(value || "")).replace(/[\\/]+/g, "/").replace(/\/$/, "").toLowerCase();
 }
@@ -538,6 +669,392 @@ export function resolveActiveStory(activeStories, input = {}, projectDir) {
   }
 
   return null;
+}
+
+function slugifyTaskValue(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  return normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "task";
+}
+
+function createTaskMatchKey(entry = {}) {
+  if (entry.storyPath) {
+    return `story:${String(entry.storyPath).trim()}`;
+  }
+
+  return `task:${slugifyTaskValue(entry.title || entry.task || entry.currentTask || "untitled-task")}`;
+}
+
+function createTaskId(matchKey, sequence) {
+  const base = slugifyTaskValue(matchKey.replace(/^[^:]+:/, ""));
+  return `${base}-${sequence}`;
+}
+
+function normalizeTaskStatus(value, fallback = "active") {
+  const normalized = normalizeText(value).toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (normalized === "done" || normalized === "completed" || normalized === "complete") {
+    return "done";
+  }
+
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "cancelled";
+  }
+
+  if (normalized === "blocked") {
+    return "blocked";
+  }
+
+  if (normalized === "parked") {
+    return "parked";
+  }
+
+  if (normalized === "queued" || normalized === "not-started") {
+    return "queued";
+  }
+
+  if (normalized === "active" || normalized === "in-progress" || normalized === "in progress") {
+    return "active";
+  }
+
+  if (normalized === "idle") {
+    return "done";
+  }
+
+  return fallback;
+}
+
+function isOpenTaskStatus(status) {
+  return status === "active" || status === "parked" || status === "blocked" || status === "queued";
+}
+
+function hasUnsettledStatus(task = {}) {
+  return isOpenTaskStatus(normalizeTaskStatus(task.status, "active"));
+}
+
+function compareTaskTimestamps(left, right) {
+  const leftTime = new Date(left?.updatedAt || left?.lastSeenAt || left?.createdAt || 0).getTime();
+  const rightTime = new Date(right?.updatedAt || right?.lastSeenAt || right?.createdAt || 0).getTime();
+  return rightTime - leftTime;
+}
+
+function nextTaskSequence(registry, matchKey) {
+  return (
+    registry.tasks.filter((item) => item.matchKey === matchKey).length + 1
+  );
+}
+
+function findLatestTaskIndex(registry, matchKey, preferOpen) {
+  let bestIndex = -1;
+  let bestTask = null;
+
+  registry.tasks.forEach((task, index) => {
+    if (task.matchKey !== matchKey) {
+      return;
+    }
+
+    if (preferOpen && !hasUnsettledStatus(task)) {
+      return;
+    }
+
+    if (!bestTask || compareTaskTimestamps(task, bestTask) < 0) {
+      bestTask = task;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+}
+
+function writeTaskField(target, key, value) {
+  if (value === undefined) {
+    return;
+  }
+
+  if (typeof value === "string") {
+    target[key] = normalizeText(value) || null;
+    return;
+  }
+
+  target[key] = value ?? null;
+}
+
+function sortAndTrimRegistry(registry) {
+  registry.tasks.sort(compareTaskTimestamps);
+  registry.tasks = registry.tasks.slice(0, 200);
+}
+
+export function upsertTaskRegistryTask(registry, entry = {}, options = {}) {
+  const now = options.now || new Date().toISOString();
+  const title = normalizeText(entry.title || entry.task || entry.currentTask || "") || "Untitled task";
+  const matchKey = normalizeText(entry.matchKey) || createTaskMatchKey({ ...entry, title });
+  const status = normalizeTaskStatus(entry.status, "active");
+
+  let index = -1;
+
+  if (entry.id) {
+    index = registry.tasks.findIndex((task) => task.id === entry.id);
+  }
+
+  if (index < 0 && options.preferCurrentTaskId && registry.currentTaskId) {
+    index = registry.tasks.findIndex((task) => task.id === registry.currentTaskId);
+  }
+
+  if (index < 0 && matchKey) {
+    index = findLatestTaskIndex(registry, matchKey, true);
+  }
+
+  if (index < 0 && matchKey && options.allowSettledUpdate) {
+    index = findLatestTaskIndex(registry, matchKey, false);
+  }
+
+  const existing =
+    index >= 0
+      ? registry.tasks[index]
+      : {
+          id: createTaskId(matchKey, nextTaskSequence(registry, matchKey)),
+          matchKey,
+          title,
+          status,
+          createdAt: entry.createdAt || now,
+          updatedAt: now,
+          startedAt: isOpenTaskStatus(status) ? entry.startedAt || now : null,
+          completedAt: status === "done" || status === "cancelled" ? entry.completedAt || now : null
+        };
+
+  const next = {
+    ...existing,
+    title,
+    matchKey,
+    status,
+    updatedAt: now,
+    lastSeenAt: entry.lastSeenAt || now
+  };
+
+  if (!next.createdAt) {
+    next.createdAt = entry.createdAt || now;
+  }
+
+  if (isOpenTaskStatus(status)) {
+    next.startedAt = next.startedAt || entry.startedAt || now;
+    next.completedAt = null;
+  }
+
+  if (status === "done" || status === "cancelled") {
+    next.completedAt = entry.completedAt || next.completedAt || now;
+  }
+
+  writeTaskField(next, "taskClass", entry.taskClass);
+  writeTaskField(next, "deliveryMode", entry.deliveryMode);
+  writeTaskField(next, "risk", entry.risk);
+  writeTaskField(next, "routeRationale", entry.routeRationale);
+  writeTaskField(next, "storyPath", entry.storyPath);
+  writeTaskField(next, "summaryPath", entry.summaryPath);
+  writeTaskField(next, "branch", entry.branch);
+  writeTaskField(next, "worktree", entry.worktree);
+  writeTaskField(next, "checkpoint", entry.checkpoint);
+  writeTaskField(next, "nextStep", entry.nextStep);
+  writeTaskField(next, "reason", entry.reason);
+  writeTaskField(next, "owner", entry.owner);
+  writeTaskField(next, "summary", entry.summary);
+  writeTaskField(next, "validation", entry.validation);
+  writeTaskField(next, "source", entry.source || existing.source || null);
+
+  if (index >= 0) {
+    registry.tasks[index] = next;
+  } else {
+    registry.tasks.push(next);
+  }
+
+  if (options.setCurrent && hasUnsettledStatus(next)) {
+    registry.currentTaskId = next.id;
+  }
+
+  if ((status === "done" || status === "cancelled") && registry.currentTaskId === next.id) {
+    registry.currentTaskId = null;
+  }
+
+  sortAndTrimRegistry(registry);
+
+  return next;
+}
+
+function parkTaskIfNeeded(registry, taskId, reason, now) {
+  if (!taskId) {
+    return null;
+  }
+
+  const index = registry.tasks.findIndex((task) => task.id === taskId);
+  if (index < 0) {
+    return null;
+  }
+
+  const task = registry.tasks[index];
+  if (!hasUnsettledStatus(task) || normalizeTaskStatus(task.status, "active") !== "active") {
+    return task;
+  }
+
+  registry.tasks[index] = {
+    ...task,
+    status: "parked",
+    reason: task.reason || reason,
+    updatedAt: now,
+    lastSeenAt: now
+  };
+
+  sortAndTrimRegistry(registry);
+  return registry.tasks[index];
+}
+
+export function getCurrentTaskRecord(registry) {
+  if (!registry?.currentTaskId) {
+    return null;
+  }
+
+  return registry.tasks.find((task) => task.id === registry.currentTaskId) || null;
+}
+
+export function listTaskRegistryTasks(registry, predicate = null) {
+  const tasks = Array.isArray(registry?.tasks) ? [...registry.tasks] : [];
+  const filtered = predicate ? tasks.filter(predicate) : tasks;
+  return filtered.sort(compareTaskTimestamps);
+}
+
+export function syncTaskRegistry(projectDir, input = {}) {
+  const now = input.now || new Date().toISOString();
+  const profile = input.profile || loadProjectProfileState(projectDir);
+  const runtimeState = input.runtimeState || null;
+  const registry = input.registry || loadTaskRegistry(projectDir);
+  const progressPath =
+    input.progressPath === undefined ? findProgressFile(projectDir) : input.progressPath;
+  const progressTasks = input.progressTasks || parseProgressTasks(progressPath);
+
+  const previousCurrentId = registry.currentTaskId || null;
+  let nextCurrentId = null;
+  let currentMatchKey = null;
+
+  if (profile.task) {
+    const profileStatus = normalizeTaskStatus(profile.taskStatus, "active");
+    const currentTask = upsertTaskRegistryTask(
+      registry,
+      {
+        title: profile.task,
+        status: profileStatus,
+        taskClass: profile.taskClass,
+        deliveryMode: profile.deliveryMode,
+        risk: profile.riskLevel,
+        routeRationale: profile.routeRationale,
+        source: "task-context"
+      },
+      {
+        now,
+        allowSettledUpdate: profileStatus === "done"
+      }
+    );
+
+    currentMatchKey = currentTask.matchKey;
+    if (hasUnsettledStatus(currentTask)) {
+      nextCurrentId = currentTask.id;
+    }
+  }
+
+  progressTasks.current.forEach((item, index) => {
+    const entryMatchKey = createTaskMatchKey(item);
+    const shouldBeCurrent =
+      currentMatchKey
+        ? entryMatchKey === currentMatchKey
+        : progressTasks.current.length === 1 && index === 0;
+    const normalizedStatus = shouldBeCurrent ? "active" : "parked";
+    const task = upsertTaskRegistryTask(
+      registry,
+      {
+        ...item,
+        status: normalizedStatus,
+        reason: shouldBeCurrent ? undefined : "Tracked in PROGRESS but not selected as the current hot task.",
+        source: "progress"
+      },
+      {
+        now
+      }
+    );
+
+    if (!nextCurrentId && shouldBeCurrent && hasUnsettledStatus(task)) {
+      nextCurrentId = task.id;
+      currentMatchKey = task.matchKey;
+    }
+  });
+
+  progressTasks.parked.forEach((item) => {
+    upsertTaskRegistryTask(
+      registry,
+      {
+        ...item,
+        status: normalizeTaskStatus(item.status, "blocked"),
+        source: "progress"
+      },
+      {
+        now
+      }
+    );
+  });
+
+  progressTasks.completed.forEach((item) => {
+    upsertTaskRegistryTask(
+      registry,
+      {
+        ...item,
+        status: "done",
+        source: "progress"
+      },
+      {
+        now,
+        allowSettledUpdate: true
+      }
+    );
+  });
+
+  if (Array.isArray(runtimeState?.completedTasks)) {
+    runtimeState.completedTasks.forEach((item) => {
+      upsertTaskRegistryTask(
+        registry,
+        {
+          title: item.task,
+          storyPath: item.storyPath,
+          deliveryMode: item.deliveryMode,
+          summary: item.summary,
+          status: "done",
+          completedAt: item.completedAt,
+          source: "runtime-state"
+        },
+        {
+          now,
+          allowSettledUpdate: true
+        }
+      );
+    });
+  }
+
+  if (nextCurrentId) {
+    const nextCurrentTask = registry.tasks.find((task) => task.id === nextCurrentId);
+    if (!nextCurrentTask || !hasUnsettledStatus(nextCurrentTask)) {
+      nextCurrentId = null;
+    }
+  }
+
+  if (previousCurrentId && nextCurrentId && previousCurrentId !== nextCurrentId) {
+    parkTaskIfNeeded(registry, previousCurrentId, "Superseded by a newer active task before normal closure.", now);
+  } else if (previousCurrentId && !nextCurrentId) {
+    parkTaskIfNeeded(registry, previousCurrentId, "Hot task cleared without explicit closure.", now);
+  }
+
+  registry.currentTaskId = nextCurrentId;
+  registry.updatedAt = now;
+  sortAndTrimRegistry(registry);
+  saveTaskRegistry(projectDir, registry);
+  return registry;
 }
 
 export function normalizeText(value) {

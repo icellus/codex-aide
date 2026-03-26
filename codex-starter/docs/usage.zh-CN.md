@@ -28,6 +28,7 @@
 后续回合里，`/Aide` 一般应：
 
 - 跳过重复问候
+- 先汇报当前 active task 和历史未结束任务
 - 复用已有状态
 - 只有在路由确实变化时才说明变化
 
@@ -91,14 +92,17 @@ runtime helpers 位于 `.codex/scripts/`。
 
 常用入口：
 
-1. `node .codex/scripts/session-context.mjs`
-2. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
-3. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
+1. `node .codex/scripts/task-overview.mjs`
+2. `node .codex/scripts/session-context.mjs`
+3. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
+4. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
 runtime state 会按需写到 `.codex/state/runtime-state.json`。
+任务注册表会落到 `.codex/state/task-registry.json`，用于保留当前任务、历史未结束任务，以及按需查询的已完成任务。
 
 需要注意：
 
+- `/Aide` 默认只汇报当前任务和未结束任务；已完成任务按需查询
 - QC 提醒只在当前任务明确启用了 `/qc` 时生成
 - `PROGRESS.md` 只记录 active checkpoint
 - runtime 提醒和学习状态留在 `.codex/state/runtime-state.json`

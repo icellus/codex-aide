@@ -13,6 +13,7 @@ It keeps the default path lightweight, keeps the command surface small, and only
 - official custom subagent layout: `.codex/agents/*.toml`
 - routing authority: `.codex/routing-policy.md`
 - hot task state: `.codex/state/task-context.json`
+- cold task registry: `.codex/state/task-registry.json`
 - cached repo facts: `.codex/state/repo-context.json`
 - human summary: `.codex/project-profile.md`
 - repository validation baseline: `.codex/validation-profile.json`
@@ -38,6 +39,7 @@ The starter ships with template defaults in `.codex/project-profile.md` and `.co
 - `.codex/config.toml`: subagent concurrency defaults
 - `.codex/routing-policy.md`: routing and module-activation authority
 - `.codex/state/task-context.json`: hot task state and preferences
+- `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed tasks
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: repository validation baseline and constraints
 - `.codex/project-profile.md`: short human summary
@@ -45,6 +47,7 @@ The starter ships with template defaults in `.codex/project-profile.md` and `.co
 - `.codex/scripts/*.mjs`: runtime helpers for reminders, git validation, and runtime-state sync
 
 Runtime state is written to `.codex/state/runtime-state.json` on demand.
+`node .codex/scripts/task-overview.mjs` summarizes the current active task plus unfinished historical tasks for `/Aide`.
 When `long-running` mode is active, `PROGRESS.md` is for checkpoint tracking only.
 Auto QC reminders are queued only when the current task explicitly enables `/qc`, including lightweight or standard work that does not have a tracked story path yet.
 
