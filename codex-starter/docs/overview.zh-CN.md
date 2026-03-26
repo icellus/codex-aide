@@ -32,6 +32,7 @@
 | `.codex/config.toml` | 子代理并发默认配置 |
 | `.codex/routing-policy.md` | 路由与模块启用策略 |
 | `.codex/evolution-policy.json` | 自动进化阈值与允许的低风险自动写回策略 |
+| `.codex/delivery-policy.json` | commit、push、通知、CI、release 与 fallback 策略 |
 | `.codex/state/task-context.json` | 热任务状态与协作偏好 |
 | `.codex/state/task-registry.json` | 冷任务注册表，用于当前任务、未结束任务和已完成历史 |
 | `.codex/state/evolution-registry.json` | 冷进化候选与 settled-task review 历史 |
@@ -53,7 +54,7 @@
 | `tester` | 任务级验证 owner 与测试设计 | 关闭 |
 | `coder` | 实现与 sanity checks | 关闭 |
 | `/qc` | 质量审计 gate | 关闭 |
-| `/follow` | 推送后或发布后的跟进 | 关闭 |
+| `/submit` | 受控的 commit、push 与可选推送后交付流程 | 关闭 |
 | runtime helpers | Node 辅助自动化 | 默认关闭 |
 
 ## `/Aide` 真正优化什么

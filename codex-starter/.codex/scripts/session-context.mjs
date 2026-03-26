@@ -17,6 +17,10 @@ function summarizePendingQCActions(state) {
   return state.pendingActions.filter((item) => item.type === "run_qc");
 }
 
+function summarizePendingSubmitActions(state) {
+  return state.pendingActions.filter((item) => item.type === "run_submit");
+}
+
 function summarizeBlockedActions(state) {
   return state.pendingActions.filter((item) => item.type === "blocked_review");
 }
@@ -70,8 +74,13 @@ async function main() {
   const pendingQcForCurrent = currentStory
     ? pendingQC.filter((item) => item.storyPath === currentStory.storyPath)
     : [];
+  const pendingSubmit = summarizePendingSubmitActions(state);
+  const pendingSubmitForCurrent = currentStory
+    ? pendingSubmit.filter((item) => item.storyPath === currentStory.storyPath)
+    : [];
   const blockedPool = currentStory ? blockedForCurrent : blockedActions;
   const pendingQcPool = currentStory ? pendingQcForCurrent : pendingQC;
+  const pendingSubmitPool = currentStory ? pendingSubmitForCurrent : pendingSubmit;
   const retrospectiveActions = summarizeRetrospectiveActions(state, currentStory);
   const queuedLessons = summarizeQueuedLessons(state);
   const aideReviews = summarizeAideReviews(state, currentStory);
@@ -80,6 +89,7 @@ async function main() {
     isTaskSettled(profile) &&
     blockedPool.length === 0 &&
     pendingQcPool.length === 0 &&
+    pendingSubmitPool.length === 0 &&
     retrospectiveActions.length === 0 &&
     queuedLessons.length === 0 &&
     aideReviews.length === 0
@@ -122,6 +132,13 @@ async function main() {
     pushReminder(
       90,
       `- Pending QC: run /qc --phase=${item.phase}${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}`
+    );
+  }
+
+  for (const item of pendingSubmitPool.slice(-1)) {
+    pushReminder(
+      85,
+      `- Pending submit${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: run /submit`
     );
   }
 

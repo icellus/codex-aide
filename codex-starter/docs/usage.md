@@ -35,7 +35,7 @@ On later turns, `/Aide` should usually:
 - mention routing changes only when they actually change
 - start the low-cost evolution sweep without blocking the initial route
 
-On the very first cold-start turn after the user speaks, `/Aide` should also remind the user of `/Aide`, `/qc`, and `/follow` in one short line.
+On the very first cold-start turn after the user speaks, `/Aide` should also remind the user of `/Aide`, `/qc`, and `/submit` in one short line.
 
 The checked-in `.codex/state/*.json`, `.codex/project-profile.md`, and `.codex/validation-profile.json` are starter defaults.
 Keep them generic in the starter repo; let `/Aide` rewrite them after copying the starter into a real project.
@@ -46,7 +46,7 @@ Keep them generic in the starter repo; let `/Aide` rewrite them after copying th
 | --- | --- |
 | `/Aide` | starting work, refreshing state, routing, governance |
 | `/qc` | the task is higher risk or you want an explicit audit |
-| `/follow` | code is already pushed and CI or release follow-through matters |
+| `/submit` | implementation or validation is done and the task should move into governed commit, push, or optional post-push delivery |
 
 ## What `/Aide` Actually Owns
 
@@ -63,11 +63,11 @@ Keep them generic in the starter repo; let `/Aide` rewrite them after copying th
 
 | Task | Typical path | Usually skipped |
 | --- | --- | --- |
-| small bugfix | `/Aide -> coder -> sanity checks` | `prd`, `architect`, `plan`, `/follow` |
-| higher-risk bugfix | `/Aide -> tester -> coder -> tester or /qc` | modules that do not add value |
-| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester or optional /qc` | heavier modules that do not add value |
+| small bugfix | `/Aide -> coder -> sanity checks -> /submit` | `prd`, `architect`, `plan` |
+| higher-risk bugfix | `/Aide -> tester -> coder -> tester or /qc -> /submit` | modules that do not add value |
+| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester or optional /qc -> /submit` | heavier modules that do not add value |
 | refactor | `start lightweight, promote only if contracts, risk, or handoffs grow` | long-running tracking for local low-risk refactors |
-| release | `/Aide -> conduct -> optional /qc -> optional /follow` | `long-running` mode for multi-step release work |
+| release | `/Aide -> conduct -> optional /qc -> /submit` | `long-running` mode for multi-step release work |
 
 ## Environment Setup
 

@@ -6,13 +6,14 @@ It keeps the default path lightweight, keeps the command surface small, and only
 
 ## At A Glance
 
-- default commands: `/Aide`, `/qc`, `/follow`
+- default commands: `/Aide`, `/qc`, `/submit`
 - default mode for small work: `lightweight`
-- preferred execution model: subagent-first for `tester`, `coder`, `/qc`, and `/follow`
+- preferred execution model: subagent-first for `tester`, `coder`, `/qc`, and `/submit`
 - official repo skill layout: `.agents/skills/*/SKILL.md`
 - official custom subagent layout: `.codex/agents/*.toml`
 - routing authority: `.codex/routing-policy.md`
 - evolution policy: `.codex/evolution-policy.json`
+- delivery policy: `.codex/delivery-policy.json`
 - hot task state: `.codex/state/task-context.json`
 - cold task registry: `.codex/state/task-registry.json`
 - cold evolution registry: `.codex/state/evolution-registry.json`
@@ -28,7 +29,7 @@ It keeps the default path lightweight, keeps the command surface small, and only
 2. Ensure `node` is available if you want runtime helpers and smoke tests.
 3. Start with `/Aide` or `/Aide [your goal]`.
 4. Let `/Aide` scan the repo, update current state, and recommend the lightest route.
-5. Stay lightweight unless the task clearly needs planning, long-running tracking, QC, or follow-through.
+5. Stay lightweight unless the task clearly needs planning, long-running tracking, QC, or governed delivery.
 
 If a fresh thread starts without a slash command, the first user turn should still be treated as `/Aide` intake by default.
 
@@ -45,7 +46,7 @@ The starter ships with template defaults in `.codex/project-profile.md` and `.co
 - Governance ratings: `/Aide` rates issues from `L1` to `L4` before deciding whether to route, queue, or write back.
 - Automatic triggers: repeated QC failures, blocked handoffs, unfinished-task reconciliation, and every architect session-end retrospective can queue `/Aide` review work.
 - Lightweight flows should still get a low-cost evolution sweep at `/Aide` startup, even when `architect` never ran.
-- Fresh threads should greet briefly and hint at `/Aide`, `/qc`, and `/follow` on the first cold-start turn after the user speaks.
+- Fresh threads should greet briefly and hint at `/Aide`, `/qc`, and `/submit` on the first cold-start turn after the user speaks.
 - `architect`, not `conduct`, owns the session-end structured retrospective because architecture decisions, wrong assumptions, and writeback candidates are governance inputs.
 
 ## Runtime Authority
@@ -56,6 +57,7 @@ The starter ships with template defaults in `.codex/project-profile.md` and `.co
 - `.codex/config.toml`: subagent concurrency defaults
 - `.codex/routing-policy.md`: routing and module-activation authority
 - `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk auto-writeback policy
+- `.codex/delivery-policy.json`: governed submit defaults for commit, push, and optional post-push delivery steps
 - `.codex/state/task-context.json`: hot task state and preferences
 - `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed tasks
 - `.codex/state/evolution-registry.json`: cold evolution candidates plus settled-task review history

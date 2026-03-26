@@ -100,9 +100,9 @@ export function createEmptyTaskContext() {
       route_rationale: "",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["startup scan or cached repo context", "lightweight implementation", "targeted sanity checks"],
+      enabled_modules: ["startup scan or cached repo context", "lightweight implementation", "targeted sanity checks", "/submit"],
       qc_policy: "disabled",
-      follow_policy: "disabled",
+      submit_policy: "enabled",
       validation_profile_status: "not-set",
       open_questions: []
     }
@@ -123,6 +123,69 @@ export function createEmptyRepoContext() {
     release_path: "",
     validation_signals: [],
     notes: []
+  };
+}
+
+export function createEmptyDeliveryPolicy() {
+  return {
+    version: 1,
+    status: "starter-default",
+    ownership: {
+      maintained_by: "/Aide",
+      purpose: "submit orchestration and guarded post-validation delivery defaults",
+      notes: [
+        "/submit owns commit, push, and optional post-push delivery stages.",
+        "The project itself still owns real CI, release, and notification integrations."
+      ]
+    },
+    submit: {
+      enabled: true,
+      queue_after: {
+        coder_complete_without_qc: true,
+        qc_pass_after_coder: true,
+        task_settled_without_qc: true,
+        task_settled_after_qc: true
+      }
+    },
+    commit: {
+      mode: "ask_once",
+      protected_branches: ["main", "master"],
+      blocked_branches: [],
+      allow_current_branch_prefixes: ["feat/", "fix/", "chore/", "refactor/"],
+      create_branch_when_needed: "ask",
+      max_auto_commits_per_task: 1,
+      allow_amend: false,
+      message_template: "{type}: {summary}"
+    },
+    push: {
+      mode: "ask_once",
+      allowed_remotes: ["origin"],
+      default_remote: "origin",
+      set_upstream: "ask",
+      create_remote_branch_when_missing: "ask",
+      stop_on_rejection: true
+    },
+    notify: {
+      enabled: false,
+      trigger: "after_push",
+      channels: []
+    },
+    ci: {
+      enabled: false,
+      source: "project-signals",
+      mode: "report-only"
+    },
+    release: {
+      enabled: false,
+      mode: "report-only",
+      targets: []
+    },
+    fallback: {
+      on_missing_config: "skip-step",
+      on_environment_blocker: "report-and-stop",
+      on_repeat_failure: "report-and-stop",
+      on_partial_delivery: "report-current-state"
+    }
   };
 }
 
@@ -241,6 +304,53 @@ export function saveRuntimeState(projectDir, state) {
 
   ensureDir(stateDir);
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+export function loadDeliveryPolicy(projectDir) {
+  const policyPath = path.join(projectDir, ".codex", "delivery-policy.json");
+  const parsed = loadJsonFile(policyPath, createEmptyDeliveryPolicy);
+  const emptyPolicy = createEmptyDeliveryPolicy();
+
+  return {
+    ...emptyPolicy,
+    ...parsed,
+    ownership: {
+      ...emptyPolicy.ownership,
+      ...(parsed.ownership || {})
+    },
+    submit: {
+      ...emptyPolicy.submit,
+      ...(parsed.submit || {}),
+      queue_after: {
+        ...emptyPolicy.submit.queue_after,
+        ...(parsed.submit?.queue_after || {})
+      }
+    },
+    commit: {
+      ...emptyPolicy.commit,
+      ...(parsed.commit || {})
+    },
+    push: {
+      ...emptyPolicy.push,
+      ...(parsed.push || {})
+    },
+    notify: {
+      ...emptyPolicy.notify,
+      ...(parsed.notify || {})
+    },
+    ci: {
+      ...emptyPolicy.ci,
+      ...(parsed.ci || {})
+    },
+    release: {
+      ...emptyPolicy.release,
+      ...(parsed.release || {})
+    },
+    fallback: {
+      ...emptyPolicy.fallback,
+      ...(parsed.fallback || {})
+    }
+  };
 }
 
 export function loadTaskRegistry(projectDir) {
@@ -401,7 +511,7 @@ function mapTaskContextToProfile(parsed = {}) {
     enabledRoles: normalizeListValue(task.enabled_roles),
     enabledModules: normalizeListValue(task.enabled_modules).map((item) => normalizeEnabledModuleValue(item)),
     qcPolicy: normalizeProfileValue(task.qc_policy) || null,
-    followPolicy: normalizeProfileValue(task.follow_policy) || null,
+    submitPolicy: normalizeProfileValue(task.submit_policy) || null,
     validationProfileStatus: normalizeProfileValue(task.validation_profile_status) || null,
     openQuestions: normalizeListValue(task.open_questions),
     preferredAddress: normalizeProfileValue(collaboration.preferred_address) || "boss",
@@ -428,7 +538,7 @@ export function loadProjectProfileState(projectDir) {
       enabledRoles: [],
       enabledModules: [],
       qcPolicy: null,
-      followPolicy: null,
+      submitPolicy: null,
       validationProfileStatus: null,
       preferredAddress: "boss",
       greetingStyle: "brief",
@@ -448,7 +558,7 @@ export function loadProjectProfileState(projectDir) {
     enabledRoles: parseProfileList(readProfileField(text, "Enabled roles")),
     enabledModules: parseProfileList(readProfileField(text, "Enabled modules")),
     qcPolicy: normalizeProfileValue(readProfileField(text, "QC policy")) || null,
-    followPolicy: normalizeProfileValue(readProfileField(text, "Follow policy")) || null,
+    submitPolicy: normalizeProfileValue(readProfileField(text, "Submit policy")) || null,
     validationProfileStatus: normalizeProfileValue(readProfileField(text, "Validation profile status")) || null,
     preferredAddress: normalizeProfileValue(readProfileField(text, "Preferred address")) || "boss",
     greetingStyle: normalizeProfileValue(readProfileField(text, "Greeting style")) || "brief",
@@ -467,6 +577,26 @@ export function isQcEnabled(profile = {}) {
   return Array.isArray(profile.enabledModules)
     ? profile.enabledModules.some((item) => /(^|\/)qc\b|quality gate/i.test(String(item)))
     : false;
+}
+
+export function isSubmitEnabled(profile = {}, deliveryPolicy = null) {
+  const submitPolicy = String(profile.submitPolicy || "").toLowerCase();
+  if (submitPolicy === "enabled" || submitPolicy === "required") {
+    return true;
+  }
+
+  if (submitPolicy === "disabled") {
+    return false;
+  }
+
+  if (
+    Array.isArray(profile.enabledModules) &&
+    profile.enabledModules.some((item) => /(^|\/)submit\b|governed submit|delivery/i.test(String(item)))
+  ) {
+    return true;
+  }
+
+  return deliveryPolicy?.submit?.enabled !== false;
 }
 
 export function isTaskSettled(profile = {}) {
@@ -1196,7 +1326,7 @@ export function detectSubagentStatus(agentType, message) {
   }
 
   if (
-    /Implementation Complete|实现完成|tests written|testing complete|测试编写完成|已完成测试/i.test(text)
+    /Implementation Complete|实现完成|tests written|testing complete|测试编写完成|已完成测试|Submit complete|delivery complete|交付完成|推送完成/i.test(text)
   ) {
     return "complete";
   }
@@ -1302,7 +1432,7 @@ export function suggestedRoutesForCategory(category) {
     case "shared-protocol":
       return ["AGENTS.md", ".codex/templates/progress.md"];
     case "environment-mismatch":
-      return [".agents/skills/follow/SKILL.md", "AGENTS.md"];
+      return [".agents/skills/submit/SKILL.md", "AGENTS.md"];
     default:
       return [".agents/skills/qc/SKILL.md"];
   }

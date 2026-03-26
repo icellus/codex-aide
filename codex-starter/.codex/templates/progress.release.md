@@ -50,7 +50,7 @@ Use this template when release work needs explicit checkpoints, promotion notes,
 - Status: `not-started|active|done`
 - Monitoring / Smoke Checks:
   - `[check or command]`
-- `/follow`: `[not-needed|queued|done]`
+- `/submit`: `[not-needed|queued|done]`
 - Exit Criteria: [what must be true to close]
 
 ---

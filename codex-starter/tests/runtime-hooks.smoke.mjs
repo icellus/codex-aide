@@ -184,7 +184,7 @@ function testTaskContextJsonOverridesMarkdownProfile() {
       enabled_roles: ["Aide", "main agent"],
       enabled_modules: ["lightweight implementation"],
       qc_policy: "disabled",
-      follow_policy: "disabled",
+      submit_policy: "enabled",
       validation_profile_status: "inferred",
       open_questions: []
     }
@@ -303,6 +303,190 @@ function testSubagentStopQueuesQcWithoutStory() {
   assert.equal(state.pendingActions[0].type, "run_qc");
   assert.equal(state.pendingActions[0].phase, "coder");
   assert.equal(state.pendingActions[0].storyPath, null);
+}
+
+function testCoderCompletionQueuesSubmitWithoutQc() {
+  const dir = makeTempDir("codex-starter-submit-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            files_changed: ["src/demo.ts"],
+            validation: [
+              {
+                command: "npm test -- demo",
+                result: "PASS"
+              }
+            ],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.ok(submitAction);
+  assert.equal(submitAction.trigger, "coder_complete_without_qc");
+  assert.equal(submitAction.storyPath, null);
+}
+
+function testQcPassQueuesSubmitAfterCoderAudit() {
+  const dir = makeTempDir("codex-starter-submit-after-qc-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [["- QC policy: `disabled`", "- QC policy: `enabled`"]]);
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            files_changed: ["src/demo.ts"],
+            validation: [
+              {
+                command: "npm test -- demo",
+                result: "PASS"
+              }
+            ],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "qc",
+      message: [
+        "## QC Report",
+        "Overall Verdict: PASS",
+        "Phase: coder",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "qc",
+            status: "complete",
+            phase: "coder",
+            verdict: "PASS",
+            categories: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.ok(submitAction);
+  assert.equal(submitAction.trigger, "qc_pass_after_coder");
+}
+
+function testSessionContextShowsPendingSubmitReminder() {
+  const dir = makeTempDir("codex-starter-submit-reminder-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "boss",
+      greeting_style: "brief",
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "Deliver the current change",
+      status: "active",
+      class: "bugfix",
+      risk: "medium",
+      delivery_mode: "lightweight",
+      route_rationale: "delivery is pending",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["lightweight implementation", "/submit"],
+      qc_policy: "disabled",
+      submit_policy: "enabled",
+      validation_profile_status: "inferred",
+      open_questions: []
+    }
+  });
+
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "run-submit:current-task",
+        type: "run_submit",
+        storyPath: null,
+        trigger: "coder_complete_without_qc",
+        note: "Run /submit."
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  const stdout = runNode(sessionContextScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  assert.match(stdout, /Pending submit: run \/submit/);
 }
 
 function testSessionContextKeepsRetrospectiveReminderForDoneTask() {
@@ -436,7 +620,7 @@ function testLegacyDeliveryModeNamesNormalizeToCurrentNames() {
       enabled_roles: ["Aide", "main agent"],
       enabled_modules: ["direct implementation"],
       qc_policy: "disabled",
-      follow_policy: "disabled",
+      submit_policy: "enabled",
       validation_profile_status: "inferred",
       open_questions: []
     }
@@ -469,7 +653,7 @@ function testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks() {
       enabled_roles: ["Aide", "main agent"],
       enabled_modules: ["plan", "tester", "coder"],
       qc_policy: "disabled",
-      follow_policy: "disabled",
+      submit_policy: "enabled",
       validation_profile_status: "inferred",
       open_questions: []
     }
@@ -593,7 +777,7 @@ function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
       enabled_roles: ["Aide", "main agent"],
       enabled_modules: ["lightweight implementation"],
       qc_policy: "disabled",
-      follow_policy: "disabled",
+      submit_policy: "enabled",
       validation_profile_status: "inferred",
       open_questions: []
     }
@@ -612,8 +796,8 @@ function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
   const registry = readTaskRegistry(dir);
   const task = registry.tasks.find((entry) => entry.title === "Finish API cleanup");
 
-  assert.equal(task.status, "done");
-  assert.equal(registry.currentTaskId, null);
+  assert.equal(task.status, "active");
+  assert.equal(registry.currentTaskId, task.id);
 }
 
 function testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry() {
@@ -638,7 +822,7 @@ function testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry() {
       enabled_roles: ["Aide", "main agent"],
       enabled_modules: ["lightweight implementation"],
       qc_policy: "disabled",
-      follow_policy: "disabled",
+      submit_policy: "enabled",
       validation_profile_status: "inferred",
       open_questions: []
     }
@@ -657,8 +841,8 @@ function testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry() {
   const registry = readTaskRegistry(dir);
   const task = registry.tasks.find((entry) => entry.title === "Finish task without session-end hook");
 
-  assert.equal(task.status, "done");
-  assert.equal(registry.currentTaskId, null);
+  assert.equal(task.status, "active");
+  assert.equal(registry.currentTaskId, task.id);
 }
 
 function testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals() {
@@ -1048,7 +1232,7 @@ function testAideGovernanceDedupFindsSharedAuthorityCandidates() {
   const dir = makeTempDir("codex-starter-aide-governance-dedup-");
   fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
   fs.mkdirSync(path.join(dir, ".agents", "skills", "aide"), { recursive: true });
-  fs.mkdirSync(path.join(dir, ".agents", "skills", "follow"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".agents", "skills", "submit"), { recursive: true });
 
   const sharedLine = "Only the main agent updates shared state files during governed workflows.";
 
@@ -1066,11 +1250,11 @@ function testAideGovernanceDedupFindsSharedAuthorityCandidates() {
     "utf8"
   );
   fs.writeFileSync(
-    path.join(dir, ".agents", "skills", "follow", "SKILL.md"),
+    path.join(dir, ".agents", "skills", "submit", "SKILL.md"),
     [
       "---",
-      "name: follow",
-      "description: follow entry",
+      "name: submit",
+      "description: submit entry",
       "---",
       "",
       sharedLine
@@ -1092,6 +1276,9 @@ testTaskContextJsonOverridesMarkdownProfile();
 testLegacyDeliveryModeNamesNormalizeToCurrentNames();
 testTrimRuntimeStateDropsOldFailurePatterns();
 testSubagentStopQueuesQcWithoutStory();
+testCoderCompletionQueuesSubmitWithoutQc();
+testQcPassQueuesSubmitAfterCoderAudit();
+testSessionContextShowsPendingSubmitReminder();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
 testValidateGitRejectsBroadAdd();
 testQcReviewerAliasRecordsStructuredFail();

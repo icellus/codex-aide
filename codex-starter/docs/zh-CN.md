@@ -7,7 +7,7 @@
 - 这个 starter 是做什么的
 - 应该把哪些文件复制到你的仓库
 - `AGENTS.md`、`.agents`、`.codex` 分别负责什么
-- `/Aide`、`/qc`、`/follow` 应该怎么用
+- `/Aide`、`/qc`、`/submit` 应该怎么用
 - 初次接入时应该怎么保持上下文和运行时成本可控
 
 ## 1. 这个 starter 是什么
@@ -84,7 +84,7 @@
 作用：
 
 - 存放 repo-local skills
-- 定义 `/Aide`、`/qc`、`/follow` 和内部 skill 的行为协议
+- 定义 `/Aide`、`/qc`、`/submit` 和内部 skill 的行为协议
 
 当前约定路径是：
 
@@ -142,7 +142,7 @@
 - 风险级别
 - 当前 delivery mode
 - 已启用模块
-- QC / follow 策略
+- QC / submit 策略
 - 协作偏好
 
 这是运行时优先读取的任务上下文。
@@ -247,7 +247,7 @@
 典型路径：
 
 ```text
-/Aide -> conduct -> PROGRESS.md -> tester/coder -> optional /qc -> optional /follow
+/Aide -> conduct -> PROGRESS.md -> tester/coder -> optional /qc -> /submit
 ```
 
 ## 7. 三个用户命令
@@ -305,16 +305,17 @@
 
 它不是默认每次都要执行的步骤。
 
-### `/follow`
+### `/submit`
 
-推送后、CI、发布跟进。
+测试后的受控交付入口。
 
 适合：
 
-- 代码已经推送
-- CI / workflow / release follow-through 已经相关
+- 实现与验证已经完成
+- 需要受控地 `commit` 与 `push`
+- 需要在推送后继续处理通知、CI 或 release 步骤
 
-如果代码还没推送，通常不应该先跑 `/follow`。
+如果任务还没完成验证，通常不应该先跑 `/submit`。
 
 ## 8. 对外接入建议
 
@@ -325,7 +326,7 @@
 3. 让 `/Aide` 更新 `.codex/state/task-context.json`
 4. 让 `/Aide` 更新 `.codex/state/repo-context.json`
 5. 补全 `.codex/validation-profile.json`
-6. 只在任务确实需要时再启用 `plan`、`/qc`、`/follow`
+6. 只在任务确实需要时再启用 `plan`、`/qc`、`/submit`
 
 不要一开始就把所有模块都当成默认路径。
 
@@ -405,7 +406,7 @@
 
 1. `.agents/skills/aide/SKILL.md`
 2. `.agents/skills/qc/SKILL.md`
-3. `.agents/skills/follow/SKILL.md`
+3. `.agents/skills/submit/SKILL.md`
 4. `.codex/agents/*.toml`
 5. `.codex/scripts/*.mjs`
 

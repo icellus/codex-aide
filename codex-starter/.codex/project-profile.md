@@ -39,9 +39,9 @@ Routing policy lives in `.codex/routing-policy.md`.
 - Route rationale:
 - Active routing overrides: none
 - Enabled roles: `Aide`, main agent
-- Enabled modules: startup scan or cached repo context, lightweight implementation, targeted sanity checks
+- Enabled modules: startup scan or cached repo context, lightweight implementation, targeted sanity checks, `/submit`
 - QC policy: `disabled`
-- Follow policy: `disabled`
+- Submit policy: `enabled`
 - Validation profile status: `not-set`
 - Open questions:
 

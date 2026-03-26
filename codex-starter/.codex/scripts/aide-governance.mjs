@@ -235,7 +235,7 @@ function normalizeDedupLine(line) {
 }
 
 function dedupAuthoritySuggestion(normalizedLine, files) {
-  if (/route|routing|delivery mode|environment setup|\/qc|\/follow/.test(normalizedLine)) {
+  if (/route|routing|delivery mode|environment setup|\/qc|\/submit/.test(normalizedLine)) {
     return ".codex/routing-policy.md";
   }
 

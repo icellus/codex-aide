@@ -8,14 +8,14 @@ Project-level Codex workflow starter.
 - Default to lightweight, local implementation.
 - Upgrade only when scope, risk, or coordination require it.
 - Keep the main agent on intake, routing, governance, and result integration.
-- Prefer real subagents for `tester`, `coder`, `/qc`, and `/follow` when delegation adds value.
+- Prefer real subagents for `tester`, `coder`, `/qc`, and `/submit` when delegation adds value.
 - Keep hot runtime context short. Human docs explain; runtime files decide.
 
 ## Command Map
 
 - `/Aide` -> load `.agents/skills/aide/SKILL.md`
 - `/qc` -> load `.agents/skills/qc/SKILL.md`
-- `/follow` -> load `.agents/skills/follow/SKILL.md`
+- `/submit` -> load `.agents/skills/submit/SKILL.md`
 - no slash command -> use `.codex/state/task-context.json`, `.codex/routing-policy.md`, and `.codex/validation-profile.json`
 - cold start with no slash command -> treat the first user turn as `/Aide` intake by default, greet briefly, and show the smallest useful command hint
 
@@ -23,6 +23,7 @@ Project-level Codex workflow starter.
 
 - `.codex/routing-policy.md`: routing and module activation authority
 - `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk auto-writeback policy
+- `.codex/delivery-policy.json`: governed submit policy for commit, push, and optional post-push delivery steps
 - `.codex/state/task-context.json`: hot task state and collaboration preferences
 - `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed task history
 - `.codex/state/evolution-registry.json`: cold evolution candidates and settled-task review log
@@ -47,7 +48,7 @@ Project-level Codex workflow starter.
 - infer repo facts before asking
 - `environment setup` belongs to `conduct`
 - `/qc` is opt-in per task need or policy
-- `/follow` applies only after push, CI, or release follow-through
+- `/submit` is the governed post-validation delivery step for commit, push, and optional post-push follow-through
 - only the main agent or runtime scripts write `.codex/state/*.json`, `.codex/project-profile.md`, or `PROGRESS.md`
 - allow only one write-capable subagent at a time
 - do not duplicate routing tables across files

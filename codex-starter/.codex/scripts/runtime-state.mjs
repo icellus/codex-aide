@@ -15,8 +15,10 @@ import {
   highestGovernanceSeverity,
   isLongRunningProfile,
   isQcEnabled,
+  isSubmitEnabled,
   isTaskSettled,
   lessonForCategory,
+  loadDeliveryPolicy,
   loadProjectProfileState,
   loadRuntimeState,
   parseActiveStories,
@@ -64,8 +66,8 @@ function normalizeRole(input = {}, message = "") {
     return "qc";
   }
 
-  if (raw === "follow_worker") {
-    return "follow";
+  if (raw === "submit_worker") {
+    return "submit";
   }
 
   return raw;
@@ -224,7 +226,7 @@ function currentTaskLabel(profile, storyPath) {
 
 function hasHotTaskState(state, storyPath) {
   const hasPending = state.pendingActions.some((item) => {
-    if (item.type !== "run_qc" && item.type !== "blocked_review" && item.type !== "session_retrospective") {
+    if (item.type !== "run_qc" && item.type !== "run_submit" && item.type !== "blocked_review" && item.type !== "session_retrospective") {
       return false;
     }
 
@@ -240,7 +242,7 @@ function hasHotTaskState(state, storyPath) {
 
 function hasOutstandingCompletionWork(state, storyPath) {
   return state.pendingActions.some((item) => {
-    if (item.type !== "run_qc" && item.type !== "blocked_review") {
+    if (item.type !== "run_qc" && item.type !== "run_submit" && item.type !== "blocked_review") {
       return false;
     }
 
@@ -267,7 +269,7 @@ function upsertCompletedTask(state, entry) {
 
 function clearHotTaskState(state, storyPath, profile, message) {
   removePendingActions(state, (item) => {
-    if (item.type !== "run_qc" && item.type !== "blocked_review" && item.type !== "session_retrospective") {
+    if (item.type !== "run_qc" && item.type !== "run_submit" && item.type !== "blocked_review" && item.type !== "session_retrospective") {
       return false;
     }
 
@@ -368,7 +370,63 @@ function matchesStoryScope(itemStoryPath, storyPath) {
   return !itemStoryPath;
 }
 
-function processQcOutcome(state, storyPath, profile, message) {
+function queueSubmit(state, storyPath, note, trigger) {
+  upsertPendingAction(state, {
+    id: `run-submit:${storyPath || "current-task"}`,
+    type: "run_submit",
+    storyPath,
+    trigger,
+    note
+  });
+}
+
+function submitLooksReady(profile, message) {
+  return isTaskSettled(profile) || detectTaskCompletionMessage(message);
+}
+
+function shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy) {
+  if (!isSubmitEnabled(profile, deliveryPolicy)) {
+    return false;
+  }
+
+  if (role === "coder") {
+    return true;
+  }
+
+  return submitLooksReady(profile, message);
+}
+
+function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy) {
+  if (!isSubmitEnabled(profile, deliveryPolicy)) {
+    return false;
+  }
+
+  const phase = resolveQcPhaseForMetrics(state, message, storyPath);
+  if (phase === "coder") {
+    return true;
+  }
+
+  return submitLooksReady(profile, message);
+}
+
+function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy) {
+  if (!isSubmitEnabled(profile, deliveryPolicy)) {
+    return;
+  }
+
+  if (isQcEnabled(profile) && !detectQcPass(message)) {
+    return;
+  }
+
+  queueSubmit(
+    state,
+    storyPath,
+    "Task is settled and ready for governed delivery. Run /submit.",
+    detectQcPass(message) ? "task_settled_after_qc" : "task_settled_without_qc"
+  );
+}
+
+function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
   if (detectQcPass(message)) {
     recordQcMetrics(state, storyPath, message, "pass");
 
@@ -380,6 +438,15 @@ function processQcOutcome(state, storyPath, profile, message) {
       state,
       (item) => item.type === "blocked_review" && matchesStoryScope(item.storyPath, storyPath)
     );
+
+    if (shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy)) {
+      queueSubmit(
+        state,
+        storyPath,
+        "QC passed for a deliverable handoff. Run /submit.",
+        "qc_pass_after_coder"
+      );
+    }
 
     if (storyPath) {
       const queuedForStory = state.learningQueue.filter(
@@ -404,6 +471,10 @@ function processQcOutcome(state, storyPath, profile, message) {
     removePendingActions(
       state,
       (item) => item.type === "run_qc" && matchesStoryScope(item.storyPath, storyPath)
+    );
+    removePendingActions(
+      state,
+      (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
     );
 
     if (storyPath) {
@@ -466,7 +537,46 @@ function processQcOutcome(state, storyPath, profile, message) {
   }
 }
 
-function recordSubagentResult(input, state, activeStories, projectDir, profile) {
+function processSubmitOutcome(state, storyPath, profile, message, status) {
+  if (status === "complete") {
+    removePendingActions(
+      state,
+      (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+    );
+    removePendingActions(
+      state,
+      (item) => item.type === "blocked_review" && item.phase === "submit" && matchesStoryScope(item.storyPath, storyPath)
+    );
+
+    if (shouldCompressCompletedTask(profile, state, storyPath, message)) {
+      clearHotTaskState(state, storyPath, profile, message);
+    }
+    return;
+  }
+
+  if (status === "blocked") {
+    upsertPendingAction(state, {
+      id: `blocked-review:submit:${storyPath || "current-task"}`,
+      type: "blocked_review",
+      phase: "submit",
+      storyPath,
+      note: "Governed delivery blocked. Review the submit report before continuing."
+    });
+
+    upsertAideReview(state, {
+      issueKey: `blocked:submit:${storyPath || "current-task"}`,
+      storyPath,
+      sourceRole: "submit",
+      capability: "investigation",
+      severity: "L2",
+      issueType: "workflow_break",
+      routeTarget: "/Aide investigate",
+      note: "A submit step blocked the delivery flow. Review branch policy, remotes, permissions, or delivery configuration."
+    });
+  }
+}
+
+function recordSubagentResult(input, state, activeStories, projectDir, profile, deliveryPolicy) {
   const message = normalizeMessage(input);
   const role = normalizeRole(input, message);
   const status = normalizeStatus(input, role, message);
@@ -503,6 +613,14 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile) 
       state,
       (item) => item.type === "run_qc" && item.phase === role && matchesStoryScope(item.storyPath, storyPath)
     );
+    if (shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy)) {
+      queueSubmit(
+        state,
+        storyPath,
+        `Recent ${role} completion detected. Run /submit.`,
+        role === "coder" ? "coder_complete_without_qc" : "task_settled_without_qc"
+      );
+    }
   }
 
   if ((role === "tester" || role === "coder") && status === "blocked") {
@@ -538,11 +656,15 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile) 
   }
 
   if (role === "qc") {
-    processQcOutcome(state, storyPath, profile, message);
+    processQcOutcome(state, storyPath, profile, message, deliveryPolicy);
+  }
+
+  if (role === "submit") {
+    processSubmitOutcome(state, storyPath, profile, message, status);
   }
 }
 
-function recordSessionEnd(input, state, activeStories, projectDir, profile) {
+function recordSessionEnd(input, state, activeStories, projectDir, profile, deliveryPolicy) {
   const message = normalizeMessage(input);
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
@@ -554,14 +676,15 @@ function recordSessionEnd(input, state, activeStories, projectDir, profile) {
     });
   }
 
-  processQcOutcome(state, storyPath, profile, message);
+  processQcOutcome(state, storyPath, profile, message, deliveryPolicy);
+  maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy);
 
   if (shouldCompressCompletedTask(profile, state, storyPath, message)) {
     clearHotTaskState(state, storyPath, profile, message);
   }
 }
 
-function recordTaskSettled(input, state, activeStories, projectDir, profile) {
+function recordTaskSettled(input, state, activeStories, projectDir, profile, deliveryPolicy) {
   const message = normalizeMessage(input) || `Task status: ${String(input.task_status || input.status || "done")}`;
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
@@ -573,7 +696,8 @@ function recordTaskSettled(input, state, activeStories, projectDir, profile) {
     });
   }
 
-  processQcOutcome(state, storyPath, profile, message);
+  processQcOutcome(state, storyPath, profile, message, deliveryPolicy);
+  maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy);
 
   if (shouldCompressCompletedTask(profile, state, storyPath, message)) {
     clearHotTaskState(state, storyPath, profile, message);
@@ -588,14 +712,15 @@ async function main() {
     const activeStories = parseActiveStories(progressPath);
     const state = loadRuntimeState(projectDir);
     const profile = loadProjectProfileState(projectDir);
+    const deliveryPolicy = loadDeliveryPolicy(projectDir);
     const eventName = normalizeEventName(input);
 
     if (eventName === "subagent_result") {
-      recordSubagentResult(input, state, activeStories, projectDir, profile);
+      recordSubagentResult(input, state, activeStories, projectDir, profile, deliveryPolicy);
     } else if (eventName === "session_end") {
-      recordSessionEnd(input, state, activeStories, projectDir, profile);
+      recordSessionEnd(input, state, activeStories, projectDir, profile, deliveryPolicy);
     } else if (eventName === "task_settled") {
-      recordTaskSettled(input, state, activeStories, projectDir, profile);
+      recordTaskSettled(input, state, activeStories, projectDir, profile, deliveryPolicy);
     }
 
     trimRuntimeState(state);

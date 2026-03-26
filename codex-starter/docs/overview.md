@@ -23,6 +23,7 @@
 | `.codex/config.toml` | subagent concurrency defaults |
 | `.codex/routing-policy.md` | routing and module-activation authority |
 | `.codex/evolution-policy.json` | automatic evolution thresholds and allowed low-risk writebacks |
+| `.codex/delivery-policy.json` | commit, push, notification, CI, release, and fallback policy |
 | `.codex/state/task-context.json` | hot task state and collaboration preferences |
 | `.codex/state/task-registry.json` | cold task registry for current, unfinished, and completed tasks |
 | `.codex/state/evolution-registry.json` | cold evolution candidates and settled-task review history |
@@ -44,7 +45,7 @@
 | `tester` | task-level validation ownership and test design | disabled |
 | `coder` | implementation and sanity checks | disabled |
 | `/qc` | audit gate | disabled |
-| `/follow` | post-push follow-through | disabled |
+| `/submit` | governed commit, push, and optional post-push delivery flow | disabled |
 | runtime helpers | optional Node-assisted automation | disabled by default |
 
 ## What `/Aide` Optimizes

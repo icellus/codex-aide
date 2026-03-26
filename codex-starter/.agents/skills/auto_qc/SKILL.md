@@ -54,7 +54,7 @@ After `coder` completes, the internal equivalent is:
 If QC passes:
 
 - after a `tester` audit passes, the main agent decides whether to move into `coder` or stay light
-- after a `coder` audit passes, the main agent decides whether `/follow`, manual review, or explicit git actions are still needed
+- after a `coder` audit passes, the main agent decides whether `/submit`, manual review, or explicit git actions are still needed
 
 If QC fails:
 

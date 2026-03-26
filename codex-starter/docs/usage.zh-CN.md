@@ -35,7 +35,7 @@
 - 只有在路由确实变化时才说明变化
 - 启动低成本 evolution sweep，但不阻塞首个 route 输出
 
-在真正的冷启动第一回合里，`/Aide` 还应额外用一行简短提醒用户可用的 `/Aide`、`/qc`、`/follow`。
+在真正的冷启动第一回合里，`/Aide` 还应额外用一行简短提醒用户可用的 `/Aide`、`/qc`、`/submit`。
 
 仓库里提交的 `.codex/state/*.json`、`.codex/project-profile.md`、`.codex/validation-profile.json` 都只是 starter 默认值。  
 将 starter 拷贝到真实项目后，应由 `/Aide` 重写为项目专用状态。
@@ -46,7 +46,7 @@
 | --- | --- |
 | `/Aide` | 开始工作、刷新状态、路由、治理 |
 | `/qc` | 任务风险更高，或你想做显式审计 |
-| `/follow` | 代码已经推送，CI 或 release follow-through 已相关 |
+| `/submit` | 实现或验证已完成，任务需要进入受控的 commit、push 或可选的推送后交付步骤 |
 
 ## `/Aide` 真正负责什么
 
@@ -63,11 +63,11 @@
 
 | 任务 | 常见路径 | 通常会跳过 |
 | --- | --- | --- |
-| 小 bugfix | `/Aide -> coder -> sanity checks` | `prd`、`architect`、`plan`、`/follow` |
-| 较高风险 bugfix | `/Aide -> tester -> coder -> tester 或 /qc` | 不增加价值的模块 |
-| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester 或 optional /qc` | 不增加价值的重模块 |
+| 小 bugfix | `/Aide -> coder -> sanity checks -> /submit` | `prd`、`architect`、`plan` |
+| 较高风险 bugfix | `/Aide -> tester -> coder -> tester 或 /qc -> /submit` | 不增加价值的模块 |
+| feature | `/Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester 或 optional /qc -> /submit` | 不增加价值的重模块 |
 | refactor | 先 lightweight，只有在契约、风险、handoff 变大时才升级 | 低风险局部 refactor 不需要 long-running 跟踪 |
-| release | `/Aide -> conduct -> optional /qc -> optional /follow` | 多步骤发布任务中的 `long-running` 模式 |
+| release | `/Aide -> conduct -> optional /qc -> /submit` | 多步骤发布任务中的 `long-running` 模式 |
 
 ## Environment Setup
 

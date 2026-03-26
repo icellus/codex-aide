@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "status": "starter-default",
+  "ownership": {
+    "maintained_by": "/Aide",
+    "purpose": "submit orchestration and guarded post-validation delivery defaults",
+    "notes": [
+      "/submit owns commit, push, and optional post-push delivery stages.",
+      "The project itself still owns real CI, release, and notification integrations."
+    ]
+  },
+  "submit": {
+    "enabled": true,
+    "queue_after": {
+      "coder_complete_without_qc": true,
+      "qc_pass_after_coder": true,
+      "task_settled_without_qc": true,
+      "task_settled_after_qc": true
+    }
+  },
+  "commit": {
+    "mode": "ask_once",
+    "protected_branches": ["main", "master"],
+    "blocked_branches": [],
+    "allow_current_branch_prefixes": ["feat/", "fix/", "chore/", "refactor/"],
+    "create_branch_when_needed": "ask",
+    "max_auto_commits_per_task": 1,
+    "allow_amend": false,
+    "message_template": "{type}: {summary}"
+  },
+  "push": {
+    "mode": "ask_once",
+    "allowed_remotes": ["origin"],
+    "default_remote": "origin",
+    "set_upstream": "ask",
+    "create_remote_branch_when_missing": "ask",
+    "stop_on_rejection": true
+  },
+  "notify": {
+    "enabled": false,
+    "trigger": "after_push",
+    "channels": []
+  },
+  "ci": {
+    "enabled": false,
+    "source": "project-signals",
+    "mode": "report-only"
+  },
+  "release": {
+    "enabled": false,
+    "mode": "report-only",
+    "targets": []
+  },
+  "fallback": {
+    "on_missing_config": "skip-step",
+    "on_environment_blocker": "report-and-stop",
+    "on_repeat_failure": "report-and-stop",
+    "on_partial_delivery": "report-current-state"
+  }
+}

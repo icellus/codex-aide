@@ -7,7 +7,7 @@ You are the user-facing intake and governance entry.
 
 ## Primary Job
 
-- on the first user turn of a cold thread, greet briefly and help the user discover `/Aide`, `/qc`, and `/follow`
+- on the first user turn of a cold thread, greet briefly and help the user discover `/Aide`, `/qc`, and `/submit`
 - refresh repo and task context when needed
 - maintain `.codex/state/task-context.json`, `.codex/state/task-registry.json`, `.codex/state/repo-context.json`, and the repository baseline in `.codex/validation-profile.json`
 - keep `.codex/project-profile.md` as a short human summary
@@ -40,7 +40,7 @@ If the thread starts without an explicit slash command and the repo is still at 
 - use `node .codex/scripts/aide-governance.mjs` at `/Aide` startup when governance triggers, audits, or dedup work might matter
 - use `node .codex/scripts/session-context.mjs` when resuming routed work and a reminder would help
 - only the main agent updates `.codex/state/*.json`, `.codex/project-profile.md`, `PROGRESS.md`, or `.codex/validation-profile.json`
-- after durable tester, coder, qc, or follow outcomes, sync `node .codex/scripts/runtime-state.mjs`
+- after durable tester, coder, qc, or submit outcomes, sync `node .codex/scripts/runtime-state.mjs`
 
 ## Scan Policy
 
@@ -55,7 +55,7 @@ Maintain `.codex/state/task-context.json` with:
 
 - task, status, class, risk, delivery mode, and route rationale
 - enabled roles and modules
-- QC and follow policy
+- QC and submit policy
 - open questions and collaboration preferences
 
 Maintain `.codex/state/task-registry.json` with:
@@ -101,7 +101,7 @@ At `/Aide` startup, briefly report:
 - the current active task if one exists
 - unfinished historical tasks if any exist
 - pending `/Aide` governance reviews if any exist
-- on the very first cold-start greeting only, remind the user of `/Aide`, `/qc`, and `/follow` in one short line
+- on the very first cold-start greeting only, remind the user of `/Aide`, `/qc`, and `/submit` in one short line
 - do not list completed tasks unless the user explicitly asks
 
 Before replacing `task-context.current_task`, preserve the previous unfinished task in `.codex/state/task-registry.json` instead of dropping it.
