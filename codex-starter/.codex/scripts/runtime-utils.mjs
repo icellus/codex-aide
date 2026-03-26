@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-export async function readJsonStdin() {
+export async function readJsonStdin(options = {}) {
+  const strict = Boolean(options?.strict);
   const chunks = [];
   for await (const chunk of process.stdin) {
     chunks.push(chunk);
@@ -15,8 +16,12 @@ export async function readJsonStdin() {
 
   try {
     return JSON.parse(raw);
-  } catch {
-    return {};
+  } catch (error) {
+    if (!strict) {
+      return {};
+    }
+    const detail = error instanceof Error && error.message ? `: ${error.message}` : "";
+    throw new Error(`Invalid JSON input${detail}`);
   }
 }
 
@@ -411,15 +416,19 @@ export function saveTaskContext(projectDir, taskContext) {
   const stateDir = path.join(projectDir, ".codex", "state");
   const taskContextPath = path.join(stateDir, "task-context.json");
   const empty = createEmptyTaskContext();
+  const current = loadTaskContext(projectDir);
   const merged = {
     ...empty,
+    ...current,
     ...(taskContext || {}),
     collaboration: {
       ...empty.collaboration,
+      ...(current.collaboration || {}),
       ...((taskContext && taskContext.collaboration) || {})
     },
     task: {
       ...empty.task,
+      ...(current.task || {}),
       ...((taskContext && taskContext.task) || {})
     }
   };
@@ -1381,24 +1390,91 @@ export function compactText(value, maxLength = 240) {
 
 export function extractStructuredResult(message) {
   const text = String(message || "");
-  const structuredMatch = [...text.matchAll(/## Structured Result[\s\S]*?```json\s*([\s\S]*?)```/gi)].pop();
-  const fallbackMatch = [...text.matchAll(/```json\s*([\s\S]*?)```/g)].pop();
-  const jsonBlock = structuredMatch?.[1] || fallbackMatch?.[1];
 
-  if (!jsonBlock) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(jsonBlock);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed;
+  const previousNonEmptyLine = (source, position) => {
+    if (!source) {
+      return "";
     }
-  } catch {
-    return null;
+    const prefix = source.slice(0, Math.max(0, position));
+    const lines = prefix.split(/\r?\n/);
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      const line = String(lines[index] || "").trim();
+      if (line) {
+        return line;
+      }
+    }
+    return "";
+  };
+
+  const isExampleMarkerLine = (line) => {
+    const normalized = String(line || "")
+      .trim()
+      .replace(/^[>*+\-\s]+/, "")
+      .trim();
+    if (!normalized) {
+      return false;
+    }
+
+    if (
+      /^(example(?:\s+output|\s+result)?|sample(?:\s+output|\s+result)?|for example|e\.g\.|示例(?:输出|结果)?|样例(?:输出|结果)?|例如|参考示例)\s*[:：]?$/i.test(
+        normalized
+      )
+    ) {
+      return true;
+    }
+
+    return /(?:example output|sample output|示例输出|样例输出|示例结果|样例结果)/i.test(normalized);
+  };
+
+  const parseCandidates = (candidates = []) => {
+    const parsedCandidates = [];
+
+    for (const candidate of candidates) {
+      const block = candidate?.block;
+      try {
+        const parsedValue = JSON.parse(block);
+        if (parsedValue && typeof parsedValue === "object" && !Array.isArray(parsedValue)) {
+          parsedCandidates.push({
+            value: parsedValue,
+            isExample: Boolean(candidate?.isExample)
+          });
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (parsedCandidates.length === 0) {
+      return null;
+    }
+
+    const nonExample = parsedCandidates.filter((item) => !item.isExample);
+    const pool = nonExample.length > 0 ? nonExample : parsedCandidates;
+    return pool[pool.length - 1].value;
+  };
+
+  const structuredCandidates = [...text.matchAll(/## Structured Result[\s\S]*?```json\s*([\s\S]*?)```/gi)].map(
+    (match) => {
+      const position = Number.isFinite(match.index) ? match.index : 0;
+      return {
+        block: match[1],
+        isExample: isExampleMarkerLine(previousNonEmptyLine(text, position))
+      };
+    }
+  );
+  const structuredParsed = parseCandidates(structuredCandidates);
+  if (structuredParsed) {
+    return structuredParsed;
   }
 
-  return null;
+  const fallbackCandidates = [...text.matchAll(/```json\s*([\s\S]*?)```/gi)].map((match) => {
+    const position = Number.isFinite(match.index) ? match.index : 0;
+    return {
+      block: match[1],
+      isExample: isExampleMarkerLine(previousNonEmptyLine(text, position))
+    };
+  });
+  return parseCandidates(fallbackCandidates);
 }
 
 export function detectSubagentStatus(agentType, message) {
@@ -1467,6 +1543,11 @@ export function detectTaskCompletionMessage(message) {
 
 export function detectFailureCategories(message) {
   const text = normalizeText(message);
+  const keywordText = text
+    .replace(/"[^"\n]*"/g, " ")
+    .replace(/“[^”\n]*”/g, " ")
+    .replace(/'[^'\n]*'/g, " ")
+    .replace(/`[^`\n]*`/g, " ");
   const categories = new Set();
   const structured = extractStructuredResult(message);
 
@@ -1479,28 +1560,28 @@ export function detectFailureCategories(message) {
     }
   }
 
-  if (/TODO|FIXME|placeholder/i.test(text)) {
+  if (/TODO|FIXME|placeholder/i.test(keywordText)) {
     categories.add("placeholder");
   }
-  if (/假测试|FAKE TEST|fake test/i.test(text)) {
+  if (/假测试|FAKE TEST|fake test/i.test(keywordText)) {
     categories.add("fake-test");
   }
-  if (/缺失测试|MISSING TEST/i.test(text)) {
+  if (/缺失测试|MISSING TEST/i.test(keywordText)) {
     categories.add("missing-test");
   }
-  if (/未实现|NOT IMPLEMENTED|missing implementation/i.test(text)) {
+  if (/未实现|NOT IMPLEMENTED|missing implementation/i.test(keywordText)) {
     categories.add("missing-implementation");
   }
-  if (/Plan 对齐问题|plan mismatch|plan align|Implementation Plan mismatch/i.test(text)) {
+  if (/Plan 对齐问题|plan mismatch|plan align|Implementation Plan mismatch/i.test(keywordText)) {
     categories.add("plan-mismatch");
   }
-  if (/错误处理|error handling/i.test(text)) {
+  if (/错误处理|error handling/i.test(keywordText)) {
     categories.add("error-handling");
   }
-  if (/shared protocol|交接协议|interface between roles/i.test(text)) {
+  if (/shared protocol|交接协议|interface between roles/i.test(keywordText)) {
     categories.add("shared-protocol");
   }
-  if (/environment mismatch|connection refused|postgres service|CI missing/i.test(text)) {
+  if (/environment mismatch|connection refused|postgres service|CI missing/i.test(keywordText)) {
     categories.add("environment-mismatch");
   }
 
@@ -1664,20 +1745,6 @@ function ensureProgressSection(text, heading, emptyBody) {
   }
 
   return `${text.trimEnd()}\n\n${section}`;
-}
-
-function ensureProgressRuntimeSections(text, state) {
-  let next = text;
-
-  if (state.pendingActions.some((item) => item.type === "session_retrospective")) {
-    next = ensureProgressSection(next, "## Session Retrospective (Optional)", "<!-- No pending retrospective prompts -->");
-  }
-
-  if (state.learningQueue.length > 0) {
-    next = ensureProgressSection(next, "## Learning Queue (Optional)", "<!-- No queued lessons -->");
-  }
-
-  return next;
 }
 
 function updateCurrentWorkSection(text, activeStories, state) {
@@ -1937,8 +2004,10 @@ export function syncProgressFromState(progressPath, activeStories, state) {
 
   const original = fs.readFileSync(progressPath, "utf8");
   const withRetryPattern = updateCurrentWorkSection(original, activeStories, state);
+  const withLearningQueue = updateLearningQueueSection(withRetryPattern, state);
+  const withRetrospective = updateSessionRetrospectiveSection(withLearningQueue, state);
 
-  if (withRetryPattern !== original) {
-    fs.writeFileSync(progressPath, withRetryPattern, "utf8");
+  if (withRetrospective !== original) {
+    fs.writeFileSync(progressPath, withRetrospective, "utf8");
   }
 }

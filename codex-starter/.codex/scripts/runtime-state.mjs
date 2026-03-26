@@ -284,6 +284,7 @@ function upsertAideReview(state, details = {}) {
   upsertPendingAction(state, {
     id: details.id || `aide-review:${issueKey}:${storyKey}`,
     type: "aide_review",
+    scope: details.scope || undefined,
     severity: normalizeGovernanceSeverity(details.severity || "L2"),
     capability: details.capability || "investigation",
     storyPath: details.storyPath || null,
@@ -589,6 +590,46 @@ function matchesStoryScope(itemStoryPath, storyPath) {
   return !itemStoryPath;
 }
 
+function isAmbiguousStoryScope(activeStories, storyPath) {
+  return Array.isArray(activeStories) && activeStories.length > 1 && !storyPath;
+}
+
+function clearAmbiguousBlockedSignals(state, role) {
+  removePendingActions(state, (item) => {
+    if (item.type === "blocked_review") {
+      return item.phase === role && item.scope === "ambiguous";
+    }
+
+    if (item.type === "aide_review") {
+      return item.sourceRole === role && item.scope === "ambiguous";
+    }
+
+    return false;
+  });
+}
+
+function hasAmbiguousBlockedSignals(state, role) {
+  return state.pendingActions.some((item) => {
+    if (item.type === "blocked_review") {
+      return item.phase === role && item.scope === "ambiguous";
+    }
+
+    if (item.type === "aide_review") {
+      return item.sourceRole === role && item.scope === "ambiguous";
+    }
+
+    return false;
+  });
+}
+
+function shouldQueueByPolicy(deliveryPolicy, trigger) {
+  if (!trigger) {
+    return true;
+  }
+
+  return deliveryPolicy?.submit?.queue_after?.[trigger] !== false;
+}
+
 function queueSubmit(state, storyPath, note, trigger) {
   upsertPendingAction(state, {
     id: `run-submit:${storyPath || "current-task"}`,
@@ -609,10 +650,10 @@ function shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy
   }
 
   if (role === "coder") {
-    return true;
+    return shouldQueueByPolicy(deliveryPolicy, "coder_complete_without_qc");
   }
 
-  return submitLooksReady(profile, message);
+  return submitLooksReady(profile, message) && shouldQueueByPolicy(deliveryPolicy, "task_settled_without_qc");
 }
 
 function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy) {
@@ -622,10 +663,10 @@ function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPo
 
   const phase = resolveQcPhaseForMetrics(state, message, storyPath);
   if (phase === "coder") {
-    return true;
+    return shouldQueueByPolicy(deliveryPolicy, "qc_pass_after_coder");
   }
 
-  return submitLooksReady(profile, message);
+  return submitLooksReady(profile, message) && shouldQueueByPolicy(deliveryPolicy, "task_settled_after_qc");
 }
 
 function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy) {
@@ -637,12 +678,12 @@ function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deli
     return;
   }
 
-  queueSubmit(
-    state,
-    storyPath,
-    "Task is settled and ready for governed delivery. Run /submit.",
-    detectQcPass(message) ? "task_settled_after_qc" : "task_settled_without_qc"
-  );
+  const trigger = detectQcPass(message) ? "task_settled_after_qc" : "task_settled_without_qc";
+  if (!shouldQueueByPolicy(deliveryPolicy, trigger)) {
+    return;
+  }
+
+  queueSubmit(state, storyPath, "Task is settled and ready for governed delivery. Run /submit.", trigger);
 }
 
 function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
@@ -655,7 +696,7 @@ function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
     );
     removePendingActions(
       state,
-      (item) => item.type === "blocked_review" && matchesStoryScope(item.storyPath, storyPath)
+      (item) => item.type === "blocked_review" && item.scope !== "ambiguous" && matchesStoryScope(item.storyPath, storyPath)
     );
 
     if (shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy)) {
@@ -801,6 +842,13 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
   const status = normalizeStatus(input, role, message);
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
+  const ambiguousStoryScope = isAmbiguousStoryScope(activeStories, storyPath);
+  const isAmbiguousBlockedScope = (role === "tester" || role === "coder") && ambiguousStoryScope && status === "blocked";
+  const canResolveAmbiguousSignals =
+    (role === "tester" || role === "coder") &&
+    Boolean(storyPath) &&
+    (status === "complete" || status === "blocked") &&
+    hasAmbiguousBlockedSignals(state, role);
 
   state.recentSubagentEvents.push({
     timestamp: new Date().toISOString(),
@@ -809,6 +857,14 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
     storyPath,
     summary: compactText(message, 120)
   });
+
+  if (canResolveAmbiguousSignals) {
+    clearAmbiguousBlockedSignals(state, role);
+  }
+
+  if ((role === "tester" || role === "coder") && ambiguousStoryScope && status !== "blocked") {
+    return;
+  }
 
   if ((role === "tester" || role === "coder") && status === "complete" && isQcEnabled(profile)) {
     upsertPendingAction(state, {
@@ -823,7 +879,11 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
   if ((role === "tester" || role === "coder") && status === "complete") {
     removePendingActions(
       state,
-      (item) => item.type === "blocked_review" && item.phase === role && matchesStoryScope(item.storyPath, storyPath)
+      (item) =>
+        item.type === "blocked_review" &&
+        item.phase === role &&
+        item.scope !== "ambiguous" &&
+        matchesStoryScope(item.storyPath, storyPath)
     );
   }
 
@@ -843,12 +903,21 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
   }
 
   if ((role === "tester" || role === "coder") && status === "blocked") {
+    const blockedScopeLabel = isAmbiguousBlockedScope ? "ambiguous-story-scope" : storyPath || "current-task";
+    const blockedNote = isAmbiguousBlockedScope
+      ? `Recent ${role} blockage detected, but the active story is ambiguous. Resolve story ownership (cwd/worktree/branch or story_path) before resuming.`
+      : `Recent ${role} blockage detected. Review structured handoff before continuing.`;
+    const reviewNote = isAmbiguousBlockedScope
+      ? `A ${role} handoff blocked while multiple active stories were unresolved. Investigate story ownership first, then route fixes to the correct plan.`
+      : `A ${role} handoff blocked the workflow. Investigate whether the issue comes from routing, role boundaries, or missing shared guidance.`;
+
     upsertPendingAction(state, {
-      id: `blocked-review:${role}:${storyPath || "current-task"}`,
+      id: `blocked-review:${role}:${blockedScopeLabel}`,
       type: "blocked_review",
       phase: role,
       storyPath,
-      note: `Recent ${role} blockage detected. Review structured handoff before continuing.`
+      scope: isAmbiguousBlockedScope ? "ambiguous" : undefined,
+      note: blockedNote
     });
     if (storyPath && isLongRunningProfile(profile)) {
       upsertSessionRetrospective(state, storyPath, {
@@ -859,14 +928,15 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
     }
 
     upsertAideReview(state, {
-      issueKey: `blocked:${role}:${storyPath || "current-task"}`,
+      issueKey: `blocked:${role}:${blockedScopeLabel}`,
       storyPath,
+      scope: isAmbiguousBlockedScope ? "ambiguous" : undefined,
       sourceRole: role,
       capability: "investigation",
       severity: "L3",
       issueType: "workflow_break",
       routeTarget: "/Aide investigate",
-      note: `A ${role} handoff blocked the workflow. Investigate whether the issue comes from routing, role boundaries, or missing shared guidance.`
+      note: reviewNote
     });
   }
 
@@ -929,14 +999,24 @@ function recordTaskSettled(input, state, activeStories, projectDir, profile, del
 
 async function main() {
   try {
-    const input = await readJsonStdin();
+    const input = await readJsonStdin({ strict: true });
+    const eventName = normalizeEventName(input);
+    if (!eventName) {
+      return;
+    }
+
+    if (eventName !== "subagent_result" && eventName !== "session_end" && eventName !== "task_settled") {
+      throw new Error(
+        `Unsupported event "${eventName}". Supported events: subagent_result, session_end, task_settled.`
+      );
+    }
+
     const projectDir = getProjectDir(input);
     const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
     const activeStories = parseActiveStories(progressPath);
     const state = loadRuntimeState(projectDir);
     const profile = loadProjectProfileState(projectDir);
     const deliveryPolicy = loadDeliveryPolicy(projectDir);
-    const eventName = normalizeEventName(input);
 
     if (eventName === "subagent_result") {
       recordSubagentResult(input, state, activeStories, projectDir, profile, deliveryPolicy);
@@ -956,6 +1036,7 @@ async function main() {
     syncProgressFromState(progressPath, activeStories, state);
   } catch (error) {
     process.stderr.write(`runtime-state error: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
   }
 }
 

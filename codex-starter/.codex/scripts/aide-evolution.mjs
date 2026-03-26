@@ -235,7 +235,16 @@ function insertGuidanceIntoAgentToml(text, guidance) {
 }
 
 function applyGuidanceWriteback(projectDir, target, guidance) {
-  const targetPath = path.join(projectDir, target);
+  const baseDir = path.resolve(projectDir);
+  const targetPath = path.resolve(projectDir, String(target || ""));
+  const relativeToProject = path.relative(baseDir, targetPath);
+  if (relativeToProject.startsWith("..") || path.isAbsolute(relativeToProject)) {
+    return {
+      ok: false,
+      result: "target-outside-project"
+    };
+  }
+
   if (!fs.existsSync(targetPath)) {
     return {
       ok: false,
