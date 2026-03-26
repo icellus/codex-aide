@@ -608,15 +608,9 @@ function mapTaskContextToProfile(parsed = {}) {
 }
 
 export function loadProjectProfileState(projectDir) {
-  const taskContext = loadTaskContext(projectDir);
-  const hasTaskContext =
-    normalizeProfileValue(taskContext.task.current_task) ||
-    normalizeProfileValue(taskContext.task.status) !== "idle" ||
-    normalizeProfileValue(taskContext.task.route_rationale) ||
-    Boolean(taskContext.collaboration.first_startup_greeting_completed);
-
-  if (hasTaskContext) {
-    return mapTaskContextToProfile(taskContext);
+  const taskContextPath = path.join(projectDir, ".codex", "state", "task-context.json");
+  if (fs.existsSync(taskContextPath)) {
+    return mapTaskContextToProfile(loadTaskContext(projectDir));
   }
 
   const profilePath = path.join(projectDir, ".codex", "project-profile.md");
@@ -1204,6 +1198,7 @@ export function listTaskRegistryTasks(registry, predicate = null) {
 
 export function syncTaskRegistry(projectDir, input = {}) {
   const now = input.now || new Date().toISOString();
+  const persist = input.persist !== false;
   const profile = input.profile || loadProjectProfileState(projectDir);
   const runtimeState = input.runtimeState || null;
   const registry = input.registry || loadTaskRegistry(projectDir);
@@ -1332,7 +1327,9 @@ export function syncTaskRegistry(projectDir, input = {}) {
   registry.currentTaskId = nextCurrentId;
   registry.updatedAt = now;
   sortAndTrimRegistry(registry);
-  saveTaskRegistry(projectDir, registry);
+  if (persist) {
+    saveTaskRegistry(projectDir, registry);
+  }
   return registry;
 }
 

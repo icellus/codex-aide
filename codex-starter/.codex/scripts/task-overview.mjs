@@ -54,7 +54,8 @@ async function main() {
     profile,
     runtimeState,
     progressPath,
-    progressTasks
+    progressTasks,
+    persist: false
   });
 
   const requestedStatus = String(input.status || "").trim().toLowerCase();

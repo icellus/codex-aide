@@ -241,6 +241,42 @@ function testTaskContextJsonOverridesMarkdownProfile() {
   assert.equal(profile.deliveryMode, "lightweight");
 }
 
+function testTaskContextRemainsHotStateAuthorityForCollaborationFields() {
+  const dir = makeTempDir("codex-starter-task-context-authority-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
+    ["- Preferred address: boss", "- Preferred address: lead"],
+    ["- Greeting style: brief", "- Greeting style: formal"]
+  ]);
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "captain",
+      greeting_style: "formal",
+      first_startup_greeting_completed: false
+    },
+    task: {
+      current_task: "",
+      status: "idle",
+      class: "unknown",
+      risk: "unknown",
+      delivery_mode: "lightweight",
+      route_rationale: "",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["lightweight execution"],
+      qc_policy: "disabled",
+      submit_policy: "enabled",
+      validation_profile_status: "not-set",
+      open_questions: []
+    }
+  });
+
+  const profile = loadProjectProfileState(dir);
+  assert.equal(profile.preferredAddress, "captain");
+  assert.equal(profile.greetingStyle, "formal");
+}
+
 function testTaskContextHelpersWriteNormalizedState() {
   const dir = makeTempDir("codex-starter-save-task-context-");
 
@@ -768,17 +804,10 @@ function testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks() {
   });
 
   const stdout = runNode(taskOverviewScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
-  const registry = readTaskRegistry(dir);
-  const oldTask = registry.tasks.find((task) => task.title === "Old routing cleanup");
-  const currentTask = registry.tasks.find((task) => task.title === "New routing cleanup");
-
   assert.match(stdout, /Current task: New routing cleanup \[active\]/);
   assert.match(stdout, /Historical unfinished tasks: 1/);
   assert.match(stdout, /Unfinished: Old routing cleanup \[parked\]/);
   assert.doesNotMatch(stdout, /Completed tasks:/);
-  assert.equal(oldTask.status, "parked");
-  assert.equal(currentTask.status, "active");
-  assert.equal(registry.currentTaskId, currentTask.id);
 }
 
 function testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished() {
@@ -804,15 +833,9 @@ function testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished() {
   });
 
   const stdout = runNode(taskOverviewScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
-  const registry = readTaskRegistry(dir);
-  const task = registry.tasks.find((entry) => entry.title === "Manual cleanup");
-
   assert.match(stdout, /Current task: none/);
   assert.match(stdout, /Historical unfinished tasks: 1/);
   assert.match(stdout, /Unfinished: Manual cleanup \[parked\]/);
-  assert.equal(task.status, "parked");
-  assert.match(task.reason, /Hot task cleared without explicit closure/);
-  assert.equal(registry.currentTaskId, null);
 }
 
 function testTaskOverviewCanQueryCompletedTasksOnDemand() {
@@ -843,6 +866,25 @@ function testTaskOverviewCanQueryCompletedTasksOnDemand() {
   assert.match(stdout, /Task history:/);
   assert.match(stdout, /Completed tasks: 1/);
   assert.match(stdout, /Completed: Release cleanup \[done\]/);
+}
+
+function testTaskOverviewDoesNotWriteTaskRegistryForReadOnlyQuery() {
+  const dir = makeTempDir("codex-starter-task-overview-read-only-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+  writeJson(path.join(dir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: null,
+    currentTaskId: null,
+    tasks: []
+  });
+
+  const registryPath = path.join(dir, ".codex", "state", "task-registry.json");
+  const before = fs.readFileSync(registryPath, "utf8");
+  const stdout = runNode(taskOverviewScript, {}, { CODEX_PROJECT_DIR: dir });
+  const after = fs.readFileSync(registryPath, "utf8");
+
+  assert.match(stdout, /Task overview:/);
+  assert.equal(after, before);
 }
 
 function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
@@ -1623,6 +1665,7 @@ testTesterContractIncludesTaskValidationHandoff();
 testProductAssistantContractAndDefaultsExist();
 testProgressSyncSupportsLegacyShape();
 testTaskContextJsonOverridesMarkdownProfile();
+testTaskContextRemainsHotStateAuthorityForCollaborationFields();
 testTaskContextHelpersWriteNormalizedState();
 testRepoContextHelpersWriteNormalizedState();
 testLegacyDeliveryModeNamesNormalizeToCurrentNames();
@@ -1637,6 +1680,7 @@ testQcReviewerAliasRecordsStructuredFail();
 testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();
 testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished();
 testTaskOverviewCanQueryCompletedTasksOnDemand();
+testTaskOverviewDoesNotWriteTaskRegistryForReadOnlyQuery();
 testRuntimeStateSyncsCompletedTasksIntoTaskRegistry();
 testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry();
 testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals();
