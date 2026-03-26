@@ -1057,6 +1057,40 @@ export function syncTaskRegistry(projectDir, input = {}) {
   return registry;
 }
 
+const GOVERNANCE_SEVERITY_ORDER = {
+  L1: 1,
+  L2: 2,
+  L3: 3,
+  L4: 4
+};
+
+export function normalizeGovernanceSeverity(value, fallback = "L2") {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "L1" || normalized === "L2" || normalized === "L3" || normalized === "L4") {
+    return normalized;
+  }
+  return fallback;
+}
+
+export function compareGovernanceSeverity(left, right) {
+  return (
+    (GOVERNANCE_SEVERITY_ORDER[normalizeGovernanceSeverity(right, "L1")] || 0) -
+    (GOVERNANCE_SEVERITY_ORDER[normalizeGovernanceSeverity(left, "L1")] || 0)
+  );
+}
+
+export function highestGovernanceSeverity(values = [], fallback = "L2") {
+  const normalized = Array.isArray(values)
+    ? values.map((item) => normalizeGovernanceSeverity(item, fallback))
+    : [];
+
+  if (normalized.length === 0) {
+    return fallback;
+  }
+
+  return normalized.sort(compareGovernanceSeverity)[0];
+}
+
 export function normalizeText(value) {
   return String(value || "").replace(/\r/g, "").trim();
 }

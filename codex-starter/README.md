@@ -48,6 +48,7 @@ The starter ships with template defaults in `.codex/project-profile.md` and `.co
 
 Runtime state is written to `.codex/state/runtime-state.json` on demand.
 `node .codex/scripts/task-overview.mjs` summarizes the current active task plus unfinished historical tasks for `/Aide`.
+`node .codex/scripts/aide-governance.mjs` summarizes pending governance triggers, quality audit findings, and dedup candidates for `/Aide`.
 When `long-running` mode is active, `PROGRESS.md` is for checkpoint tracking only.
 Auto QC reminders are queued only when the current task explicitly enables `/qc`, including lightweight or standard work that does not have a tracked story path yet.
 

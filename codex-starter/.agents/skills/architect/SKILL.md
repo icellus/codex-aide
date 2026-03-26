@@ -106,6 +106,19 @@ Before finishing:
 - ensure unnecessary sections are omitted
 - ensure the note is specific enough for `plan` to use downstream
 
+## Session-End Retrospective
+
+End every architect session with a short structured retrospective, even when the design work went well.
+
+Always capture:
+
+- what design decisions were made
+- which assumption turned out to be wrong, weak, or still risky
+- whether any lesson should write back into a shared skill, policy, template, or script
+- whether the next similar task would benefit from a durable writeback now
+
+This is knowledge capture, not failure-only postmortem work.
+
 ## Output contract
 
 Return:
@@ -115,3 +128,37 @@ Return:
 - key design decision
 - unresolved technical tradeoffs, if any
 - next recommended step
+
+End every final report with this exact retrospective section before the structured footer:
+## Session-End Retrospective
+Decisions Made:
+- [durable design decision]
+
+Wrong Assumptions:
+- [wrong, weak, or still-risky assumption, or `none`]
+
+Writeback Candidates:
+- `[target path or none]` - [why this should or should not become shared guidance]
+
+End every final report with this exact section:
+## Structured Result
+```json
+{
+  "role": "architect",
+  "status": "complete|blocked",
+  "architecture_path": null,
+  "key_decisions": [],
+  "wrong_assumptions": [],
+  "writeback_candidates": [
+    {
+      "target": "",
+      "reason": "",
+      "capability": "investigation|audit|dedup|writeback",
+      "severity": "L1|L2|L3|L4"
+    }
+  ],
+  "technical_tradeoffs": [],
+  "blockers": []
+}
+```
+If blocked, set status to blocked and include the concrete blocker.

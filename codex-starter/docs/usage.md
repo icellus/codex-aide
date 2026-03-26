@@ -88,13 +88,15 @@ Use them when the project benefits from reminders, queued QC follow-up, or git s
 Useful entrypoints:
 
 1. `node .codex/scripts/task-overview.mjs`
-2. `node .codex/scripts/session-context.mjs`
-3. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
-4. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
+2. `node .codex/scripts/aide-governance.mjs`
+3. `node .codex/scripts/session-context.mjs`
+4. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
+5. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
 Runtime state is created on demand at `.codex/state/runtime-state.json`.
 The task registry lives at `.codex/state/task-registry.json` and keeps the current task plus unfinished task history, with completed tasks available on demand.
 `/Aide` reports current and unfinished tasks by default; completed tasks are lookup-only unless the user asks.
+/Aide governance review can also be triggered automatically from repeated QC failures, blocked handoffs, or architect retrospectives.
 QC reminders are queued only when the current task explicitly enables `/qc`.
 `PROGRESS.md` is for active checkpoints only; runtime reminders and learning state stay in `.codex/state/runtime-state.json`.
 

@@ -2,6 +2,7 @@
 
 import {
   basenameLabel,
+  compareGovernanceSeverity,
   findProgressFile,
   getProjectDir,
   isTaskSettled,
@@ -22,6 +23,20 @@ function summarizeBlockedActions(state) {
 
 function summarizeQueuedLessons(state) {
   return state.learningQueue.filter((item) => item.status === "queued");
+}
+
+function summarizeAideReviews(state, currentStory) {
+  const activeStoryPath = currentStory?.storyPath || null;
+  const items = state.pendingActions.filter((item) => item.type === "aide_review");
+
+  if (activeStoryPath) {
+    const matching = items.filter((item) => item.storyPath === activeStoryPath || !item.storyPath);
+    if (matching.length > 0) {
+      return matching.sort((left, right) => compareGovernanceSeverity(left.severity, right.severity)).slice(0, 2);
+    }
+  }
+
+  return items.sort((left, right) => compareGovernanceSeverity(left.severity, right.severity)).slice(0, 2);
 }
 
 function summarizeRetrospectiveActions(state, currentStory) {
@@ -59,13 +74,15 @@ async function main() {
   const pendingQcPool = currentStory ? pendingQcForCurrent : pendingQC;
   const retrospectiveActions = summarizeRetrospectiveActions(state, currentStory);
   const queuedLessons = summarizeQueuedLessons(state);
+  const aideReviews = summarizeAideReviews(state, currentStory);
 
   if (
     isTaskSettled(profile) &&
     blockedPool.length === 0 &&
     pendingQcPool.length === 0 &&
     retrospectiveActions.length === 0 &&
-    queuedLessons.length === 0
+    queuedLessons.length === 0 &&
+    aideReviews.length === 0
   ) {
     if (state.sessionContext.lastReminderText) {
       state.sessionContext.lastReminderText = "";
@@ -126,6 +143,15 @@ async function main() {
         .join(", ");
       pushReminder(30, `- Candidate lessons: ${queuedLessons.length} queued for retrospective (${preview})`);
     }
+  }
+
+  for (const item of aideReviews) {
+    pushReminder(
+      80,
+      `- /Aide review pending [${String(item.severity || "L2").toUpperCase()} ${item.capability || "investigation"}]${
+        item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""
+      }: ${item.note || "review the shared workflow and decide on writeback."}`
+    );
   }
 
   const selected = reminders

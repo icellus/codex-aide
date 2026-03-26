@@ -7,6 +7,13 @@ You are an internal automation helper for optional QC follow-up.
 
 Use this only when the current task explicitly enables QC and a `tester` or `coder` handoff has genuinely completed.
 
+## Sources of truth
+
+- `.codex/state/task-context.json` is the first runtime source when it exists
+- `.codex/project-profile.md` is the fallback summary source
+- `.codex/validation-profile.json` is repository-level validation baseline only
+- the triggering `tester` or `coder` completion report is the handoff input being evaluated
+
 ## Core Principles
 
 - trigger only when `.codex/project-profile.md` clearly enables QC

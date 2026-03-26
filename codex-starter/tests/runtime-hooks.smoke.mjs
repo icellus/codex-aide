@@ -15,6 +15,7 @@ const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), ".
 const runtimeStateScript = path.join(rootDir, ".codex", "scripts", "runtime-state.mjs");
 const sessionContextScript = path.join(rootDir, ".codex", "scripts", "session-context.mjs");
 const taskOverviewScript = path.join(rootDir, ".codex", "scripts", "task-overview.mjs");
+const aideGovernanceScript = path.join(rootDir, ".codex", "scripts", "aide-governance.mjs");
 const validateGitScript = path.join(rootDir, ".codex", "scripts", "validate-git.mjs");
 const progressTemplatePath = path.join(rootDir, ".codex", "templates", "progress.md");
 const projectProfilePath = path.join(rootDir, ".codex", "project-profile.md");
@@ -609,6 +610,273 @@ function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
   assert.equal(registry.currentTaskId, null);
 }
 
+function testArchitectCompletionQueuesGovernanceRetrospective() {
+  const dir = makeTempDir("codex-starter-architect-review-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "architect",
+      message: [
+        "## Architecture Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "architect",
+            status: "complete",
+            architecture_path: "plans/demo-architecture.md",
+            key_decisions: ["Use a service boundary between API and UI."],
+            wrong_assumptions: ["The existing UI hook was reusable without a contract change."],
+            writeback_candidates: [
+              {
+                target: ".agents/skills/architect/SKILL.md",
+                reason: "Keep the retrospective footer mandatory for every architect session.",
+                capability: "writeback",
+                severity: "L2"
+              }
+            ],
+            technical_tradeoffs: ["Slightly more setup now for less boundary drift later."],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const retrospective = state.pendingActions.find((item) => item.type === "session_retrospective" && item.role === "architect");
+  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "architect");
+
+  assert.ok(retrospective);
+  assert.ok(aideReview);
+  assert.equal(aideReview.capability, "writeback");
+  assert.equal(aideReview.severity, "L2");
+}
+
+function testRepeatedQcFailuresQueueAideAuditReview() {
+  const dir = makeTempDir("codex-starter-aide-audit-review-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
+    ["- Selected delivery mode: `lightweight`", "- Selected delivery mode: `long-running`"],
+    ["- QC policy: `disabled`", "- QC policy: `enabled`"]
+  ]);
+  fs.writeFileSync(
+    path.join(dir, "PROGRESS.md"),
+    [
+      "# Project Progress",
+      "",
+      "## Current Work",
+      "",
+      "### Demo",
+      "**Story**: `plans/demo.md`",
+      "",
+      "---",
+      "## Completed"
+    ].join("\n"),
+    "utf8"
+  );
+
+  const qcMessage = [
+    "## QC Report",
+    "Overall Verdict: FAIL",
+    "",
+    "## Structured Result",
+    "```json",
+    JSON.stringify(
+      {
+        role: "qc",
+        status: "complete",
+        phase: "coder",
+        verdict: "FAIL",
+        categories: ["missing-test"]
+      },
+      null,
+      2
+    ),
+    "```"
+  ].join("\n");
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "qc",
+      message: qcMessage,
+      story_path: "plans/demo.md"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "qc",
+      message: qcMessage,
+      story_path: "plans/demo.md"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "qc");
+
+  assert.ok(aideReview);
+  assert.equal(aideReview.capability, "audit");
+  assert.equal(aideReview.severity, "L3");
+}
+
+function testAideGovernanceInvestigateReportsPendingReviews() {
+  const dir = makeTempDir("codex-starter-aide-governance-investigate-");
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "aide-review:test",
+        type: "aide_review",
+        severity: "L3",
+        capability: "investigation",
+        note: "Workflow break detected.",
+        createdAt: "2026-03-25T00:00:00Z",
+        updatedAt: "2026-03-25T00:00:00Z"
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  const stdout = runNode(aideGovernanceScript, { cwd: dir, mode: "investigate" }, { CODEX_PROJECT_DIR: dir });
+
+  assert.match(stdout, /Pending \/Aide reviews:/);
+  assert.match(stdout, /\[L3\] \[investigation\] Workflow break detected\./);
+}
+
+function testAideGovernanceAuditDetectsBrokenContracts() {
+  const dir = makeTempDir("codex-starter-aide-governance-audit-");
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".agents", "skills", "aide"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".agents", "skills", "architect"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".codex", "agents"), { recursive: true });
+
+  fs.writeFileSync(
+    path.join(dir, ".agents", "skills", "aide", "SKILL.md"),
+    [
+      "---",
+      "name: aide",
+      "description: governance entry",
+      "---",
+      "",
+      "## Read Order",
+      "",
+      "1. repo state"
+    ].join("\n"),
+    "utf8"
+  );
+
+  fs.writeFileSync(
+    path.join(dir, ".agents", "skills", "architect", "SKILL.md"),
+    [
+      "---",
+      "name: architect",
+      "description: design helper",
+      "---",
+      "",
+      "## Sources of truth",
+      "",
+      "- code"
+    ].join("\n"),
+    "utf8"
+  );
+
+  fs.writeFileSync(
+    path.join(dir, ".codex", "agents", "coder.toml"),
+    [
+      'name = "coder"',
+      'description = "writer"',
+      'sandbox_mode = "workspace-write"',
+      'developer_instructions = """',
+      "Do the work.",
+      '"""'
+    ].join("\n"),
+    "utf8"
+  );
+
+  const stdout = runNode(aideGovernanceScript, { cwd: dir, mode: "audit" }, { CODEX_PROJECT_DIR: dir });
+
+  assert.match(stdout, /Aide governance contract is incomplete/);
+  assert.match(stdout, /Architect knowledge-capture contract is incomplete/);
+  assert.match(stdout, /Write-capable agent lacks a structured result footer/);
+}
+
+function testAideGovernanceDedupFindsSharedAuthorityCandidates() {
+  const dir = makeTempDir("codex-starter-aide-governance-dedup-");
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".agents", "skills", "aide"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".agents", "skills", "follow"), { recursive: true });
+
+  const sharedLine = "Only the main agent updates shared state files during governed workflows.";
+
+  fs.writeFileSync(path.join(dir, "AGENTS.md"), `${sharedLine}\n`, "utf8");
+  fs.writeFileSync(
+    path.join(dir, ".agents", "skills", "aide", "SKILL.md"),
+    [
+      "---",
+      "name: aide",
+      "description: governance entry",
+      "---",
+      "",
+      sharedLine
+    ].join("\n"),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(dir, ".agents", "skills", "follow", "SKILL.md"),
+    [
+      "---",
+      "name: follow",
+      "description: follow entry",
+      "---",
+      "",
+      sharedLine
+    ].join("\n"),
+    "utf8"
+  );
+
+  const stdout = runNode(aideGovernanceScript, { cwd: dir, mode: "dedup" }, { CODEX_PROJECT_DIR: dir });
+
+  assert.match(stdout, /Dedup candidates:/);
+  assert.match(stdout, /Only the main agent updates shared state files during governed workflows/);
+}
+
 testQcDetectionRequiresQcMarkers();
 testValidationProfileDefinesRepoBaselineAndTesterOwnership();
 testTesterContractIncludesTaskValidationHandoff();
@@ -624,5 +892,10 @@ testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();
 testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished();
 testTaskOverviewCanQueryCompletedTasksOnDemand();
 testRuntimeStateSyncsCompletedTasksIntoTaskRegistry();
+testArchitectCompletionQueuesGovernanceRetrospective();
+testRepeatedQcFailuresQueueAideAuditReview();
+testAideGovernanceInvestigateReportsPendingReviews();
+testAideGovernanceAuditDetectsBrokenContracts();
+testAideGovernanceDedupFindsSharedAuthorityCandidates();
 
 process.stdout.write("runtime helper smoke tests passed\n");

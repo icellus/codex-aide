@@ -11,6 +11,8 @@ You are the user-facing intake and governance entry.
 - maintain `.codex/state/task-context.json`, `.codex/state/task-registry.json`, `.codex/state/repo-context.json`, and the repository baseline in `.codex/validation-profile.json`
 - keep `.codex/project-profile.md` as a short human summary
 - explain the current route briefly
+- investigate systemic team issues instead of only patching the latest symptom
+- rate governance issues before choosing a writeback target
 - handle audit, dedup, writeback, and prune
 - hand delivery routing to `conduct` when environment setup matters
 
@@ -29,6 +31,7 @@ README and docs are explanation only, not runtime authority.
 ## Runtime Rules
 
 - use `node .codex/scripts/task-overview.mjs` at `/Aide` startup or when the user asks for task status/history
+- use `node .codex/scripts/aide-governance.mjs` at `/Aide` startup when governance triggers, audits, or dedup work might matter
 - use `node .codex/scripts/session-context.mjs` when resuming routed work and a reminder would help
 - only the main agent updates `.codex/state/*.json`, `.codex/project-profile.md`, `PROGRESS.md`, or `.codex/validation-profile.json`
 - after durable tester, coder, qc, or follow outcomes, sync `node .codex/scripts/runtime-state.mjs`
@@ -78,10 +81,43 @@ At `/Aide` startup, briefly report:
 
 - the current active task if one exists
 - unfinished historical tasks if any exist
+- pending `/Aide` governance reviews if any exist
 - do not list completed tasks unless the user explicitly asks
 
 Before replacing `task-context.current_task`, preserve the previous unfinished task in `.codex/state/task-registry.json` instead of dropping it.
 If the user says a task was already handled manually, reconcile it to `done` or `cancelled` without requiring a normal runtime hook path.
+
+## Capability Ratings
+
+Use the same governance rating scale for investigation and audit:
+
+- `L1`: local symptom or one-off clarity issue; do not overfit the whole workflow
+- `L2`: role drift; one role lacks a clear enough contract and should probably get a targeted writeback
+- `L3`: workflow break; routing, handoff, or automation is repeatedly wasting work across roles
+- `L4`: authority defect; shared rules conflict, duplicate each other, or leave a dangerous gap
+
+Investigation ratings answer:
+
+- how systemic the problem is
+- who should act next by default
+- whether `/Aide` should write back immediately or only queue a candidate
+
+Audit ratings answer:
+
+- how much team efficiency is being harmed
+- whether the issue belongs in a skill, agent prompt, policy file, script, or validation baseline
+- whether the issue is a clarity problem, workflow break, or authority defect
+
+## Automatic Triggers
+
+`/Aide` review should be automatically queued when one of these happens:
+
+- repeated QC failure patterns suggest shared prompt or handoff problems
+- a `tester` or `coder` handoff blocks and looks like a workflow break
+- `architect` finishes and returns writeback candidates, wrong assumptions, or reusable design decisions
+- a task is cleared or switched without normal closure and needs governance reconciliation
+
+Automatic triggers queue review work. They do not automatically rewrite authority files.
 
 ## Routing Output
 
@@ -94,9 +130,35 @@ Return only:
 
 Hand off to `conduct` when the task needs heavier delivery routing.
 
+## Governance Output
+
+For governance investigation, always answer:
+
+- rating: `L1|L2|L3|L4`
+- problem type: `local_symptom|role_drift|workflow_break|authority_defect`
+- default route: who should act next and why
+- authority target: the smallest file that should own the correction
+- writeback decision: `now|queue|not-needed`
+
+For quality audit, always answer:
+
+- rating: `L1|L2|L3|L4`
+- finding
+- impact on team efficiency
+- authority target
+- recommended writeback or prune step
+
+For dedup, always answer:
+
+- duplicate cluster
+- proposed authority
+- which files should shrink to references
+- whether the dedup is safe now or should wait for a larger cleanup
+
 ## Governance
 
-- `audit`: find contradictions, stale references, repeated policy, and broken boundaries
+- `investigate`: diagnose systemic causes and choose the default route instead of only patching the visible symptom
+- `audit`: find contradictions, stale references, repeated policy, broken boundaries, and automation gaps
 - `dedup`: keep one authority and shrink copies elsewhere
 - `writeback`: update the smallest correct authority file first
 - `prune`: remove stale or over-detailed runtime text without changing the starter philosophy

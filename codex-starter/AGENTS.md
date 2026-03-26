@@ -33,6 +33,7 @@ Project-level Codex workflow starter.
 
 - `node .codex/scripts/session-context.mjs`
 - `node .codex/scripts/task-overview.mjs`
+- `node .codex/scripts/aide-governance.mjs`
 - `node .codex/scripts/runtime-state.mjs`
 - `node .codex/scripts/validate-git.mjs`
 - prefer `{"event":"subagent_result",...}` and `{"event":"session_end",...}` payloads

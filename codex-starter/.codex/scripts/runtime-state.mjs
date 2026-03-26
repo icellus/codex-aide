@@ -12,6 +12,7 @@ import {
   extractStructuredResult,
   findProgressFile,
   getProjectDir,
+  highestGovernanceSeverity,
   isLongRunningProfile,
   isQcEnabled,
   isTaskSettled,
@@ -28,6 +29,7 @@ import {
   syncProgressFromState,
   toLessonId,
   trimRuntimeState,
+  normalizeGovernanceSeverity,
   upsertLearningQueueItem,
   upsertPendingAction
 } from "./runtime-utils.mjs";
@@ -79,11 +81,136 @@ function normalizeStatus(input = {}, role, message) {
 }
 
 function upsertSessionRetrospective(state, storyPath, details = {}) {
+  const id = details.id || `session-retrospective:${storyPath || "unknown"}`;
   upsertPendingAction(state, {
-    id: `session-retrospective:${storyPath || "unknown"}`,
+    id,
     type: "session_retrospective",
     storyPath,
     ...details
+  });
+}
+
+function normalizeStringList(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+}
+
+function normalizeWritebackCandidates(message) {
+  const structured = extractStructuredResult(message);
+  if (!Array.isArray(structured?.writeback_candidates)) {
+    return [];
+  }
+
+  return structured.writeback_candidates
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const target = String(entry.target || "").trim();
+      const reason = String(entry.reason || "").trim();
+      const capability = String(entry.capability || "investigation").trim().toLowerCase() || "investigation";
+      const severity = normalizeGovernanceSeverity(entry.severity || "L2");
+
+      if (!target && !reason) {
+        return null;
+      }
+
+      return {
+        target: target || "unknown-target",
+        reason: reason || "No reason provided.",
+        capability,
+        severity
+      };
+    })
+    .filter(Boolean);
+}
+
+function governanceSeverityForRetryCount(triggerCount) {
+  return triggerCount >= 4 ? "L4" : "L3";
+}
+
+function preferredGovernanceCapability(candidates = [], fallback = "investigation") {
+  if (candidates.some((item) => item.capability === "dedup")) {
+    return "dedup";
+  }
+
+  if (candidates.some((item) => item.capability === "audit")) {
+    return "audit";
+  }
+
+  if (candidates.some((item) => item.capability === "writeback")) {
+    return "writeback";
+  }
+
+  return fallback;
+}
+
+function upsertAideReview(state, details = {}) {
+  const storyKey = details.storyPath || "current-task";
+  const issueKey = String(details.issueKey || details.sourceRole || details.capability || "general")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  upsertPendingAction(state, {
+    id: details.id || `aide-review:${issueKey}:${storyKey}`,
+    type: "aide_review",
+    severity: normalizeGovernanceSeverity(details.severity || "L2"),
+    capability: details.capability || "investigation",
+    storyPath: details.storyPath || null,
+    sourceRole: details.sourceRole || null,
+    note: details.note || "",
+    routeTarget: details.routeTarget || null,
+    issueType: details.issueType || null,
+    decisions: normalizeStringList(details.decisions),
+    wrongAssumptions: normalizeStringList(details.wrongAssumptions),
+    writebackCandidates: Array.isArray(details.writebackCandidates) ? details.writebackCandidates : []
+  });
+}
+
+function recordArchitectRetrospective(state, storyPath, message) {
+  const structured = extractStructuredResult(message) || {};
+  const decisions = normalizeStringList(structured.key_decisions);
+  const wrongAssumptions = normalizeStringList(structured.wrong_assumptions);
+  const tradeoffs = normalizeStringList(structured.technical_tradeoffs);
+  const candidates = normalizeWritebackCandidates(message);
+
+  upsertSessionRetrospective(state, storyPath, {
+    id: `session-retrospective:architect:${storyPath || "current-task"}`,
+    trigger: "architect_review",
+    role: "architect",
+    note: `Architect review captured${decisions.length > 0 ? ` decisions: ${decisions.slice(0, 2).join("; ")}` : ""}${
+      wrongAssumptions.length > 0 ? `. Wrong assumptions: ${wrongAssumptions.slice(0, 2).join("; ")}` : ""
+    }`,
+    categories: Array.from(new Set(candidates.map((item) => item.capability))),
+    decisions,
+    wrongAssumptions,
+    tradeoffs
+  });
+
+  if (candidates.length === 0) {
+    return;
+  }
+
+  upsertAideReview(state, {
+    issueKey: `architect:${storyPath || "current-task"}`,
+    storyPath,
+    sourceRole: "architect",
+    capability: preferredGovernanceCapability(candidates, "investigation"),
+    severity: highestGovernanceSeverity(candidates.map((item) => item.severity), "L2"),
+    issueType: "role_learning",
+    routeTarget: "/Aide writeback",
+    note: `Architect completed with ${candidates.length} writeback candidate(s). Review the shared workflow before the next similar task.`,
+    decisions,
+    wrongAssumptions,
+    writebackCandidates: candidates
   });
 }
 
@@ -267,6 +394,7 @@ function processQcOutcome(state, storyPath, profile, message) {
 
   if (detectQcFail(message)) {
     const categories = detectFailureCategories(message);
+    const escalatedCategories = [];
     recordQcMetrics(state, storyPath, message, "fail", categories);
 
     removePendingActions(
@@ -289,6 +417,10 @@ function processQcOutcome(state, storyPath, profile, message) {
         state.failurePatterns[key] = existing;
 
         if (existing.count >= 2) {
+          escalatedCategories.push({
+            category,
+            triggerCount: existing.count
+          });
           upsertLearningQueueItem(state, {
             id: toLessonId(storyPath, category),
             source: storyPath,
@@ -299,6 +431,24 @@ function processQcOutcome(state, storyPath, profile, message) {
             status: "queued"
           });
         }
+      }
+
+      if (escalatedCategories.length > 0) {
+        upsertAideReview(state, {
+          issueKey: `qc-pattern:${storyPath || "current-task"}`,
+          storyPath,
+          sourceRole: "qc",
+          capability: "audit",
+          severity: highestGovernanceSeverity(
+            escalatedCategories.map((item) => governanceSeverityForRetryCount(item.triggerCount)),
+            "L3"
+          ),
+          issueType: "workflow_break",
+          routeTarget: "/Aide audit",
+          note: `Repeated QC failure categories detected: ${escalatedCategories
+            .map((item) => `${item.category} x${item.triggerCount}`)
+            .join(", ")}. Review shared prompts and handoff rules instead of only patching the latest output.`
+        });
       }
 
       if (categories.length > 0 && isLongRunningProfile(profile)) {
@@ -366,6 +516,21 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile) 
         note: `Before pausing ${basenameLabel(storyPath)}, capture attempted fixes, the broken assumption, and whether shared workflow docs need updates.`
       });
     }
+
+    upsertAideReview(state, {
+      issueKey: `blocked:${role}:${storyPath || "current-task"}`,
+      storyPath,
+      sourceRole: role,
+      capability: "investigation",
+      severity: "L3",
+      issueType: "workflow_break",
+      routeTarget: "/Aide investigate",
+      note: `A ${role} handoff blocked the workflow. Investigate whether the issue comes from routing, role boundaries, or missing shared guidance.`
+    });
+  }
+
+  if (role === "architect" && status === "complete") {
+    recordArchitectRetrospective(state, storyPath, message);
   }
 
   if (role === "qc") {

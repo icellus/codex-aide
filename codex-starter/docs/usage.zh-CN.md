@@ -93,9 +93,10 @@ runtime helpers 位于 `.codex/scripts/`。
 常用入口：
 
 1. `node .codex/scripts/task-overview.mjs`
-2. `node .codex/scripts/session-context.mjs`
-3. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
-4. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
+2. `node .codex/scripts/aide-governance.mjs`
+3. `node .codex/scripts/session-context.mjs`
+4. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
+5. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
 runtime state 会按需写到 `.codex/state/runtime-state.json`。
 任务注册表会落到 `.codex/state/task-registry.json`，用于保留当前任务、历史未结束任务，以及按需查询的已完成任务。
@@ -103,6 +104,7 @@ runtime state 会按需写到 `.codex/state/runtime-state.json`。
 需要注意：
 
 - `/Aide` 默认只汇报当前任务和未结束任务；已完成任务按需查询
+- `/Aide` 的治理审查也可以被自动触发，例如重复 QC 失败、blocked handoff、architect 的结构化回顾
 - QC 提醒只在当前任务明确启用了 `/qc` 时生成
 - `PROGRESS.md` 只记录 active checkpoint
 - runtime 提醒和学习状态留在 `.codex/state/runtime-state.json`
