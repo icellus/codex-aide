@@ -15,7 +15,7 @@ You can also install from the target repository root with:
 bash /path/to/codex-starter/install.sh
 ```
 
-The installer copies the starter files and ignores the copied starter files as a whole in `.gitignore`:
+The installer recursively overwrites the starter files and ignores the copied starter files as a whole in `.gitignore`:
 `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`.
 
 ## First Run

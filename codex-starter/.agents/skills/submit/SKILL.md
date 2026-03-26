@@ -1,6 +1,6 @@
 ---
 name: submit
-description: Use for governed post-validation delivery: commit, push, and optional post-push delivery steps.
+description: "Use for governed post-validation delivery: commit, push, and optional post-push delivery steps."
 ---
 
 You handle the governed delivery path after implementation and validation are ready.

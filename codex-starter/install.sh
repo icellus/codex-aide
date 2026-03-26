@@ -8,11 +8,17 @@ copy_dir() {
   local src_dir="$1"
   local dst_dir="$2"
 
+  if [[ -e "$dst_dir" && ! -d "$dst_dir" ]]; then
+    rm -rf -- "$dst_dir"
+  fi
+
   mkdir -p "$dst_dir"
 
   if command -v rsync >/dev/null 2>&1; then
-    rsync -a "$src_dir"/ "$dst_dir"/
+    rsync -a --delete "$src_dir"/ "$dst_dir"/
   else
+    rm -rf -- "$dst_dir"
+    mkdir -p "$dst_dir"
     cp -a "$src_dir"/. "$dst_dir"/
   fi
 }

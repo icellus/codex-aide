@@ -18,7 +18,7 @@
 bash /path/to/codex-starter/install.sh
 ```
 
-这个脚本会复制 starter 文件，并把复制过去的 starter 内容整体补进 `.gitignore`：
+这个脚本会递归覆盖 starter 文件，并把复制过去的 starter 内容整体补进 `.gitignore`：
 `AGENTS.md`、`.agents/`、`.codex/`、`.product/`。
 
 ## 首次运行

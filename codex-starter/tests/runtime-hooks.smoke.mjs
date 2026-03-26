@@ -686,6 +686,13 @@ function testValidateGitRejectsBroadAdd() {
 function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   const dir = makeTempDir("codex-starter-install-");
   fs.writeFileSync(path.join(dir, ".gitignore"), "node_modules/\n", "utf8");
+  fs.mkdirSync(path.join(dir, ".agents", "skills", "aide"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".product", "templates"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "AGENTS.md"), "stale agents\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md"), "stale skill\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".codex", "state", "stale.json"), "{}\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".product", "templates", "stale.md"), "stale template\n", "utf8");
 
   const result = spawnSync("bash", [installScriptPath], {
     cwd: dir,
@@ -698,6 +705,10 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   assert.ok(fs.existsSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(dir, ".codex", "routing-policy.md")));
   assert.ok(fs.existsSync(path.join(dir, ".product", "registry.json")));
+  assert.ok(!fs.existsSync(path.join(dir, ".codex", "state", "stale.json")));
+  assert.ok(!fs.existsSync(path.join(dir, ".product", "templates", "stale.md")));
+  assert.match(fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8"), /Project-level Codex workflow starter/);
+  assert.match(fs.readFileSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md"), "utf8"), /name: aide/);
 
   const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf8");
   assert.match(gitignore, /node_modules\//);
