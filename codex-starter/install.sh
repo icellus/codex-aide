@@ -64,10 +64,9 @@ copy_dir "$SOURCE_DIR/.product" "$TARGET_DIR/.product"
 
 append_gitignore_lines \
   "$TARGET_DIR/.gitignore" \
-  ".codex/settings.local.json" \
-  ".codex/state/*" \
-  "!.codex/state/task-context.json" \
-  "!.codex/state/repo-context.json" \
-  "!.codex/state/task-registry.json"
+  "AGENTS.md" \
+  ".agents/" \
+  ".codex/" \
+  ".product/"
 
 printf '%s\n' "Installed codex-starter files into $TARGET_DIR"

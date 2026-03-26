@@ -18,7 +18,8 @@
 bash /path/to/codex-starter/install.sh
 ```
 
-这个脚本会复制 starter 文件，并把需要的 `.codex` runtime-state 条目补到 `.gitignore`。
+这个脚本会复制 starter 文件，并把复制过去的 starter 内容整体补进 `.gitignore`：
+`AGENTS.md`、`.agents/`、`.codex/`、`.product/`。
 
 ## 首次运行
 

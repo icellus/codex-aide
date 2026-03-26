@@ -702,11 +702,10 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   const gitignore = fs.readFileSync(path.join(dir, ".gitignore"), "utf8");
   assert.match(gitignore, /node_modules\//);
   assert.match(gitignore, /# codex-starter/);
-  assert.match(gitignore, /\.codex\/settings\.local\.json/);
-  assert.match(gitignore, /\.codex\/state\/\*/);
-  assert.match(gitignore, /!\.codex\/state\/task-context\.json/);
-  assert.match(gitignore, /!\.codex\/state\/repo-context\.json/);
-  assert.match(gitignore, /!\.codex\/state\/task-registry\.json/);
+  assert.match(gitignore, /^AGENTS\.md$/m);
+  assert.match(gitignore, /^\.agents\/$/m);
+  assert.match(gitignore, /^\.codex\/$/m);
+  assert.match(gitignore, /^\.product\/$/m);
 }
 
 function testQcReviewerAliasRecordsStructuredFail() {

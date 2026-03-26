@@ -41,7 +41,8 @@ If you want a local installer, run this from the target repository root:
 bash /path/to/codex-starter/install.sh
 ```
 
-The installer copies `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`, then creates or updates `.gitignore` with the starter's runtime-state entries.
+The installer copies `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`, then creates or updates `.gitignore`.
+The copied starter files are ignored as a whole: `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`.
 
 There is currently no dedicated repo-scan script.
 Repo scans are performed by `/Aide` through targeted repository inspection and optional read-only exploration.

@@ -15,7 +15,8 @@ You can also install from the target repository root with:
 bash /path/to/codex-starter/install.sh
 ```
 
-The installer copies the starter files and adds the required `.codex` runtime-state entries to `.gitignore`.
+The installer copies the starter files and ignores the copied starter files as a whole in `.gitignore`:
+`AGENTS.md`, `.agents/`, `.codex/`, and `.product/`.
 
 ## First Run
 
