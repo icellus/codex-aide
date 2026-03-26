@@ -12,6 +12,9 @@ Runtime authority lives in `AGENTS.md`, `.agents/skills/*/SKILL.md`, and `.codex
 
 It is built for repositories that want a small default surface and stronger controls only when the task actually needs them.
 
+Route names such as `Aide`, `qc`, and `submit` are logical aliases.
+Some Codex clients do not support custom slash commands, so plain-language requests should map to the same routes.
+
 English documentation is canonical.
 Chinese documentation is synchronized guidance.
 
@@ -20,8 +23,8 @@ Chinese documentation is synchronized guidance.
 - start light
 - keep the user-facing command surface small
 - keep runtime authority explicit
-- let `/Aide` own intake and governance
-- let `/Aide` answer discussion-shaped work directly
+- let `Aide` own intake and governance
+- let `Aide` answer discussion-shaped work directly
 - let execution roles own concrete delivery
 - keep product memory lightweight and revisable
 
@@ -49,7 +52,7 @@ Chinese documentation is synchronized guidance.
 
 | Item | Responsibility | Default |
 | --- | --- | --- |
-| `/Aide` | intake, routing, governance, result review | enabled |
+| `Aide` | intake, routing, governance, result review | enabled |
 | `conduct` | delivery routing and environment setup | disabled |
 | `prd` | WHAT, WHY, MVP clarification | disabled |
 | `architect` | HOW at system level | disabled |
@@ -57,12 +60,12 @@ Chinese documentation is synchronized guidance.
 | `product_assistant` | docs and non-code delivery | disabled |
 | `tester` | task-level validation ownership | disabled |
 | `coder` | implementation and sanity checks | disabled |
-| `/qc` | explicit audit gate | disabled |
-| `/submit` | governed delivery | disabled |
+| `qc` | explicit audit gate | disabled |
+| `submit` | governed delivery | disabled |
 
 ## Delivery Lines
 
-Outside the two delivery lines, discussion-shaped work stays inside `/Aide` by default:
+Outside the two delivery lines, discussion-shaped work stays inside `Aide` by default:
 
 - Q&A
 - analysis
@@ -83,7 +86,7 @@ Use the coding line when the primary deliverable is:
 Typical route:
 
 ```text
-/Aide -> optional conduct -> optional plan -> tester/coder -> optional /qc -> optional /submit
+Aide -> optional conduct -> optional plan -> tester/coder -> optional qc -> optional submit
 ```
 
 ### Product line
@@ -99,7 +102,7 @@ Use the product line when the primary deliverable is:
 Typical route:
 
 ```text
-/Aide -> product_assistant
+Aide -> product_assistant
 ```
 
 `product_assistant` may read code, config, interface definitions, and other technical materials when needed. The output should still match the audience and should avoid AI-style filler and unnecessary implementation noise.

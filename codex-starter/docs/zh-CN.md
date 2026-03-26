@@ -23,6 +23,7 @@
 
 - `coding` 线用于代码、验证、审计、受控交付
 - `product` 线用于文档和其他非代码产物
-- discussion 回合默认由 `/Aide` 直接负责
-- 当前没有独立 repo scan 脚本，scan 由 `/Aide` 通过针对性检索完成
-- `/Aide` 负责判断是否进入正式执行流，`conduct` 负责在需要时应用 delivery routing
+- `Aide`、`qc`、`submit` 是逻辑路由别名；客户端不支持自定义 slash command 时直接自然语言描述目标即可
+- discussion 回合默认由 `Aide` 直接负责
+- 当前没有独立 repo scan 脚本，scan 由 `Aide` 通过针对性检索完成
+- `Aide` 负责判断是否进入正式执行流，`conduct` 负责在需要时应用 delivery routing

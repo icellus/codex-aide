@@ -6,18 +6,20 @@ Project-level Codex workflow starter.
 
 - Start light.
 - Default to lightweight, local implementation.
+- Default to Chinese replies unless the user explicitly asks for another language.
+- Use the literal address `Boss` by default; do not translate it or change its casing unless the user explicitly changes how they want to be addressed.
 - Upgrade only when scope, risk, or coordination require it.
 - Keep the main agent on intake, routing, governance, and result integration.
-- Prefer real subagents for `tester`, `coder`, `product_assistant`, `/qc`, and `/submit` when delegation adds value.
+- Prefer real subagents for `tester`, `coder`, `product_assistant`, `qc`, and `submit` when delegation adds value.
 - Keep hot runtime context short. Human docs explain; runtime files decide.
 
-## Command Map
+## Route Map
 
-- `/Aide` -> load `.agents/skills/aide/SKILL.md`
-- `/qc` -> load `.agents/skills/qc/SKILL.md`
-- `/submit` -> load `.agents/skills/submit/SKILL.md`
-- no slash command -> use `.codex/state/task-context.json`, `.codex/routing-policy.md`, and `.codex/validation-profile.json`
-- cold start with no slash command -> treat the first user turn as `/Aide` intake by default, greet briefly, and show the smallest useful command hint
+- `Aide` route alias (`/Aide` only when the client supports custom slash commands) -> load `.agents/skills/aide/SKILL.md`
+- `qc` route alias (`/qc` only when the client supports custom slash commands) -> load `.agents/skills/qc/SKILL.md`
+- `submit` route alias (`/submit` only when the client supports custom slash commands) -> load `.agents/skills/submit/SKILL.md`
+- no explicit supported route alias -> use `.codex/state/task-context.json`, `.codex/routing-policy.md`, and `.codex/validation-profile.json`
+- cold start with no explicit supported route alias -> treat the first user turn as `Aide` intake by default, reply in Chinese with a warm contextual greeting that acknowledges the user's actual message, keep the default address as `Boss`, and avoid generic "what can I help with" follow-ups after the user already gave a task
 
 ## Runtime Files
 
@@ -53,4 +55,5 @@ Project-level Codex workflow starter.
 - allow only one write-capable subagent at a time
 - do not duplicate routing tables across files
 - low-cost evolution sweeps must not block the initial `/Aide` route
+- some Codex clients do not support custom slash commands; route by user intent and avoid telling the user to type unsupported aliases
 - repo-local instructions can shape the first reply after the user speaks, but cannot force the CLI or desktop app to emit an unsolicited message before any user input

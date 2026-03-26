@@ -15,13 +15,16 @@
 
 它适合希望保持默认轻量、但在任务需要时仍然能启用更强控制的仓库。
 
+`Aide`、`qc`、`submit` 是逻辑路由别名。
+有些 Codex 客户端不支持自定义 slash command，这时应直接用自然语言表达需求，并映射到同一路由。
+
 ## 核心原则
 
 - 默认从轻开始
 - 用户可见命令面保持小
 - 运行时权威明确
-- `/Aide` 负责 intake 和治理
-- 讨论型任务默认由 `/Aide` 直接回答
+- `Aide` 负责 intake 和治理
+- 讨论型任务默认由 `Aide` 直接回答
 - 执行角色负责具体交付
 - product 记忆保持轻量且可修正
 
@@ -29,7 +32,7 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `AGENTS.md` | 全局入口和命令映射 |
+| `AGENTS.md` | 全局入口和路由映射 |
 | `.agents/skills/*/SKILL.md` | skill 契约 |
 | `.codex/agents/*.toml` | 子代理角色定义 |
 | `.codex/routing-policy.md` | 路由与模块启用策略 |
@@ -49,7 +52,7 @@
 
 | 项目 | 作用 | 默认状态 |
 | --- | --- | --- |
-| `/Aide` | intake、路由、治理、结果复审 | 启用 |
+| `Aide` | intake、路由、治理、结果复审 | 启用 |
 | `conduct` | delivery routing 与 environment setup | 关闭 |
 | `prd` | WHAT / WHY / MVP 澄清 | 关闭 |
 | `architect` | HOW 层面的系统设计 | 关闭 |
@@ -57,12 +60,12 @@
 | `product_assistant` | 文档和非代码交付 | 关闭 |
 | `tester` | 任务级验证 owner | 关闭 |
 | `coder` | 实现与 sanity checks | 关闭 |
-| `/qc` | 显式审计 gate | 关闭 |
-| `/submit` | 受控交付 | 关闭 |
+| `qc` | 显式审计 gate | 关闭 |
+| `submit` | 受控交付 | 关闭 |
 
 ## 两条交付线
 
-在正式交付线之外，还有一类默认留在 `/Aide` 内部处理的讨论型任务：
+在正式交付线之外，还有一类默认留在 `Aide` 内部处理的讨论型任务：
 
 - 问答
 - 分析
@@ -83,7 +86,7 @@
 典型路径：
 
 ```text
-/Aide -> optional conduct -> optional plan -> tester/coder -> optional /qc -> optional /submit
+Aide -> optional conduct -> optional plan -> tester/coder -> optional qc -> optional submit
 ```
 
 ### Product 线
@@ -99,7 +102,7 @@
 典型路径：
 
 ```text
-/Aide -> product_assistant
+Aide -> product_assistant
 ```
 
 `product_assistant` 可以在需要时读取代码、配置、接口定义等技术材料，但输出仍然要匹配目标受众，避免 AI 腔和不必要的实现噪音。

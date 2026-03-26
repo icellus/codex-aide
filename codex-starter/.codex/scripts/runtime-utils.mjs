@@ -87,8 +87,8 @@ export function createEmptyTaskContext() {
     version: 1,
     updated_at: null,
     collaboration: {
-      preferred_address: "boss",
-      greeting_style: "brief",
+      preferred_address: "Boss",
+      greeting_style: "warm",
       first_startup_greeting_completed: false
     },
     task: {
@@ -601,8 +601,8 @@ function mapTaskContextToProfile(parsed = {}) {
     submitPolicy: normalizeProfileValue(task.submit_policy) || null,
     validationProfileStatus: normalizeProfileValue(task.validation_profile_status) || null,
     openQuestions: normalizeListValue(task.open_questions),
-    preferredAddress: normalizeProfileValue(collaboration.preferred_address) || "boss",
-    greetingStyle: normalizeProfileValue(collaboration.greeting_style) || "brief",
+    preferredAddress: normalizeProfileValue(collaboration.preferred_address) || "Boss",
+    greetingStyle: normalizeProfileValue(collaboration.greeting_style) || "warm",
     firstStartupGreetingCompleted: Boolean(collaboration.first_startup_greeting_completed)
   };
 }
@@ -626,8 +626,8 @@ export function loadProjectProfileState(projectDir) {
       qcPolicy: null,
       submitPolicy: null,
       validationProfileStatus: null,
-      preferredAddress: "boss",
-      greetingStyle: "brief",
+      preferredAddress: "Boss",
+      greetingStyle: "warm",
       firstStartupGreetingCompleted: false,
       openQuestions: []
     };
@@ -646,8 +646,8 @@ export function loadProjectProfileState(projectDir) {
     qcPolicy: normalizeProfileValue(readProfileField(text, "QC policy")) || null,
     submitPolicy: normalizeProfileValue(readProfileField(text, "Submit policy")) || null,
     validationProfileStatus: normalizeProfileValue(readProfileField(text, "Validation profile status")) || null,
-    preferredAddress: normalizeProfileValue(readProfileField(text, "Preferred address")) || "boss",
-    greetingStyle: normalizeProfileValue(readProfileField(text, "Greeting style")) || "brief",
+    preferredAddress: normalizeProfileValue(readProfileField(text, "Preferred address")) || "Boss",
+    greetingStyle: normalizeProfileValue(readProfileField(text, "Greeting style")) || "warm",
     firstStartupGreetingCompleted:
       normalizeProfileValue(readProfileField(text, "First startup greeting completed")).toLowerCase() === "yes",
     openQuestions: parseProfileList(readProfileField(text, "Open questions"))

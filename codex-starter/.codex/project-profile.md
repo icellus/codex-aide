@@ -25,8 +25,8 @@ Routing policy lives in `.codex/routing-policy.md`.
 
 ## Collaboration Preferences
 
-- Preferred address: boss
-- Greeting style: brief
+- Preferred address: Boss
+- Greeting style: warm
 - First startup greeting completed: no
 
 ## Current Task

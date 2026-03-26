@@ -2,8 +2,8 @@
   "version": 1,
   "updated_at": null,
   "collaboration": {
-    "preferred_address": "boss",
-    "greeting_style": "brief",
+    "preferred_address": "Boss",
+    "greeting_style": "warm",
     "first_startup_greeting_completed": false
   },
   "task": {

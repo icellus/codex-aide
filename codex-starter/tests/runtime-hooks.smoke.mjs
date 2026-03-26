@@ -215,8 +215,8 @@ function testTaskContextJsonOverridesMarkdownProfile() {
     version: 1,
     updated_at: null,
     collaboration: {
-      preferred_address: "boss",
-      greeting_style: "brief",
+      preferred_address: "Boss",
+      greeting_style: "warm",
       first_startup_greeting_completed: true
     },
     task: {
@@ -245,8 +245,8 @@ function testTaskContextJsonOverridesMarkdownProfile() {
 function testTaskContextRemainsHotStateAuthorityForCollaborationFields() {
   const dir = makeTempDir("codex-starter-task-context-authority-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
-    ["- Preferred address: boss", "- Preferred address: lead"],
-    ["- Greeting style: brief", "- Greeting style: formal"]
+    ["- Preferred address: Boss", "- Preferred address: lead"],
+    ["- Greeting style: warm", "- Greeting style: formal"]
   ]);
   writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
     version: 1,
@@ -295,7 +295,8 @@ function testTaskContextHelpersWriteNormalizedState() {
 
   const saved = JSON.parse(fs.readFileSync(path.join(dir, ".codex", "state", "task-context.json"), "utf8"));
   assert.equal(saved.version, 1);
-  assert.equal(saved.collaboration.greeting_style, "brief");
+  assert.equal(saved.collaboration.preferred_address, "Boss");
+  assert.equal(saved.collaboration.greeting_style, "warm");
   assert.equal(saved.collaboration.first_startup_greeting_completed, true);
   assert.equal(saved.task.current_task, "Review the routing flow");
   assert.deepEqual(saved.task.enabled_roles, ["Aide"]);
@@ -558,8 +559,8 @@ function testSessionContextShowsPendingSubmitReminder() {
     version: 1,
     updated_at: null,
     collaboration: {
-      preferred_address: "boss",
-      greeting_style: "brief",
+      preferred_address: "Boss",
+      greeting_style: "warm",
       first_startup_greeting_completed: true
     },
     task: {
@@ -768,8 +769,8 @@ function testLegacyDeliveryModeNamesNormalizeToCurrentNames() {
     version: 1,
     updated_at: null,
     collaboration: {
-      preferred_address: "boss",
-      greeting_style: "brief",
+      preferred_address: "Boss",
+      greeting_style: "warm",
       first_startup_greeting_completed: false
     },
     task: {
@@ -801,8 +802,8 @@ function testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks() {
     version: 1,
     updated_at: null,
     collaboration: {
-      preferred_address: "boss",
-      greeting_style: "brief",
+      preferred_address: "Boss",
+      greeting_style: "warm",
       first_startup_greeting_completed: true
     },
     task: {
@@ -931,8 +932,8 @@ function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
     version: 1,
     updated_at: null,
     collaboration: {
-      preferred_address: "boss",
-      greeting_style: "brief",
+      preferred_address: "Boss",
+      greeting_style: "warm",
       first_startup_greeting_completed: true
     },
     task: {
@@ -976,8 +977,8 @@ function testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry() {
     version: 1,
     updated_at: null,
     collaboration: {
-      preferred_address: "boss",
-      greeting_style: "brief",
+      preferred_address: "Boss",
+      greeting_style: "warm",
       first_startup_greeting_completed: true
     },
     task: {

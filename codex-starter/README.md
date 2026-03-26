@@ -13,13 +13,16 @@ It keeps the default path lightweight, routes work through a small set of clear 
 - coding: code, tests, validation, governed delivery
 - product: documentation and other non-code deliverables
 
-For analysis, Q&A, and option-comparison work with no durable artifact, `/Aide` answers directly instead of forcing an execution handoff.
+For analysis, Q&A, and option-comparison work with no durable artifact, `Aide` answers directly instead of forcing an execution handoff.
+
+Route names such as `Aide`, `qc`, and `submit` are logical aliases.
+If the client does not support custom slash commands, the user should just describe the goal in plain language and ask for QC or submit in plain language when needed.
 
 ## At A Glance
 
-- default commands: `/Aide`, `/qc`, `/submit`
+- default route aliases: `Aide`, `qc`, `submit`
 - default mode for small work: `lightweight`
-- default non-code route: `/Aide -> product_assistant`
+- default non-code route: `Aide -> product_assistant`
 - repo skill layout: `.agents/skills/*/SKILL.md`
 - custom subagent layout: `.codex/agents/*.toml`
 - product-line workspace: `.product/*`
@@ -32,8 +35,8 @@ For analysis, Q&A, and option-comparison work with no durable artifact, `/Aide` 
 
 1. Copy `AGENTS.md`, `.agents/skills/`, `.codex/`, `.product/`, and optionally `docs/` and `tests/` into the target repository.
 2. Ensure `node` is available if you want runtime helpers and smoke tests.
-3. Start with `/Aide` or `/Aide [your goal]`.
-4. Let `/Aide` scan the repo, update current state, and recommend the lightest route.
+3. Start by describing your goal in plain language.
+4. Let the default `Aide` intake scan the repo, update current state, and recommend the lightest route.
 
 If you want a local installer, run this from the target repository root:
 
@@ -45,9 +48,9 @@ The installer recursively overwrites `AGENTS.md`, `.agents/`, `.codex/`, and `.p
 The copied starter files are ignored as a whole: `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`.
 
 There is currently no dedicated repo-scan script.
-Repo scans are performed by `/Aide` through targeted repository inspection and optional read-only exploration.
+Repo scans are performed by `Aide` through targeted repository inspection and optional read-only exploration.
 
-If a fresh thread starts without a slash command, treat the first user turn as `/Aide` intake by default.
+If a fresh thread starts without an explicit supported route alias, treat the first user turn as `Aide` intake by default.
 
 ## Current Model
 

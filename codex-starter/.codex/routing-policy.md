@@ -2,9 +2,12 @@
 
 This file is the routing authority.
 
-`/Aide` selects or refreshes the route.
+`Aide` selects or refreshes the route.
 `conduct` applies it to active delivery.
 `.codex/state/task-context.json` records the current choice.
+
+`/Aide`, `/qc`, and `/submit` are route aliases only when the client supports custom slash commands.
+Otherwise, plain-language intent should map to the same routes.
 
 ## Core Rules
 
