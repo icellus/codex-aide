@@ -31,6 +31,17 @@ It keeps the default path lightweight, keeps the command surface small, and only
 The starter ships with template defaults in `.codex/project-profile.md` and `.codex/validation-profile.json`.
 `/Aide` should replace them and the JSON state files in `.codex/state/` with repo-specific state on the first real run.
 
+## What `/Aide` Owns
+
+- `/Aide` is the team-improvement entry, not just the first task router.
+- Other roles solve "how to deliver the current feature well"; `/Aide` solves "how to keep the team from repeating the same mistake".
+- Investigation and default routing: when code lands in the wrong place, output quality drops, or a workflow breaks, `/Aide` treats the artifact as a symptom and routes the root cause to the smallest correct authority.
+- Quality audit: `/Aide` audits Agent and Skill contracts for systemic issues that lower team effectiveness. The goal is not cosmetic prompt cleanup.
+- Dedup: `/Aide` finds repeated rules across Agent and Skill files and proposes one authority plus smaller references elsewhere.
+- Governance ratings: `/Aide` rates issues from `L1` to `L4` before deciding whether to route, queue, or write back.
+- Automatic triggers: repeated QC failures, blocked handoffs, unfinished-task reconciliation, and every architect session-end retrospective can queue `/Aide` review work.
+- `architect`, not `conduct`, owns the session-end structured retrospective because architecture decisions, wrong assumptions, and writeback candidates are governance inputs.
+
 ## Runtime Authority
 
 - `AGENTS.md`: global stance and slash-command protocol

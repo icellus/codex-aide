@@ -43,6 +43,16 @@
 | `/qc` | 任务风险更高，或你想做显式审计 |
 | `/follow` | 代码已经推送，CI 或 release follow-through 已相关 |
 
+## `/Aide` 真正负责什么
+
+- `/Aide` 不只是入口命令，它还是这套 starter 里负责让团队越来越稳的治理入口。
+- 其他角色解决的是“当前这个功能怎么做好”；`/Aide` 解决的是“团队为什么会产出这种错误或工作流断裂”。
+- 问题调查与默认路由：如果代码放错地方、输出质量差、handoff 断裂，`/Aide` 应先查系统原因，再决定谁来处理。
+- 质量审计：`/Aide` 检查 Agent 和 Skill 文件里的系统性契约问题，这些问题会持续拉低团队效能。
+- 去重：`/Aide` 查找跨 Agent / Skill 文件的重复规则，并提出收敛到单一权威的方案。
+- 定级：`/Aide` 应先用 `L1` 到 `L4` 给治理问题定级，再决定是提醒、排队还是 writeback。
+- 结构化知识捕获归 `architect`，不归 `conduct`。每次 architect 会话都应收尾到“做了什么决策、哪个假设错了、哪些经验值得写回”。
+
 ## 常见路径
 
 | 任务 | 常见路径 | 通常会跳过 |
@@ -85,6 +95,19 @@
 
 如果要改运行时路由规则，应修改 `.codex/routing-policy.md`，而不是 `.codex/project-profile.md`。
 
+`/Aide` 的三项核心治理能力是：
+
+- 问题调查与默认路由：把坏产物当成症状，去找根因和默认责任方
+- 质量审计：找出会持续降低团队效能的系统性契约问题
+- 去重：把重复规则收回到单一权威文件
+
+建议统一使用 `L1` 到 `L4`：
+
+- `L1`：局部症状或一次性表述问题
+- `L2`：单角色契约漂移
+- `L3`：路由、handoff、自动化层面的工作流断裂
+- `L4`：共享规则的权威缺陷、重复或冲突
+
 ## Runtime Helpers
 
 runtime helpers 位于 `.codex/scripts/`。  
@@ -104,7 +127,8 @@ runtime state 会按需写到 `.codex/state/runtime-state.json`。
 需要注意：
 
 - `/Aide` 默认只汇报当前任务和未结束任务；已完成任务按需查询
-- `/Aide` 的治理审查也可以被自动触发，例如重复 QC 失败、blocked handoff、architect 的结构化回顾
+- `/Aide` 的治理审查也可以被自动触发，例如重复 QC 失败、blocked handoff、任务未正常收口、architect 的结构化回顾
+- architect 的结构化回顾是每次会话结束都应发生的知识捕获，不是只在失败后触发
 - QC 提醒只在当前任务明确启用了 `/qc` 时生成
 - `PROGRESS.md` 只记录 active checkpoint
 - runtime 提醒和学习状态留在 `.codex/state/runtime-state.json`

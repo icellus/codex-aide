@@ -33,7 +33,7 @@
 
 | Item | Responsibility | Default |
 | --- | --- | --- |
-| `/Aide` | intake, current state, governance | enabled |
+| `/Aide` | intake, current state, systemic governance, and team-quality writeback | enabled |
 | `conduct` | delivery routing and `environment setup` | disabled |
 | `prd` | WHAT, WHY, MVP clarification | disabled |
 | `architect` | HOW at system level | disabled |
@@ -44,6 +44,15 @@
 | `/qc` | audit gate | disabled |
 | `/follow` | post-push follow-through | disabled |
 | runtime helpers | optional Node-assisted automation | disabled by default |
+
+## What `/Aide` Optimizes
+
+- Other roles focus on making the current task correct. `/Aide` focuses on making the team more reliable across tasks.
+- Investigation and default routing: `/Aide` diagnoses why misplaced code, weak output quality, or broken handoffs keep happening, then routes the root cause instead of only patching the symptom.
+- Quality audit: `/Aide` audits Agent and Skill contracts for system-level issues that reduce team efficiency.
+- Dedup: `/Aide` finds duplicated rules across Agent and Skill files and pushes the repo back toward one clear authority per rule.
+- Governance ratings: `/Aide` grades issues from `L1` through `L4` so routing and writeback pressure stay proportional.
+- Knowledge capture: `architect`, not `conduct`, closes every design session with a structured retrospective. `/Aide` uses those decisions, wrong assumptions, and writeback candidates as governance input.
 
 ## Delivery Shape
 
@@ -80,6 +89,7 @@ When used, they can provide:
 - git validation
 - runtime state tracking
 - optional auto QC follow-up
+- automatic `/Aide` governance review from repeated QC failures, blocked handoffs, unfinished-task reconciliation, and architect retrospectives
 
 Auto QC reminders should appear only when the current task explicitly enables `/qc`.
 

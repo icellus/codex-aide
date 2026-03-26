@@ -43,6 +43,16 @@ Keep them generic in the starter repo; let `/Aide` rewrite them after copying th
 | `/qc` | the task is higher risk or you want an explicit audit |
 | `/follow` | code is already pushed and CI or release follow-through matters |
 
+## What `/Aide` Actually Owns
+
+- `/Aide` is not only the intake command. It is the place where the repo gets better at working as a team.
+- Other roles solve "how to do this feature well". `/Aide` solves "why did the team produce this kind of mistake or workflow break in the first place".
+- Investigation and default routing: if code lands in the wrong place, output quality is weak, or a handoff breaks, `/Aide` should investigate the systemic cause before deciding who acts next.
+- Quality audit: `/Aide` checks Agent and Skill files for systemic contract problems that reduce team effectiveness.
+- Dedup: `/Aide` finds repeated rules across Agent and Skill files and proposes one authority plus smaller references elsewhere.
+- Ratings: `/Aide` should rate governance findings from `L1` through `L4` before deciding whether to route, queue, or write back.
+- Structured knowledge capture belongs to `architect`, not `conduct`. Every architect session should end with decisions made, wrong assumptions, and writeback candidates.
+
 ## Typical Paths
 
 | Task | Typical path | Usually skipped |
@@ -80,6 +90,19 @@ Use `/Aide` for durable governance actions:
 
 Change runtime routing rules in `.codex/routing-policy.md`, not in `.codex/project-profile.md`.
 
+The three core governance capabilities are:
+
+- investigation and default routing: treat the bad artifact as a symptom and route the root cause
+- quality audit: find system issues in Agent and Skill contracts that lower team effectiveness
+- dedup: collapse repeated rules back to one authority
+
+Use the `L1` to `L4` scale to keep the response proportional:
+
+- `L1`: local symptom or one-off clarity issue
+- `L2`: role drift in one role contract
+- `L3`: workflow break across routing, handoff, or automation
+- `L4`: authority defect, duplication, or conflict in shared rules
+
 ## Runtime Helpers
 
 Runtime helpers live in `.codex/scripts/`.
@@ -96,7 +119,8 @@ Useful entrypoints:
 Runtime state is created on demand at `.codex/state/runtime-state.json`.
 The task registry lives at `.codex/state/task-registry.json` and keeps the current task plus unfinished task history, with completed tasks available on demand.
 `/Aide` reports current and unfinished tasks by default; completed tasks are lookup-only unless the user asks.
-/Aide governance review can also be triggered automatically from repeated QC failures, blocked handoffs, or architect retrospectives.
+/Aide governance review can also be triggered automatically from repeated QC failures, blocked handoffs, unfinished-task reconciliation, or architect retrospectives.
+Architect retrospectives are expected on every architect session, not only after failures.
 QC reminders are queued only when the current task explicitly enables `/qc`.
 `PROGRESS.md` is for active checkpoints only; runtime reminders and learning state stay in `.codex/state/runtime-state.json`.
 

@@ -42,7 +42,7 @@
 
 | 项目 | 作用 | 默认状态 |
 | --- | --- | --- |
-| `/Aide` | 入口、当前状态维护、治理 | 启用 |
+| `/Aide` | 入口、当前状态维护、系统治理与团队能力写回 | 启用 |
 | `conduct` | delivery routing 与 `environment setup` | 关闭 |
 | `prd` | WHAT / WHY / MVP 澄清 | 关闭 |
 | `architect` | HOW 层面的系统设计 | 关闭 |
@@ -53,6 +53,15 @@
 | `/qc` | 质量审计 gate | 关闭 |
 | `/follow` | 推送后或发布后的跟进 | 关闭 |
 | runtime helpers | Node 辅助自动化 | 默认关闭 |
+
+## `/Aide` 真正优化什么
+
+- 其他角色关注的是“这次任务怎么做对”；`/Aide` 关注的是“团队以后怎么更稳、更少重复犯错”。
+- 问题调查与默认路由：当代码放错地方、输出质量下降、handoff 断裂时，`/Aide` 不只修表面症状，而是追根因并把问题路由到最小正确权威。
+- 质量审计：`/Aide` 审的是 Agent / Skill 契约里会持续拖慢团队的系统性问题，不是文案挑刺。
+- 去重：`/Aide` 查找跨 Agent / Skill 文件的重复规则，把同一条规则收敛回单一权威。
+- 治理评级：`/Aide` 用 `L1` 到 `L4` 给问题定级，决定是提醒、排队还是直接 writeback。
+- 知识捕获：每次设计会话结束后，负责结构化回顾的是 `architect`，不是 `conduct`。`/Aide` 会把这些设计决策、错误假设和写回候选当成治理输入。
 
 ## 三种交付形态
 
@@ -89,6 +98,7 @@ runtime helpers 是可选的。
 - git 安全校验
 - runtime state 跟踪
 - 可选的 auto QC 跟进
+- 来自重复 QC 失败、blocked handoff、任务未正常收口、architect 回顾的自动 `/Aide` 治理触发
 
 Auto QC 只应在当前任务明确启用了 `/qc` 时出现。
 
