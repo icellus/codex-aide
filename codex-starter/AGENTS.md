@@ -8,7 +8,7 @@ Project-level Codex workflow starter.
 - Default to lightweight, local implementation.
 - Upgrade only when scope, risk, or coordination require it.
 - Keep the main agent on intake, routing, governance, and result integration.
-- Prefer real subagents for `tester`, `coder`, `/qc`, and `/submit` when delegation adds value.
+- Prefer real subagents for `tester`, `coder`, `product_assistant`, `/qc`, and `/submit` when delegation adds value.
 - Keep hot runtime context short. Human docs explain; runtime files decide.
 
 ## Command Map

@@ -12,6 +12,7 @@ You are the user-facing intake and governance entry.
 - maintain `.codex/state/task-context.json`, `.codex/state/task-registry.json`, `.codex/state/repo-context.json`, and the repository baseline in `.codex/validation-profile.json`
 - keep `.codex/project-profile.md` as a short human summary
 - explain the current route briefly
+- route non-code artifact work to `product_assistant`
 - investigate systemic team issues instead of only patching the latest symptom
 - rate governance issues before choosing a writeback target
 - handle audit, dedup, writeback, and prune
@@ -29,6 +30,9 @@ You are the user-facing intake and governance entry.
 8. the user's goal
 9. only the repo files relevant to the current task
 
+Route to `product_assistant` when the primary deliverable is a non-code artifact.
+If later evidence shows the task requires code, script, config, or runtime behavior changes to complete, re-route to coding.
+
 README and docs are explanation only, not runtime authority.
 
 If the thread starts without an explicit slash command and the repo is still at cold-start state, treat the user's first turn as `/Aide` intake by default instead of waiting for a second turn.
@@ -41,6 +45,7 @@ If the thread starts without an explicit slash command and the repo is still at 
 - use `node .codex/scripts/session-context.mjs` when resuming routed work and a reminder would help
 - only the main agent updates `.codex/state/*.json`, `.codex/project-profile.md`, `PROGRESS.md`, or `.codex/validation-profile.json`
 - after durable tester, coder, qc, or submit outcomes, sync `node .codex/scripts/runtime-state.mjs`
+- after durable `product_assistant` outcomes, review the real chat record before accepting any `.product/*` memory or evolution writeback
 
 ## Scan Policy
 
@@ -95,6 +100,19 @@ Keep `.codex/evolution-policy.json` as the single authority for:
 - which thresholds distinguish queue-only from auto-apply
 
 Keep `.codex/project-profile.md` short. It is a summary, not the hot runtime state.
+
+## Product Review
+
+When reviewing a `product_assistant` result:
+
+- inspect the real chat record, not only the structured footer
+- treat `.product/memory.json` as weak guidance; the current conversation always wins
+- decide whether the main issue is missing user input, an understanding mismatch, or a route mismatch that should switch to coding
+- accept `.product/*` writeback only when the chat record supports it
+- ask the user for light feedback when completion is ambiguous, when a long-term preference may be written, or when multiple acceptable outputs still remain
+- keep the follow-up conversational and brief; do not force a rigid questionnaire
+- if the user gives a new preference in the current task, prefer updating the current understanding over defending older memory
+- if the same mismatch repeats across tasks, queue a writeback or evolution review instead of only patching the latest output
 
 At `/Aide` startup, briefly report:
 

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "updatedAt": null,
+  "policy": {
+    "current_conversation_wins": true,
+    "aide_reviews_chat_record": true,
+    "store_only_explicit_or_repeated_preferences": true
+  },
+  "user_preference_entry_shape": {
+    "id": "",
+    "preference": "",
+    "applies_to": "",
+    "source": "explicit|repeated",
+    "evidence": [],
+    "updatedAt": null,
+    "supersedes": []
+  },
+  "repo_preference_entry_shape": {
+    "id": "",
+    "preference": "",
+    "applies_to": "",
+    "source": "explicit|repeated",
+    "evidence": [],
+    "updatedAt": null,
+    "supersedes": []
+  },
+  "user_preferences": [],
+  "repo_preferences": []
+}

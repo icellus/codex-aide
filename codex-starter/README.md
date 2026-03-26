@@ -2,78 +2,77 @@
 
 Project-local Codex workflow starter.
 
-It keeps the default path lightweight, keeps the command surface small, and only enables heavier planning, QC, or release controls when the current task actually needs them.
+It keeps the default path lightweight, routes work through a small set of clear authorities, and supports two current delivery lines:
+
+- coding: code, tests, validation, governed delivery
+- product: documentation and other non-code deliverables
 
 ## At A Glance
 
 - default commands: `/Aide`, `/qc`, `/submit`
 - default mode for small work: `lightweight`
-- preferred execution model: subagent-first for `tester`, `coder`, `/qc`, and `/submit`
-- official repo skill layout: `.agents/skills/*/SKILL.md`
-- official custom subagent layout: `.codex/agents/*.toml`
-- routing authority: `.codex/routing-policy.md`
-- evolution policy: `.codex/evolution-policy.json`
-- delivery policy: `.codex/delivery-policy.json`
+- default non-code route: `/Aide -> product_assistant`
+- repo skill layout: `.agents/skills/*/SKILL.md`
+- custom subagent layout: `.codex/agents/*.toml`
+- product-line workspace: `.product/*`
+- runtime authority: `.codex/routing-policy.md`
 - hot task state: `.codex/state/task-context.json`
-- cold task registry: `.codex/state/task-registry.json`
-- cold evolution registry: `.codex/state/evolution-registry.json`
 - cached repo facts: `.codex/state/repo-context.json`
-- human summary: `.codex/project-profile.md`
-- repository validation baseline: `.codex/validation-profile.json`
-- runtime helpers: `.codex/scripts/*.mjs`
 - runtime dependency: `node` on `PATH`
 
 ## Quick Start
 
-1. Copy `AGENTS.md`, `.agents/skills/`, `.codex/`, and optionally `docs/` and `tests/` into the target repository.
+1. Copy `AGENTS.md`, `.agents/skills/`, `.codex/`, `.product/`, and optionally `docs/` and `tests/` into the target repository.
 2. Ensure `node` is available if you want runtime helpers and smoke tests.
 3. Start with `/Aide` or `/Aide [your goal]`.
 4. Let `/Aide` scan the repo, update current state, and recommend the lightest route.
-5. Stay lightweight unless the task clearly needs planning, long-running tracking, QC, or governed delivery.
 
-If a fresh thread starts without a slash command, the first user turn should still be treated as `/Aide` intake by default.
+If a fresh thread starts without a slash command, treat the first user turn as `/Aide` intake by default.
 
-The starter ships with template defaults in `.codex/project-profile.md` and `.codex/validation-profile.json`.
-`/Aide` should replace them and the JSON state files in `.codex/state/` with repo-specific state on the first real run.
+## Current Model
+
+### Coding line
+
+- route for implementation, validation, QC, and governed submit
+- main execution roles: `tester`, `coder`, optional `/qc`, optional `/submit`
+- best when the primary deliverable is a behavior change, code change, or release action
+
+### Product line
+
+- route for documentation and other non-code deliverables
+- main execution role: `product_assistant`
+- supports docs, API descriptions, structured content, templates, package artifacts, and other non-code outputs
+- `product_assistant` may read technical materials when needed, but the output should match the audience and avoid unnecessary technical noise
 
 ## What `/Aide` Owns
 
-- `/Aide` is the team-improvement entry, not just the first task router.
-- Other roles solve "how to deliver the current feature well"; `/Aide` solves "how to keep the team from repeating the same mistake".
-- Investigation and default routing: when code lands in the wrong place, output quality drops, or a workflow breaks, `/Aide` treats the artifact as a symptom and routes the root cause to the smallest correct authority.
-- Quality audit: `/Aide` audits Agent and Skill contracts for systemic issues that lower team effectiveness. The goal is not cosmetic prompt cleanup.
-- Dedup: `/Aide` finds repeated rules across Agent and Skill files and proposes one authority plus smaller references elsewhere.
-- Governance ratings: `/Aide` rates issues from `L1` to `L4` before deciding whether to route, queue, or write back.
-- Automatic triggers: repeated QC failures, blocked handoffs, unfinished-task reconciliation, and every architect session-end retrospective can queue `/Aide` review work.
-- Lightweight flows should still get a low-cost evolution sweep at `/Aide` startup, even when `architect` never ran.
-- Fresh threads should greet briefly and hint at `/Aide`, `/qc`, and `/submit` on the first cold-start turn after the user speaks.
-- `architect`, not `conduct`, owns the session-end structured retrospective because architecture decisions, wrong assumptions, and writeback candidates are governance inputs.
+- intake, repo scan, routing, and state maintenance
+- systemic governance, not only one-off patching
+- review of `product_assistant` writeback against the real chat record
+- light feedback collection when product-task completion is still ambiguous
+- background evolution review without blocking the first route
+
+For product work, `/Aide` should not replace `product_assistant` in doing the business work. It should review whether `.product/*` writeback is justified by the real conversation and whether the current task actually belongs on the product line.
 
 ## Runtime Authority
 
-- `AGENTS.md`: global stance and slash-command protocol
-- `.agents/skills/*/SKILL.md`: repo-local skill modules and command protocols
-- `.codex/agents/*.toml`: custom subagent definitions
-- `.codex/config.toml`: subagent concurrency defaults
-- `.codex/routing-policy.md`: routing and module-activation authority
-- `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk auto-writeback policy
-- `.codex/delivery-policy.json`: governed submit defaults for commit, push, and optional post-push delivery steps
-- `.codex/state/task-context.json`: hot task state and preferences
-- `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed tasks
-- `.codex/state/evolution-registry.json`: cold evolution candidates plus settled-task review history
+- `AGENTS.md`: global stance and command map
+- `.agents/skills/*/SKILL.md`: skill contracts
+- `.codex/agents/*.toml`: role contracts
+- `.codex/routing-policy.md`: routing and module activation
+- `.codex/state/task-context.json`: hot task state
+- `.codex/state/task-registry.json`: current and unfinished task history
 - `.codex/state/repo-context.json`: cached repo facts
-- `.codex/validation-profile.json`: repository validation baseline and constraints
-- `.codex/project-profile.md`: short human summary
-- `.codex/templates/validation-handoff.md`: optional tester handoff template for task-level validation
-- `.codex/scripts/*.mjs`: runtime helpers for reminders, git validation, and runtime-state sync
+- `.codex/validation-profile.json`: repository validation baseline
+- `.codex/delivery-policy.json`: governed submit defaults
+- `.codex/evolution-policy.json`: low-risk automatic writeback policy
+- `.codex/state/evolution-registry.json`: governance evolution queue
+- `.codex/scripts/*.mjs`: runtime helpers
+- `.product/registry.json`: product template registry
+- `.product/memory.json`: lightweight product memory; current conversation wins on conflict
+- `.product/evolution.json`: product-line evolution candidates, reviewed against the real chat record
 
-Runtime state is written to `.codex/state/runtime-state.json` on demand.
-`node .codex/scripts/task-overview.mjs` summarizes the current active task plus unfinished historical tasks for `/Aide`.
-`node .codex/scripts/aide-evolution.mjs` performs the low-cost evolution sweep for `/Aide` and should run in the background when helper automation is available.
-`node .codex/scripts/aide-governance.mjs` summarizes pending governance triggers, quality audit findings, and dedup candidates for `/Aide`.
-When `long-running` mode is active, `PROGRESS.md` is for checkpoint tracking only.
-Auto QC reminders are queued only when the current task explicitly enables `/qc`, including lightweight or standard work that does not have a tracked story path yet.
-Prefer `task_settled` over `session_end` when a hook wants to report real task completion; `session_end` is best-effort cleanup only.
+The `.product/*.json` files ship with starter schemas and starter policy only. Real projects should evolve them through normal product-line work plus `/Aide` review.
 
 ## Docs
 
@@ -83,4 +82,9 @@ Prefer `task_settled` over `session_end` when a hook wants to report real task c
 - 中文详细说明: [`docs/detailed-guide.zh-CN.md`](./docs/detailed-guide.zh-CN.md)
 - Overview: [`docs/overview.md`](./docs/overview.md)
 - Usage: [`docs/usage.md`](./docs/usage.md)
-- Smoke test: `node tests/runtime-hooks.smoke.mjs`
+
+## Smoke Test
+
+```bash
+node tests/runtime-hooks.smoke.mjs
+```

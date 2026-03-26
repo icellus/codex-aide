@@ -12,6 +12,7 @@ This file is the routing authority.
 - Keep `lightweight` as the default for small, local, low-risk work.
 - Add durable artifacts only when coordination, uncertainty, or risk requires them.
 - When execution roles are active, prefer real subagents when delegation is available.
+- Route directly to `product_assistant` when the primary deliverable is a non-code artifact.
 - `environment setup` belongs to `conduct`.
 - `/qc` is optional unless the task or policy explicitly enables it.
 - `/submit` is the governed delivery step after local completion or QC pass when commit, push, or post-push follow-through matters.
@@ -20,6 +21,7 @@ This file is the routing authority.
 
 - `bugfix` -> `lightweight`
 - `feature` -> `standard`
+- `product` -> `lightweight`
 - `refactor` -> `lightweight`
 - `release` -> `long-running`
 - `exploration` -> `lightweight`
@@ -29,6 +31,7 @@ This file is the routing authority.
 - enable `prd` when scope, MVP, or success criteria are unstable
 - enable `architect` when interfaces, boundaries, or integration design are unstable
 - enable `plan` when implementation guidance needs a durable artifact
+- enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `tester` and `coder` when explicit red/green separation or handoff value is real
 - enable `long-running` mode and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
 - enable `/qc` when risk is high, the user asks for an audit, or release confidence needs it

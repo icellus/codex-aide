@@ -1,34 +1,30 @@
 # codex-starter 中文指南
 
-这份文档面向首次接入 `codex-starter` 的外部使用者。
+这份文档面向第一次接入 `codex-starter` 的使用者。
 
-它的目标不是替代所有英文文档，而是用一份中文说明快速回答这几个问题：
+它回答的是当前这版 starter 的核心问题：
 
-- 这个 starter 是做什么的
-- 应该把哪些文件复制到你的仓库
-- `AGENTS.md`、`.agents`、`.codex` 分别负责什么
-- `/Aide`、`/qc`、`/submit` 应该怎么用
-- 初次接入时应该怎么保持上下文和运行时成本可控
+- 这套 starter 现在是什么
+- 应该复制哪些文件
+- `AGENTS.md`、`.agents/`、`.codex/`、`.product/` 分别负责什么
+- coding 线和 product 线怎么区分
+- `/Aide` 在 product 任务里到底负责什么
 
-## 1. 这个 starter 是什么
+## 1. 这套 Starter 现在是什么
 
 `codex-starter` 是一套项目本地的 Codex 工作流骨架。
 
-它的设计目标是：
+当前版本有两条交付线：
 
-- 默认保持轻量，优先直接完成小任务
-- 只在任务确实需要时启用更重的规划、审计、发布跟进能力
-- 把技能协议、路由策略、运行时状态和子代理定义拆开管理
-- 尽量减少主会话的无效上下文，让运行时 token 成本保持可控
+- coding：代码改动、验证、审计、受控交付
+- product：文档和其他非代码交付
 
-如果你的仓库大多数工作是：
+它的目标不是把每个任务都拉进重流程，而是：
 
-- 小型 bugfix
-- 局部 feature
-- 局部 refactor
-- 偶发的高风险审核或发布跟进
-
-那么这个 starter 比“所有任务都走重流程”更合适。
+- 默认保持轻量
+- 只有任务真的需要时再升级
+- 把 intake、治理、执行、非代码沉淀拆开
+- 减少主会话的无效上下文
 
 ## 2. 快速开始
 
@@ -37,15 +33,16 @@
 1. `AGENTS.md`
 2. `.agents/skills/`
 3. `.codex/`
-4. 可选复制 `docs/`
-5. 可选复制 `tests/`
+4. `.product/`
+5. 可选复制 `docs/`
+6. 可选复制 `tests/`
 
 然后确认：
 
 - 本地有 `node`
-- 你愿意让运行时辅助脚本写入 `.codex/state/*.json`
+- 允许 runtime helpers 写入 `.codex/state/*.json`
 
-接入后的首次使用通常是：
+首次使用通常是：
 
 ```text
 /Aide
@@ -60,180 +57,147 @@
 首次运行时，`/Aide` 应该：
 
 - 扫描仓库
-- 更新热状态文件
+- 更新热状态
 - 更新仓库级验证基线
-- 选择当前任务最轻的路线
+- 选择当前任务最轻且合理的路线
 
-## 3. 目录结构说明
+## 3. 目录结构
 
-当前 starter 采用三层结构：
+当前 starter 使用四层结构。
 
 ### `AGENTS.md`
 
-作用：
+负责：
 
 - 全局入口
 - slash command 到 skill 的映射
 - 运行时文件总览
 - 少量全局 guardrails
 
-它应该保持短，不应该重新变成一份“大而全总规则”。
-
 ### `.agents/`
 
-作用：
+负责：
 
-- 存放 repo-local skills
-- 定义 `/Aide`、`/qc`、`/submit` 和内部 skill 的行为协议
+- skill 契约
+- `/Aide`、`/qc`、`/submit` 等入口协议
 
-当前约定路径是：
+约定路径：
 
 ```text
 .agents/skills/*/SKILL.md
 ```
 
-可以把它理解为“技能层”。
-
 ### `.codex/`
 
-作用：
+负责：
 
-- 存放运行时策略、子代理、状态、脚本和模板
+- 路由策略
+- 子代理定义
+- 热状态和运行时状态
+- 运行时脚本
+- coding 线相关辅助产物
 
-典型内容包括：
+典型内容：
 
-- `.codex/agents/*.toml`：子代理定义
-- `.codex/state/*.json`：热状态和运行时状态
-- `.codex/scripts/*.mjs`：运行时辅助脚本
-- `.codex/routing-policy.md`：路由策略
-- `.codex/validation-profile.json`：仓库级验证基线配置
+- `.codex/agents/*.toml`
+- `.codex/routing-policy.md`
+- `.codex/state/*.json`
+- `.codex/scripts/*.mjs`
+- `.codex/validation-profile.json`
 
-可以把它理解为“运行时层”。
+### `.product/`
 
-## 4. 为什么拆成 `.agents` 和 `.codex`
+负责：
 
-这不是为了增加目录，而是为了把两类内容分开：
+- product 线模板
+- product 线轻量记忆
+- product 线进化候选
 
-- `.agents` 负责“技能协议”
-- `.codex` 负责“运行时执行”
+典型内容：
 
-这样拆开的好处是：
+- `.product/templates/`
+- `.product/registry.json`
+- `.product/memory.json`
+- `.product/evolution.json`
 
-- 技能文档和机器状态不混在一起
-- 热状态可以单独 JSON 化，减少恢复成本
-- 子代理定义、路由策略、runtime hooks 更容易独立演进
-- 对外文档和内部运行时不容易互相污染
+这里有三个当前约束：
 
-如果你更偏好单目录，也可以后续收敛到 `.codex/`。  
-但当前 starter 先保留这种分层方式，原因是治理边界更清楚。
+- 当前对话优先于旧记忆
+- 只有明确或重复出现的偏好才值得沉淀
+- 进化候选必须结合真实聊天记录再审核
 
-## 5. 关键运行时文件
+## 4. 两条交付线
 
-外部使用时，最需要理解的是下面几个文件：
+### Coding 线
 
-### `.codex/state/task-context.json`
+当主要交付物是下面这些内容时，走 coding 线：
 
-热任务状态。
+- 代码实现
+- 行为改动
+- 任务级验证
+- release 或受控交付
 
-里面放的是：
+典型路径：
 
-- 当前任务
-- 任务状态
-- 风险级别
-- 当前 delivery mode
-- 已启用模块
-- QC / submit 策略
-- 协作偏好
+```text
+/Aide -> optional conduct -> optional plan -> tester/coder -> optional /qc -> optional /submit
+```
 
-这是运行时优先读取的任务上下文。
+### Product 线
 
-### `.codex/state/repo-context.json`
+当主要交付物是下面这些内容时，走 product 线：
 
-仓库缓存事实。
+- 文档
+- API 描述
+- 结构化非代码内容
+- 打包交付物
+- 其他非代码输出
 
-里面放的是：
+典型路径：
 
-- 语言和框架
-- 仓库形态
-- CI / 部署信号
-- release 路径
-- validation 信号
+```text
+/Aide -> product_assistant
+```
 
-它的作用是避免每次都做全仓重扫。
+`product_assistant` 可以在需要时读取代码、配置、接口定义等技术材料。  
+但输出要匹配目标受众，避免 AI 腔和不必要的实现噪音。
 
-### `.codex/validation-profile.json`
+## 5. `/Aide` 在 Product 任务里负责什么
 
-仓库级验证基线。
+`/Aide` 在 product 任务里不替代 `product_assistant` 做业务。
 
-它描述：
+它主要负责：
 
-- smoke / lint / typecheck / build
-- unit / integration / e2e
-- 哪些命令昂贵
-- 哪些命令依赖外部服务
+- intake 和路由
+- 结合真实聊天记录复审 product 结果
+- 判断 `.product/*` 写回是否合理
+- 在完成边界不稳时，做轻量反馈确认
+- 判断问题到底是：
+  - 用户信息不够
+  - 理解偏差
+  - 还是本来就该切到 coding 线
 
-它的职责是记录仓库“有哪些验证能力”，而不是决定某个具体任务应该怎样验收。
+所以你可以这样理解：
 
-真正的任务级功能验证，应该由 `tester` 根据需求和真实代码来决定。
+- `product_assistant` 负责交付
+- `/Aide` 负责审理解、审沉淀、审边界
 
-### `.codex/templates/validation-handoff.md`
-
-这是可选模板。
-
-它用于帮助 `tester` 输出任务级验证 handoff，内容应明确包括：
-
-- 要验证的目标
-- 选择了哪些检查
-- 为什么这些检查足够
-- 还剩哪些缺口
-
-### `.codex/project-profile.md`
-
-这是给人看的短摘要，不是热状态主文件。
-
-它应该保持简短，用来帮助人快速了解当前项目和任务概况。
-
-### `PROGRESS.md`
-
-只在 `long-running` 模式下使用。
-
-它现在只负责：
-
-- 当前 checkpoint
-- next step
-- blockers
-- resume-safe 的追踪信息
-
-它不应该承载越来越多的运行时机器状态。
-
-## 6. 三种工作模式
+## 6. 三种交付形态
 
 ### `lightweight`
 
 适合：
 
-- 小 bug
-- 小范围改动
-- 明确、局部、低风险任务
-
-典型路径：
-
-```text
-/Aide -> coder -> sanity checks -> done
-```
+- 小 bugfix
+- 局部清晰任务
+- 直接可落的 product 任务
 
 ### `standard`
 
 适合：
 
-- 需要一个明确实施计划
-- 但还没复杂到要整套 long-running 跟踪
-
-典型路径：
-
-```text
-/Aide -> conduct -> optional plan -> tester -> coder -> tester rerun -> validate
-```
+- 受益于一个计划产物的任务
+- 但还没复杂到要 long-running 跟踪
 
 ### `long-running`
 
@@ -241,177 +205,38 @@
 
 - 跨 session
 - 多 checkpoint
-- release
-- 高风险任务
+- 发布
+- 风险更高的任务
 
-典型路径：
+`environment setup` 属于 `conduct`，不属于 `/Aide`。
 
-```text
-/Aide -> conduct -> PROGRESS.md -> tester/coder -> optional /qc -> /submit
-```
+## 7. Runtime Helpers
 
-## 7. 三个用户命令
+常用入口：
 
-### `/Aide`
+1. `node .codex/scripts/task-overview.mjs`
+2. `node .codex/scripts/aide-evolution.mjs`
+3. `node .codex/scripts/aide-governance.mjs`
+4. `node .codex/scripts/session-context.mjs`
+5. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
+6. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
-入口命令。
+这些脚本是可选的。  
+启用后可以提供：
 
-适合：
+- task / session 提醒
+- git 安全检查
+- runtime state 跟踪
+- 低成本 `/Aide` evolution sweep
+- coding 线的自动 QC / submit 跟进
+- product 线结果的最小 `/Aide` 审核接线
 
-- 开始一个新任务
-- 刷新仓库状态
-- 更新路由
-- 做治理动作，例如 audit / dedup / prune
+## 8. 建议阅读顺序
 
-它不只是“开始工作”的入口，更是这套 starter 里负责团队治理的入口。
-
-可以直接这样理解：
-
-- 其他角色解决的是“当前这个功能怎么做好”
-- `/Aide` 解决的是“团队为什么会反复产出同类问题，以及以后怎么更稳”
-
-`/Aide` 的核心能力有三类：
-
-- 问题调查与默认路由：代码放错地方、输出质量差、handoff 断裂时，先查系统原因，而不是只修表面产物
-- 质量审计：检查 Agent / Skill 文件里的系统性契约问题，重点是那些会持续降低团队效能的内容
-- 去重：查找跨 Agent / Skill 文件的重复规则，并把它们收敛回单一权威
-
-这些问题应按 `L1` 到 `L4` 定级：
-
-- `L1`：局部症状或一次性表达问题
-- `L2`：单角色契约漂移
-- `L3`：工作流断裂，影响多个角色或 handoff
-- `L4`：共享规则的权威缺陷、重复或冲突
-
-自动触发也很重要。`/Aide` 不应该只在“失败后”才学东西。当前设计里，下面这些信号都应该排队到 `/Aide` 治理：
-
-- 重复 QC 失败
-- blocked handoff
-- 任务切换或清理时发现旧任务没有正常收口
-- `architect` 每次会话结束后的结构化回顾
-
-这里负责结构化回顾的是 `architect`，不是 `conduct`。  
-因为真正有设计决策、错误假设、写回候选这些知识输入的是 `architect`。
-
-### `/qc`
-
-质量审计。
-
-适合：
-
-- 高风险任务
-- 需要独立审查 tester / coder handoff
-- 发布前的额外质量确认
-
-它不是默认每次都要执行的步骤。
-
-### `/submit`
-
-测试后的受控交付入口。
-
-适合：
-
-- 实现与验证已经完成
-- 需要受控地 `commit` 与 `push`
-- 需要在推送后继续处理通知、CI 或 release 步骤
-
-如果任务还没完成验证，通常不应该先跑 `/submit`。
-
-## 8. 对外接入建议
-
-如果你准备把这个 starter 复制到自己的仓库，建议按下面顺序落地：
-
-1. 先只接 `AGENTS.md`、`.agents/skills/`、`.codex/`
-2. 跑一次 `/Aide`
-3. 让 `/Aide` 更新 `.codex/state/task-context.json`
-4. 让 `/Aide` 更新 `.codex/state/repo-context.json`
-5. 补全 `.codex/validation-profile.json`
-6. 只在任务确实需要时再启用 `plan`、`/qc`、`/submit`
-
-不要一开始就把所有模块都当成默认路径。
-
-## 9. 如何控制上下文和 token 成本
-
-这是外部使用时最值得遵守的原则：
-
-### 保持热路径文件短
-
-优先让运行时读取：
-
-- `.codex/state/task-context.json`
-- `.codex/state/repo-context.json`
-- `.codex/validation-profile.json`
-
-不要把所有规则重新塞回 `AGENTS.md`。
-
-### 让 `PROGRESS.md` 只做 checkpoint 跟踪
-
-不要把：
-
-- retrospective
-- 学习队列
-- 大段运行日志
-
-全都塞进 `PROGRESS.md`。
-
-### 小任务默认走 `lightweight`
-
-只有在下面这些情况才升级：
-
-- 需求不稳定
-- 架构边界不稳定
-- 需要 durable plan
-- 需要更强的 QA / release gate
-
-### 子代理只读最小必要上下文
-
-写代码的子代理应优先读取：
-
-1. `.codex/state/task-context.json`
-2. `.codex/validation-profile.json`
-3. 与当前任务直接相关的代码和测试
-
-而不是每次都全量读文档。
-
-## 10. 适合什么样的团队
-
-这个 starter 更适合：
-
-- 希望默认流程轻量的团队
-- 需要 optional governance，而不是强制重流程的团队
-- 想把主会话保持干净，把具体执行交给子代理的团队
-
-如果你的团队希望：
-
-- 所有任务都强制写 PRD
-- 所有任务都必须走完整 plan / audit / release gate
-
-那这个 starter 可能会显得太轻。
-
-## 11. 推荐阅读顺序
-
-如果你是首次接入，建议按这个顺序阅读：
+如果你第一次接入，建议按这个顺序看：
 
 1. `README.md`
-2. 本文档
-3. `docs/overview.zh-CN.md`
-4. `docs/usage.zh-CN.md`
+2. `docs/overview.zh-CN.md`
+3. `docs/usage.zh-CN.md`
+4. 本文
 5. `docs/detailed-guide.zh-CN.md`
-6. `docs/overview.md`
-7. `docs/usage.md`
-8. `AGENTS.md`
-9. `.codex/routing-policy.md`
-
-如果你准备实际落地，再看：
-
-1. `.agents/skills/aide/SKILL.md`
-2. `.agents/skills/qc/SKILL.md`
-3. `.agents/skills/submit/SKILL.md`
-4. `.codex/agents/*.toml`
-5. `.codex/scripts/*.mjs`
-
-## 12. 一句话总结
-
-可以把 `codex-starter` 理解成：
-
-“一套默认轻量、按需升级、把技能层和运行时层拆开管理的项目本地 Codex 工作流骨架。”

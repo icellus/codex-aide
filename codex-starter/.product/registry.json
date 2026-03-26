@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "updatedAt": null,
+  "policy": {
+    "starter_ships_empty": true,
+    "templates_are_user_evolved": true
+  },
+  "template_entry_shape": {
+    "id": "",
+    "path": "",
+    "artifact_type": "",
+    "description": "",
+    "audience": "",
+    "triggers": [],
+    "updatedAt": null,
+    "lastUsedAt": null,
+    "notes": ""
+  },
+  "templates": []
+}

@@ -23,7 +23,11 @@ const projectProfilePath = path.join(rootDir, ".codex", "project-profile.md");
 const validationProfilePath = path.join(rootDir, ".codex", "validation-profile.json");
 const evolutionPolicyPath = path.join(rootDir, ".codex", "evolution-policy.json");
 const testerAgentPath = path.join(rootDir, ".codex", "agents", "tester.toml");
+const productAssistantPath = path.join(rootDir, ".codex", "agents", "product_assistant.toml");
 const validationHandoffTemplatePath = path.join(rootDir, ".codex", "templates", "validation-handoff.md");
+const productRegistryPath = path.join(rootDir, ".product", "registry.json");
+const productMemoryPath = path.join(rootDir, ".product", "memory.json");
+const productEvolutionPath = path.join(rootDir, ".product", "evolution.json");
 
 function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -107,6 +111,44 @@ function testTesterContractIncludesTaskValidationHandoff() {
   assert.match(handoffTemplate, /## Remaining Gaps/);
 }
 
+function testProductAssistantContractAndDefaultsExist() {
+  const productAssistant = fs.readFileSync(productAssistantPath, "utf8");
+  const aideSkill = fs.readFileSync(path.join(rootDir, ".agents", "skills", "aide", "SKILL.md"), "utf8");
+  const registry = JSON.parse(fs.readFileSync(productRegistryPath, "utf8"));
+  const memory = JSON.parse(fs.readFileSync(productMemoryPath, "utf8"));
+  const evolution = JSON.parse(fs.readFileSync(productEvolutionPath, "utf8"));
+
+  assert.match(productAssistant, /"sources_used": \[/);
+  assert.match(productAssistant, /"template_updates_applied": \[/);
+  assert.match(productAssistant, /"memory_updates_applied": \{/);
+  assert.match(productAssistant, /"evolution_candidates": \[/);
+  assert.match(productAssistant, /Match the output to the task and audience/);
+  assert.match(aideSkill, /## Product Review/);
+  assert.match(aideSkill, /inspect the real chat record/);
+
+  assert.equal(registry.version, 1);
+  assert.equal(registry.policy.starter_ships_empty, true);
+  assert.equal(registry.policy.templates_are_user_evolved, true);
+  assert.equal(registry.template_entry_shape.id, "");
+  assert.deepEqual(registry.template_entry_shape.triggers, []);
+  assert.deepEqual(registry.templates, []);
+  assert.equal(memory.version, 1);
+  assert.equal(memory.policy.current_conversation_wins, true);
+  assert.equal(memory.policy.aide_reviews_chat_record, true);
+  assert.equal(memory.policy.store_only_explicit_or_repeated_preferences, true);
+  assert.equal(memory.user_preference_entry_shape.source, "explicit|repeated");
+  assert.equal(memory.repo_preference_entry_shape.source, "explicit|repeated");
+  assert.deepEqual(memory.user_preferences, []);
+  assert.deepEqual(memory.repo_preferences, []);
+  assert.equal(evolution.version, 1);
+  assert.equal(evolution.policy.product_assistant_updates_candidates, true);
+  assert.equal(evolution.policy.aide_reviews_chat_record, true);
+  assert.equal(evolution.policy.repeated_mismatch_required_for_role_change, true);
+  assert.equal(evolution.candidate_entry_shape.source, "product_assistant|aide");
+  assert.equal(evolution.candidate_entry_shape.status, "queued|accepted|rejected|applied");
+  assert.deepEqual(evolution.candidates, []);
+}
+
 function testProgressSyncSupportsLegacyShape() {
   const dir = makeTempDir("codex-starter-progress-");
   const progressPath = path.join(dir, "PROGRESS.md");
@@ -182,7 +224,7 @@ function testTaskContextJsonOverridesMarkdownProfile() {
       route_rationale: "cached JSON state should win on the hot path",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["lightweight implementation"],
+      enabled_modules: ["lightweight execution"],
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "inferred",
@@ -444,7 +486,7 @@ function testSessionContextShowsPendingSubmitReminder() {
       route_rationale: "delivery is pending",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["lightweight implementation", "/submit"],
+      enabled_modules: ["lightweight execution", "/submit"],
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "inferred",
@@ -628,7 +670,7 @@ function testLegacyDeliveryModeNamesNormalizeToCurrentNames() {
 
   const profile = loadProjectProfileState(dir);
   assert.equal(profile.deliveryMode, "standard");
-  assert.deepEqual(profile.enabledModules, ["lightweight implementation"]);
+  assert.deepEqual(profile.enabledModules, ["lightweight execution"]);
 }
 
 function testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks() {
@@ -775,7 +817,7 @@ function testRuntimeStateSyncsCompletedTasksIntoTaskRegistry() {
       route_rationale: "close the current hot task",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["lightweight implementation"],
+      enabled_modules: ["lightweight execution"],
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "inferred",
@@ -820,7 +862,7 @@ function testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry() {
       route_rationale: "task-settled should be enough",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["lightweight implementation"],
+      enabled_modules: ["lightweight execution"],
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "inferred",
@@ -1127,6 +1169,265 @@ function testRepeatedQcFailuresQueueAideAuditReview() {
   assert.equal(aideReview.severity, "L3");
 }
 
+function testProductAssistantCompletionQueuesAideReviewWhenWritebackExists() {
+  const dir = makeTempDir("codex-starter-product-review-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "product_assistant",
+      message: [
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "product_assistant",
+            status: "complete",
+            artifacts_changed: ["docs/api.md"],
+            sources_used: [{ kind: "doc", path: "README.md", note: "existing entrypoints" }],
+            template_updates_applied: [
+              {
+                id: "http-api-basic",
+                path: ".product/templates/api/http-api-basic.md",
+                artifact_type: "api_doc",
+                description: "Reusable HTTP API doc skeleton",
+                audience: "developer",
+                triggers: ["api", "http"],
+                updatedAt: null,
+                lastUsedAt: null,
+                notes: ""
+              }
+            ],
+            memory_updates_applied: {
+              user_preferences: [
+                {
+                  id: "pref-concise-api-docs",
+                  preference: "Prefer concise step-by-step API docs.",
+                  applies_to: "api_doc",
+                  source: "repeated",
+                  evidence: ["User repeated the same preference in this task family."],
+                  updatedAt: null,
+                  supersedes: []
+                }
+              ],
+              repo_preferences: []
+            },
+            evolution_candidates: [
+              {
+                id: "memory-gap-api-docs",
+                category: "memory_gap",
+                summary: "The same API doc preference had to be restated.",
+                source: "product_assistant",
+                evidence: ["Repeated restatement across similar API doc tasks."],
+                occurrences: 2,
+                status: "queued",
+                updatedAt: null
+              }
+            ],
+            open_gaps: [],
+            validation: [],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "product_assistant");
+
+  assert.ok(aideReview);
+  assert.equal(aideReview.capability, "writeback");
+  assert.equal(aideReview.issueType, "product_review");
+}
+
+function testProductAssistantBlockedQueuesInvestigationReview() {
+  const dir = makeTempDir("codex-starter-product-blocked-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "product_assistant",
+      message: [
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "product_assistant",
+            status: "blocked",
+            artifacts_changed: [],
+            sources_used: [],
+            template_updates_applied: [],
+            memory_updates_applied: {
+              user_preferences: [],
+              repo_preferences: []
+            },
+            evolution_candidates: [],
+            open_gaps: ["Need the current API error code table."],
+            validation: [],
+            blockers: ["Missing source material."]
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const blockedReview = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "product_assistant");
+  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "product_assistant");
+
+  assert.ok(blockedReview);
+  assert.ok(aideReview);
+  assert.equal(aideReview.capability, "investigation");
+  assert.equal(aideReview.severity, "L2");
+}
+
+function testProductFilesSupportRealisticWritebackEntries() {
+  const dir = makeTempDir("codex-starter-product-writeback-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  fs.mkdirSync(path.join(dir, ".product", "templates", "api"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".product", "templates", "api", "http-api-basic.md"), "# HTTP API Basic\n", "utf8");
+
+  const registry = JSON.parse(fs.readFileSync(productRegistryPath, "utf8"));
+  registry.updatedAt = "2026-03-27T00:00:00Z";
+  registry.templates.push({
+    id: "http-api-basic",
+    path: ".product/templates/api/http-api-basic.md",
+    artifact_type: "api_doc",
+    description: "Reusable HTTP API doc skeleton",
+    audience: "developer",
+    triggers: ["api", "http"],
+    updatedAt: "2026-03-27T00:00:00Z",
+    lastUsedAt: "2026-03-27T00:00:00Z",
+    notes: "Created from repeated API doc work."
+  });
+  writeJson(path.join(dir, ".product", "registry.json"), registry);
+
+  const memory = JSON.parse(fs.readFileSync(productMemoryPath, "utf8"));
+  memory.updatedAt = "2026-03-27T00:00:00Z";
+  memory.user_preferences.push({
+    id: "pref-concise-api-docs",
+    preference: "Prefer concise step-by-step API docs.",
+    applies_to: "api_doc",
+    source: "repeated",
+    evidence: ["Restated in several API doc tasks."],
+    updatedAt: "2026-03-27T00:00:00Z",
+    supersedes: []
+  });
+  writeJson(path.join(dir, ".product", "memory.json"), memory);
+
+  const evolution = JSON.parse(fs.readFileSync(productEvolutionPath, "utf8"));
+  evolution.updatedAt = "2026-03-27T00:00:00Z";
+  evolution.candidates.push({
+    id: "memory-gap-api-docs",
+    category: "memory_gap",
+    summary: "The same API doc preference had to be restated.",
+    source: "product_assistant",
+    evidence: ["Repeated restatement across similar API doc tasks."],
+    occurrences: 2,
+    status: "queued",
+    updatedAt: "2026-03-27T00:00:00Z"
+  });
+  writeJson(path.join(dir, ".product", "evolution.json"), evolution);
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "product_assistant",
+      message: [
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "product_assistant",
+            status: "complete",
+            artifacts_changed: ["docs/api.md"],
+            sources_used: [{ kind: "doc", path: "README.md", note: "existing entrypoints" }],
+            template_updates_applied: [
+              {
+                id: "http-api-basic",
+                path: ".product/templates/api/http-api-basic.md",
+                artifact_type: "api_doc",
+                description: "Reusable HTTP API doc skeleton",
+                audience: "developer",
+                triggers: ["api", "http"],
+                updatedAt: "2026-03-27T00:00:00Z",
+                lastUsedAt: "2026-03-27T00:00:00Z",
+                notes: "Created from repeated API doc work."
+              }
+            ],
+            memory_updates_applied: {
+              user_preferences: [
+                {
+                  id: "pref-concise-api-docs",
+                  preference: "Prefer concise step-by-step API docs.",
+                  applies_to: "api_doc",
+                  source: "repeated",
+                  evidence: ["Restated in several API doc tasks."],
+                  updatedAt: "2026-03-27T00:00:00Z",
+                  supersedes: []
+                }
+              ],
+              repo_preferences: []
+            },
+            evolution_candidates: [
+              {
+                id: "memory-gap-api-docs",
+                category: "memory_gap",
+                summary: "The same API doc preference had to be restated.",
+                source: "product_assistant",
+                evidence: ["Repeated restatement across similar API doc tasks."],
+                occurrences: 2,
+                status: "queued",
+                updatedAt: "2026-03-27T00:00:00Z"
+              }
+            ],
+            open_gaps: [],
+            validation: [],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const savedRegistry = JSON.parse(fs.readFileSync(path.join(dir, ".product", "registry.json"), "utf8"));
+  const savedMemory = JSON.parse(fs.readFileSync(path.join(dir, ".product", "memory.json"), "utf8"));
+  const savedEvolution = JSON.parse(fs.readFileSync(path.join(dir, ".product", "evolution.json"), "utf8"));
+  const state = readRuntimeState(dir);
+  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "product_assistant");
+
+  assert.equal(savedRegistry.templates[0].id, "http-api-basic");
+  assert.equal(savedRegistry.templates[0].path, ".product/templates/api/http-api-basic.md");
+  assert.equal(savedMemory.user_preferences[0].id, "pref-concise-api-docs");
+  assert.equal(savedMemory.user_preferences[0].source, "repeated");
+  assert.equal(savedEvolution.candidates[0].id, "memory-gap-api-docs");
+  assert.equal(savedEvolution.candidates[0].status, "queued");
+  assert.ok(aideReview);
+  assert.match(aideReview.note, /template changes: \.product\/templates\/api\/http-api-basic\.md/);
+}
+
 function testAideGovernanceInvestigateReportsPendingReviews() {
   const dir = makeTempDir("codex-starter-aide-governance-investigate-");
   fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
@@ -1271,6 +1572,7 @@ function testAideGovernanceDedupFindsSharedAuthorityCandidates() {
 testQcDetectionRequiresQcMarkers();
 testValidationProfileDefinesRepoBaselineAndTesterOwnership();
 testTesterContractIncludesTaskValidationHandoff();
+testProductAssistantContractAndDefaultsExist();
 testProgressSyncSupportsLegacyShape();
 testTaskContextJsonOverridesMarkdownProfile();
 testLegacyDeliveryModeNamesNormalizeToCurrentNames();
@@ -1292,6 +1594,9 @@ testAideEvolutionSweepPromotesSettledTasksWithGovernanceSignals();
 testAideEvolutionAutoAppliesKnownLearningGuidance();
 testArchitectCompletionQueuesGovernanceRetrospective();
 testRepeatedQcFailuresQueueAideAuditReview();
+testProductAssistantCompletionQueuesAideReviewWhenWritebackExists();
+testProductAssistantBlockedQueuesInvestigationReview();
+testProductFilesSupportRealisticWritebackEntries();
 testAideGovernanceInvestigateReportsPendingReviews();
 testAideGovernanceAuditDetectsBrokenContracts();
 testAideGovernanceDedupFindsSharedAuthorityCandidates();

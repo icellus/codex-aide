@@ -124,7 +124,7 @@ function collectAuditFindings(projectDir) {
     }
 
     if (skill.name === "aide") {
-      for (const heading of ["## Capability Ratings", "## Automatic Triggers", "## Governance Output"]) {
+      for (const heading of ["## Capability Ratings", "## Automatic Triggers", "## Governance Output", "## Product Review"]) {
         if (!hasSection(skill.text, heading)) {
           addFinding(findings, {
             severity: "L3",

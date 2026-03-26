@@ -1,111 +1,122 @@
 # Overview
 
-## What This Starter Optimizes For
+## What This Starter Is
 
-`codex-starter` is for repositories where most work should stay lightweight, but stronger planning, auditing, and release controls must still be available when the task justifies them.
+`codex-starter` is a lightweight Codex workflow starter with two current delivery lines:
 
-## Design Principles
+- coding: code changes, validation, QC, governed delivery
+- product: documentation and other non-code deliverables
+
+It is built for repositories that want a small default surface and stronger controls only when the task actually needs them.
+
+## Core Principles
 
 - start light
-- keep the user-facing surface small
-- derive validation from the repository
-- keep runtime authority singular
-- separate intake/governance from delivery routing
-- keep durable state only when coordination needs it
+- keep the user-facing command surface small
+- keep runtime authority explicit
+- let `/Aide` own intake and governance
+- let execution roles own concrete delivery
+- keep product memory lightweight and revisable
 
 ## Runtime Authority
 
 | File | Responsibility |
 | --- | --- |
-| `AGENTS.md` | global operating stance |
-| `.agents/skills/*/SKILL.md` | repo-local skills and slash-command protocols |
-| `.codex/agents/*.toml` | custom subagent definitions |
-| `.codex/config.toml` | subagent concurrency defaults |
-| `.codex/routing-policy.md` | routing and module-activation authority |
-| `.codex/evolution-policy.json` | automatic evolution thresholds and allowed low-risk writebacks |
-| `.codex/delivery-policy.json` | commit, push, notification, CI, release, and fallback policy |
-| `.codex/state/task-context.json` | hot task state and collaboration preferences |
-| `.codex/state/task-registry.json` | cold task registry for current, unfinished, and completed tasks |
-| `.codex/state/evolution-registry.json` | cold evolution candidates and settled-task review history |
+| `AGENTS.md` | global stance and command map |
+| `.agents/skills/*/SKILL.md` | skill contracts |
+| `.codex/agents/*.toml` | subagent role definitions |
+| `.codex/routing-policy.md` | routing and module activation |
+| `.codex/delivery-policy.json` | governed submit defaults |
+| `.codex/evolution-policy.json` | automatic governance writeback policy |
+| `.codex/state/task-context.json` | hot task state |
+| `.codex/state/task-registry.json` | current and unfinished task history |
 | `.codex/state/repo-context.json` | cached repo facts |
-| `.codex/validation-profile.json` | repository validation baseline and constraints |
-| `.codex/project-profile.md` | short human summary |
-| `.codex/scripts/*.mjs` | optional runtime helpers for reminders, git validation, and runtime-state sync |
+| `.codex/validation-profile.json` | repository validation baseline |
+| `.codex/state/evolution-registry.json` | governance evolution queue |
+| `.codex/scripts/*.mjs` | runtime helpers |
+| `.product/registry.json` | product template registry |
+| `.product/memory.json` | lightweight product memory; current conversation wins on conflict |
+| `.product/evolution.json` | product evolution candidates reviewed against the real chat record |
 
 ## Roles and Modules
 
 | Item | Responsibility | Default |
 | --- | --- | --- |
-| `/Aide` | intake, current state, systemic governance, and team-quality writeback | enabled |
-| `conduct` | delivery routing and `environment setup` | disabled |
+| `/Aide` | intake, routing, governance, result review | enabled |
+| `conduct` | delivery routing and environment setup | disabled |
 | `prd` | WHAT, WHY, MVP clarification | disabled |
 | `architect` | HOW at system level | disabled |
 | `plan` | implementation handoff | disabled |
-| `auto_qc` | internal QC follow-up when enabled tasks finish a tester or coder handoff | disabled |
-| `tester` | task-level validation ownership and test design | disabled |
+| `product_assistant` | docs and non-code delivery | disabled |
+| `tester` | task-level validation ownership | disabled |
 | `coder` | implementation and sanity checks | disabled |
-| `/qc` | audit gate | disabled |
-| `/submit` | governed commit, push, and optional post-push delivery flow | disabled |
-| runtime helpers | optional Node-assisted automation | disabled by default |
+| `/qc` | explicit audit gate | disabled |
+| `/submit` | governed delivery | disabled |
+
+## Delivery Lines
+
+### Coding line
+
+Use the coding line when the primary deliverable is:
+
+- a code change
+- a behavior change
+- task-level validation
+- release or governed delivery work
+
+Typical route:
+
+```text
+/Aide -> optional conduct -> optional plan -> tester/coder -> optional /qc -> optional /submit
+```
+
+### Product line
+
+Use the product line when the primary deliverable is:
+
+- docs
+- API descriptions
+- structured non-code content
+- package artifacts
+- other non-code outputs
+
+Typical route:
+
+```text
+/Aide -> product_assistant
+```
+
+`product_assistant` may read code, config, interface definitions, and other technical materials when needed. The output should still match the audience and should avoid AI-style filler and unnecessary implementation noise.
 
 ## What `/Aide` Optimizes
 
-- Other roles focus on making the current task correct. `/Aide` focuses on making the team more reliable across tasks.
-- Investigation and default routing: `/Aide` diagnoses why misplaced code, weak output quality, or broken handoffs keep happening, then routes the root cause instead of only patching the symptom.
-- Quality audit: `/Aide` audits Agent and Skill contracts for system-level issues that reduce team efficiency.
-- Dedup: `/Aide` finds duplicated rules across Agent and Skill files and pushes the repo back toward one clear authority per rule.
-- Governance ratings: `/Aide` grades issues from `L1` through `L4` so routing and writeback pressure stay proportional.
-- Knowledge capture: `architect`, not `conduct`, closes every design session with a structured retrospective. `/Aide` uses those decisions, wrong assumptions, and writeback candidates as governance input.
-- Low-cost evolution sweep: `/Aide` should still consider durable lessons at startup even when the flow stayed lightweight and skipped `architect`.
+- the lightest correct route for the current task
+- systemic governance instead of cosmetic cleanup
+- product-line review based on the real chat record
+- light user feedback when product-task completion is still ambiguous
+- low-cost evolution review without blocking the initial route
 
-## Delivery Shape
+For product work, `/Aide` should review:
+
+- whether the user actually got the intended deliverable
+- whether `.product/*` writeback is supported by the conversation
+- whether the issue was missing user input, an understanding mismatch, or a route mismatch that should move to coding
+
+## Product Workspace
+
+`.product/` is the non-code delivery workspace.
+
+- `.product/templates/`: reusable product-line templates
+- `.product/registry.json`: template index and triggers
+- `.product/memory.json`: lightweight user and repo preference memory
+- `.product/evolution.json`: repeated mismatch candidates for later role improvement
+
+Current conversation beats older memory. Product memory should stay weak, small, and revisable.
+
+## Delivery Modes
 
 - `lightweight`: small, local, clear work
-- `standard`: work that benefits from one implementation plan
+- `standard`: work that benefits from a plan artifact
 - `long-running`: multi-step, cross-session, release, or higher-risk work
 
 `environment setup` belongs to `conduct`, not `/Aide`.
-Exact task defaults and upgrade triggers live in `.codex/routing-policy.md`.
-
-## Durable Artifacts
-
-- `.codex/project-profile.md`: short human summary
-- `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk writeback rules
-- `.codex/state/task-context.json`: hot task state and preferences
-- `.codex/state/task-registry.json`: cold task registry and on-demand task history
-- `.codex/state/evolution-registry.json`: cold evolution queue and settled-task review log
-- `.codex/state/repo-context.json`: cached repo facts
-- `.codex/validation-profile.json`: repository validation baseline
-- `.codex/templates/validation-handoff.md`: optional tester-owned validation handoff template
-- `PRD.md` or scoped PRD file: optional product scope
-- `ARCHITECTURE.md` or scoped architecture file: optional system design
-- `Implementation Plan`: optional implementation guidance
-- `PROGRESS.md`: long-running progress state
-- `.codex/state/runtime-state.json`: runtime memory created on demand by `.codex/scripts/*.mjs`
-
-`PROGRESS.md` should track checkpoints and next actions, not runtime-managed retrospectives or learning queues.
-
-## Runtime Automation
-
-Runtime helpers are optional.
-
-When used, they can provide:
-
-- session reminders
-- git validation
-- runtime state tracking
-- low-cost `/Aide` evolution sweep
-- optional auto QC follow-up
-- automatic `/Aide` governance review from repeated QC failures, blocked handoffs, unfinished-task reconciliation, settled-task review, and architect retrospectives
-
-Auto QC reminders should appear only when the current task explicitly enables `/qc`.
-Prefer task-settled hooks over session-end hooks for real task completion; session-end remains best-effort cleanup.
-
-## Best Fit
-
-This starter fits best when:
-
-- the repository is small or medium-sized
-- most work is bugfixes, focused features, or local refactors
-- the team wants optional controls without forcing a heavy default workflow
-- the team wants the main session to stay clean while execution is delegated to role-specific subagents

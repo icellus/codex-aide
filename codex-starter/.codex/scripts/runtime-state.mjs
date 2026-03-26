@@ -137,6 +137,122 @@ function normalizeWritebackCandidates(message) {
     .filter(Boolean);
 }
 
+function normalizeProductMemoryUpdates(message) {
+  const structured = extractStructuredResult(message) || {};
+  const updates = structured.memory_updates_applied;
+  if (!updates || typeof updates !== "object") {
+    return {
+      userPreferences: [],
+      repoPreferences: []
+    };
+  }
+
+  const normalizePreferenceEntries = (value) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((entry) => {
+        if (typeof entry === "string") {
+          const text = String(entry).trim();
+          return text ? { id: "", preference: text, applies_to: "", source: "explicit|repeated" } : null;
+        }
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        const preference = String(entry.preference || "").trim();
+        const appliesTo = String(entry.applies_to || "").trim();
+        const source = String(entry.source || "").trim();
+        if (!preference && !appliesTo && !source) {
+          return null;
+        }
+        return {
+          id: String(entry.id || "").trim(),
+          preference,
+          applies_to: appliesTo,
+          source: source || "explicit|repeated"
+        };
+      })
+      .filter(Boolean);
+  };
+
+  return {
+    userPreferences: normalizePreferenceEntries(updates.user_preferences),
+    repoPreferences: normalizePreferenceEntries(updates.repo_preferences)
+  };
+}
+
+function normalizeProductTemplateChanges(message) {
+  const structured = extractStructuredResult(message) || {};
+  const entries = structured.template_updates_applied;
+  if (Array.isArray(entries)) {
+    return entries
+      .map((entry) => {
+        if (typeof entry === "string") {
+          const path = String(entry).trim();
+          return path ? { id: "", path, artifact_type: "" } : null;
+        }
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        const filePath = String(entry.path || "").trim();
+        const id = String(entry.id || "").trim();
+        const artifactType = String(entry.artifact_type || "").trim();
+        if (!filePath && !id && !artifactType) {
+          return null;
+        }
+        return {
+          id,
+          path: filePath,
+          artifact_type: artifactType
+        };
+      })
+      .filter(Boolean);
+  }
+
+  return normalizeStringList(structured.template_files_changed).map((path) => ({
+    id: "",
+    path,
+    artifact_type: ""
+  }));
+}
+
+function normalizeProductOpenGaps(message) {
+  const structured = extractStructuredResult(message) || {};
+  return normalizeStringList(structured.open_gaps);
+}
+
+function normalizeProductEvolutionCandidates(message) {
+  const structured = extractStructuredResult(message) || {};
+  if (!Array.isArray(structured?.evolution_candidates)) {
+    return [];
+  }
+
+  return structured.evolution_candidates
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const id = String(entry.id || "").trim();
+      const category = String(entry.category || "").trim().toLowerCase();
+      const summary = String(entry.summary || entry.reason || "").trim();
+      const source = String(entry.source || "").trim();
+      if (!id && !category && !summary && !source) {
+        return null;
+      }
+
+      return {
+        id,
+        category: category || "role_gap",
+        summary: summary || "No summary provided.",
+        source: source || "product_assistant"
+      };
+    })
+    .filter(Boolean);
+}
+
 function governanceSeverityForRetryCount(triggerCount) {
   return triggerCount >= 4 ? "L4" : "L3";
 }
@@ -217,6 +333,109 @@ function recordArchitectRetrospective(state, storyPath, message) {
     decisions,
     wrongAssumptions,
     writebackCandidates: candidates
+  });
+}
+
+function reviewCapabilityForProductResult(candidates = [], openGaps = []) {
+  if (openGaps.length > 0) {
+    return "investigation";
+  }
+
+  if (candidates.length > 0) {
+    return "writeback";
+  }
+
+  return "audit";
+}
+
+function reviewSeverityForProductResult(candidates = [], openGaps = [], memoryUpdates, templateChanges) {
+  if (openGaps.length > 0) {
+    return "L2";
+  }
+
+  if (candidates.length >= 2) {
+    return "L3";
+  }
+
+  if (
+    candidates.length > 0 ||
+    templateChanges.length > 0 ||
+    memoryUpdates.userPreferences.length > 0 ||
+    memoryUpdates.repoPreferences.length > 0
+  ) {
+    return "L1";
+  }
+
+  return "L1";
+}
+
+function recordProductAssistantReview(state, storyPath, status, message) {
+  const memoryUpdates = normalizeProductMemoryUpdates(message);
+  const templateChanges = normalizeProductTemplateChanges(message);
+  const openGaps = normalizeProductOpenGaps(message);
+  const candidates = normalizeProductEvolutionCandidates(message);
+
+  if (status === "blocked") {
+    upsertPendingAction(state, {
+      id: `blocked-review:product:${storyPath || "current-task"}`,
+      type: "blocked_review",
+      phase: "product_assistant",
+      storyPath,
+      note: "Recent product_assistant blockage detected. Review the missing context or route before continuing."
+    });
+
+    upsertAideReview(state, {
+      issueKey: `blocked:product:${storyPath || "current-task"}`,
+      storyPath,
+      sourceRole: "product_assistant",
+      capability: "investigation",
+      severity: "L2",
+      issueType: "workflow_break",
+      routeTarget: "/Aide investigate",
+      note: "A product_assistant task blocked. Review the chat record to decide whether the user input was incomplete, the task was misunderstood, or the route should switch to coding."
+    });
+    return;
+  }
+
+  const shouldReview =
+    templateChanges.length > 0 ||
+    memoryUpdates.userPreferences.length > 0 ||
+    memoryUpdates.repoPreferences.length > 0 ||
+    candidates.length > 0 ||
+    openGaps.length > 0;
+
+  if (!shouldReview) {
+    return;
+  }
+
+  const noteParts = [];
+  if (templateChanges.length > 0) {
+    noteParts.push(
+      `template changes: ${templateChanges
+        .slice(0, 2)
+        .map((item) => item.path || item.id || "template-update")
+        .join(", ")}`
+    );
+  }
+  if (memoryUpdates.userPreferences.length > 0 || memoryUpdates.repoPreferences.length > 0) {
+    noteParts.push("memory updates proposed");
+  }
+  if (candidates.length > 0) {
+    noteParts.push(`evolution candidates: ${candidates.map((item) => item.category).slice(0, 3).join(", ")}`);
+  }
+  if (openGaps.length > 0) {
+    noteParts.push(`open gaps: ${openGaps.slice(0, 2).join("; ")}`);
+  }
+
+  upsertAideReview(state, {
+    issueKey: `product-review:${storyPath || "current-task"}`,
+    storyPath,
+    sourceRole: "product_assistant",
+    capability: reviewCapabilityForProductResult(candidates, openGaps),
+    severity: reviewSeverityForProductResult(candidates, openGaps, memoryUpdates, templateChanges),
+    issueType: "product_review",
+    routeTarget: "/Aide review",
+    note: `Review the completed product_assistant result against the chat record before accepting long-term writeback${noteParts.length > 0 ? ` (${noteParts.join("; ")})` : ""}.`
   });
 }
 
@@ -649,6 +868,10 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
       routeTarget: "/Aide investigate",
       note: `A ${role} handoff blocked the workflow. Investigate whether the issue comes from routing, role boundaries, or missing shared guidance.`
     });
+  }
+
+  if (role === "product_assistant" && (status === "complete" || status === "blocked")) {
+    recordProductAssistantReview(state, storyPath, status, message);
   }
 
   if (role === "architect" && status === "complete") {

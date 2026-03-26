@@ -11,7 +11,7 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
 ## Current Work
 
 ### [Work Item Name]
-- Task Class: `bugfix|feature|refactor|exploration`
+- Task Class: `bugfix|feature|product|refactor|exploration`
 - Delivery Mode: `long-running`
 - Status: `active`
 - Started: YYYY-MM-DD

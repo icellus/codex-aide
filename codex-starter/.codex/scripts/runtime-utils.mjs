@@ -100,7 +100,7 @@ export function createEmptyTaskContext() {
       route_rationale: "",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["startup scan or cached repo context", "lightweight implementation", "targeted sanity checks", "/submit"],
+      enabled_modules: ["startup scan or cached repo context", "lightweight execution"],
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "not-set",
@@ -449,8 +449,9 @@ function normalizeDeliveryModeValue(value) {
 
 function normalizeEnabledModuleValue(value) {
   const normalized = normalizeProfileValue(value);
-  if (normalized.toLowerCase() === "direct implementation") {
-    return "lightweight implementation";
+  const legacy = normalized.toLowerCase();
+  if (legacy === "direct implementation" || legacy === "lightweight implementation") {
+    return "lightweight execution";
   }
   return normalized;
 }

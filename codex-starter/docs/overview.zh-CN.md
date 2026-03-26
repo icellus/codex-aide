@@ -1,120 +1,122 @@
 # 概览
 
-## 这个 Starter 主要优化什么
+## 这套 Starter 是什么
 
-`codex-starter` 适合这样一类仓库：
+`codex-starter` 是一套项目本地的 Codex 工作流骨架，当前有两条交付线：
 
-- 大多数工作应该保持轻量、直接
-- 但在任务需要时，仍然要能启用更强的规划、审计和发布控制
+- coding：代码变更、验证、审计、受控交付
+- product：文档和其他非代码产物
 
-它的目标不是让每个任务都走重流程，而是：
+它适合希望保持默认轻量、但在任务需要时仍然能启用更强控制的仓库。
 
-- 默认轻量
-- 按需升级
-- 把运行时上下文保持在必要的最小范围内
-
-## 设计原则
+## 核心原则
 
 - 默认从轻开始
 - 用户可见命令面保持小
-- 验证命令尽量从仓库中推导
-- 运行时权威尽量单一
-- 将 intake / governance 与 delivery routing 分开
-- 只有在协调真正需要时才引入 durable state
+- 运行时权威明确
+- `/Aide` 负责 intake 和治理
+- 执行角色负责具体交付
+- product 记忆保持轻量且可修正
 
-## 运行时权威文件
+## 运行时权威
 
 | 文件 | 作用 |
 | --- | --- |
-| `AGENTS.md` | 全局入口、命令映射、少量全局规则 |
-| `.agents/skills/*/SKILL.md` | repo-local skills 与 slash command 协议 |
-| `.codex/agents/*.toml` | 自定义子代理定义 |
-| `.codex/config.toml` | 子代理并发默认配置 |
+| `AGENTS.md` | 全局入口和命令映射 |
+| `.agents/skills/*/SKILL.md` | skill 契约 |
+| `.codex/agents/*.toml` | 子代理角色定义 |
 | `.codex/routing-policy.md` | 路由与模块启用策略 |
-| `.codex/evolution-policy.json` | 自动进化阈值与允许的低风险自动写回策略 |
-| `.codex/delivery-policy.json` | commit、push、通知、CI、release 与 fallback 策略 |
-| `.codex/state/task-context.json` | 热任务状态与协作偏好 |
-| `.codex/state/task-registry.json` | 冷任务注册表，用于当前任务、未结束任务和已完成历史 |
-| `.codex/state/evolution-registry.json` | 冷进化候选与 settled-task review 历史 |
+| `.codex/delivery-policy.json` | 受控交付默认策略 |
+| `.codex/evolution-policy.json` | 自动治理写回策略 |
+| `.codex/state/task-context.json` | 热任务状态 |
+| `.codex/state/task-registry.json` | 当前与未结束任务历史 |
 | `.codex/state/repo-context.json` | 仓库缓存事实 |
-| `.codex/validation-profile.json` | 仓库级验证基线与限制 |
-| `.codex/project-profile.md` | 给人看的短摘要 |
-| `.codex/scripts/*.mjs` | 可选的运行时辅助脚本 |
+| `.codex/validation-profile.json` | 仓库级验证基线 |
+| `.codex/state/evolution-registry.json` | 治理进化队列 |
+| `.codex/scripts/*.mjs` | 运行时辅助脚本 |
+| `.product/registry.json` | product 模板注册表 |
+| `.product/memory.json` | product 轻量记忆；与当前对话冲突时以当前对话为准 |
+| `.product/evolution.json` | product 进化候选，需结合真实聊天记录审核 |
 
 ## 角色与模块
 
 | 项目 | 作用 | 默认状态 |
 | --- | --- | --- |
-| `/Aide` | 入口、当前状态维护、系统治理与团队能力写回 | 启用 |
-| `conduct` | delivery routing 与 `environment setup` | 关闭 |
+| `/Aide` | intake、路由、治理、结果复审 | 启用 |
+| `conduct` | delivery routing 与 environment setup | 关闭 |
 | `prd` | WHAT / WHY / MVP 澄清 | 关闭 |
 | `architect` | HOW 层面的系统设计 | 关闭 |
-| `plan` | 实施计划与 handoff | 关闭 |
-| `auto_qc` | 在符合条件时为 tester / coder 完成结果追加 QC 跟进 | 关闭 |
-| `tester` | 任务级验证 owner 与测试设计 | 关闭 |
+| `plan` | 实施 handoff | 关闭 |
+| `product_assistant` | 文档和非代码交付 | 关闭 |
+| `tester` | 任务级验证 owner | 关闭 |
 | `coder` | 实现与 sanity checks | 关闭 |
-| `/qc` | 质量审计 gate | 关闭 |
-| `/submit` | 受控的 commit、push 与可选推送后交付流程 | 关闭 |
-| runtime helpers | Node 辅助自动化 | 默认关闭 |
+| `/qc` | 显式审计 gate | 关闭 |
+| `/submit` | 受控交付 | 关闭 |
+
+## 两条交付线
+
+### Coding 线
+
+当主要交付物是下面这些内容时，用 coding 线：
+
+- 代码改动
+- 行为改动
+- 任务级验证
+- release 或受控交付
+
+典型路径：
+
+```text
+/Aide -> optional conduct -> optional plan -> tester/coder -> optional /qc -> optional /submit
+```
+
+### Product 线
+
+当主要交付物是下面这些内容时，用 product 线：
+
+- 文档
+- API 描述
+- 结构化非代码内容
+- 打包交付物
+- 其他非代码输出
+
+典型路径：
+
+```text
+/Aide -> product_assistant
+```
+
+`product_assistant` 可以在需要时读取代码、配置、接口定义等技术材料，但输出仍然要匹配目标受众，避免 AI 腔和不必要的实现噪音。
 
 ## `/Aide` 真正优化什么
 
-- 其他角色关注的是“这次任务怎么做对”；`/Aide` 关注的是“团队以后怎么更稳、更少重复犯错”。
-- 问题调查与默认路由：当代码放错地方、输出质量下降、handoff 断裂时，`/Aide` 不只修表面症状，而是追根因并把问题路由到最小正确权威。
-- 质量审计：`/Aide` 审的是 Agent / Skill 契约里会持续拖慢团队的系统性问题，不是文案挑刺。
-- 去重：`/Aide` 查找跨 Agent / Skill 文件的重复规则，把同一条规则收敛回单一权威。
-- 治理评级：`/Aide` 用 `L1` 到 `L4` 给问题定级，决定是提醒、排队还是直接 writeback。
-- 知识捕获：每次设计会话结束后，负责结构化回顾的是 `architect`，不是 `conduct`。`/Aide` 会把这些设计决策、错误假设和写回候选当成治理输入。
-- 低成本进化检查：即使流程保持 lightweight、没有启用 `architect`，`/Aide` 也应在启动时做一次后台 evolution sweep。
+- 为当前任务选择最轻且合理的路线
+- 做系统治理，而不是只修一次性产物
+- 对 product 线结果做基于真实聊天记录的复审
+- 在 product 任务完成边界不稳时，做轻量用户反馈确认
+- 在不阻塞首条路由的前提下做低成本进化检查
+
+对 product 任务，`/Aide` 重点要看：
+
+- 用户真正要的交付物是不是已经拿到了
+- `.product/*` 写回有没有被真实对话支撑
+- 问题到底是用户信息不够、理解偏差，还是本来就该走 coding 线
+
+## Product 工作区
+
+`.product/` 是非代码交付工作区。
+
+- `.product/templates/`：可复用模板
+- `.product/registry.json`：模板索引与触发条件
+- `.product/memory.json`：轻量用户和仓库偏好记忆
+- `.product/evolution.json`：重复错配候选，供后续角色进化参考
+
+当前对话优先于旧记忆。product 记忆应该保持弱、轻、可修正。
 
 ## 三种交付形态
 
 - `lightweight`：小范围、局部、清晰任务
-- `standard`：需要一个明确实施计划的任务
+- `standard`：受益于计划产物的任务
 - `long-running`：跨 session、多 checkpoint、发布或更高风险任务
 
-`environment setup` 属于 `conduct`，不属于 `/Aide`。  
-具体任务默认模式和升级条件在 `.codex/routing-policy.md`。
-
-## 持久化产物
-
-- `.codex/state/task-context.json`：热任务状态
-- `.codex/evolution-policy.json`：自动进化阈值与低风险 writeback 规则
-- `.codex/state/task-registry.json`：冷任务注册表与按需查询的任务历史
-- `.codex/state/evolution-registry.json`：冷进化候选队列与 settled-task review 记录
-- `.codex/state/repo-context.json`：仓库缓存事实
-- `.codex/validation-profile.json`：仓库级验证基线
-- `.codex/templates/validation-handoff.md`：可选的 tester 任务级验证 handoff 模板
-- `.codex/project-profile.md`：人类可读短摘要
-- `PRD.md` 或 scoped PRD：可选需求文档
-- `ARCHITECTURE.md` 或 scoped architecture：可选架构文档
-- `Implementation Plan`：可选实施计划
-- `PROGRESS.md`：仅 long-running 模式下使用的 checkpoint 跟踪
-- `.codex/state/runtime-state.json`：运行时 memory，由脚本按需生成
-
-`PROGRESS.md` 应只承载 checkpoint、next step、blockers 等可恢复信息，不应承担运行时学习队列或大量机器态。
-
-## 运行时自动化
-
-runtime helpers 是可选的。
-
-启用后可以提供：
-
-- session 提醒
-- git 安全校验
-- runtime state 跟踪
-- 低成本 `/Aide` evolution sweep
-- 可选的 auto QC 跟进
-- 来自重复 QC 失败、blocked handoff、任务未正常收口、settled-task review、architect 回顾的自动 `/Aide` 治理触发
-
-Auto QC 只应在当前任务明确启用了 `/qc` 时出现。
-真正表示任务完成时，优先使用 task-settled hook；session-end 只保留为 best-effort cleanup。
-
-## 最适合什么团队
-
-这个 starter 更适合：
-
-- 小到中型仓库
-- 大多数任务是 bugfix、局部 feature、局部 refactor
-- 希望有 optional controls，但不想默认重流程
-- 希望主会话保持干净，具体执行尽量交给角色化子代理
+`environment setup` 属于 `conduct`，不属于 `/Aide`。

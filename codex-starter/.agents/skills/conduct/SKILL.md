@@ -28,6 +28,7 @@ Use `PRD.md`, `ARCHITECTURE.md`, `PROGRESS.md`, and implementation plans only wh
 
 - apply `.codex/routing-policy.md`; do not restate it
 - default to the lightest safe route
+- route directly to `product_assistant` when the primary deliverable is a non-code artifact
 - if WHAT or MVP is unstable, route to `prd`
 - if HOW at system level is unstable, route to `architect`
 - if the task no longer needs heavier artifacts, do not force them
@@ -36,12 +37,13 @@ Use `PRD.md`, `ARCHITECTURE.md`, `PROGRESS.md`, and implementation plans only wh
 
 - use `repo_explorer` before assigning a writer when ownership or boundaries are unclear
 - prefer one focused writer at a time
+- do not force `tester`, `/qc`, or `/submit` onto `product` tasks
 - create `PROGRESS.md` only when `long-running` mode is active
 - record only resume-safe checkpoint state in `PROGRESS.md`
 
 ## Conflict Check
 
-Before launching `tester`, `coder`, `/qc`, or more long-running work, check for:
+Before launching `tester`, `coder`, `product_assistant`, `/qc`, or more long-running work, check for:
 
 - overlapping target files
 - overlapping shared interfaces or modules
