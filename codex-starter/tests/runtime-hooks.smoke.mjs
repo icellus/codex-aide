@@ -13,6 +13,18 @@ import {
   saveTaskContext,
   syncProgressFromState
 } from "../.codex/scripts/runtime-utils.mjs";
+import { runAideAuthorityAlignmentTests } from "./aide-authority-alignment.contract.mjs";
+import { runAideBaselineContractTests } from "./aide-baseline.contract.mjs";
+import { runAideBaselineMutationTests } from "./aide-baseline.mutation.mjs";
+import { runAideConflictContractTests } from "./aide-conflict.contract.mjs";
+import { runAideConflictMutationTests } from "./aide-conflict.mutation.mjs";
+import { runAideDelegationBehaviorTests } from "./aide-delegation-behavior.mjs";
+import { runAideDialogueRegressionTests } from "./aide-dialogue.contract.mjs";
+import { runAideReplyBehaviorTests } from "./aide-reply-behavior.mjs";
+import { runAideAdversarialBehaviorTests } from "./aide-adversarial-behavior.mjs";
+import { runAideRoutingMatrixContractTests } from "./aide-routing-matrix.contract.mjs";
+import { runAideRoutingMatrixMutationTests } from "./aide-routing-matrix.mutation.mjs";
+import { runAideStaffingContractTests } from "./aide-staffing.contract.mjs";
 
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const runtimeStateScript = path.join(rootDir, ".codex", "scripts", "runtime-state.mjs");
@@ -26,6 +38,7 @@ const validateGitScript = path.join(rootDir, ".codex", "scripts", "validate-git.
 const installScriptPath = path.join(rootDir, "install.sh");
 const progressTemplatePath = path.join(rootDir, ".codex", "templates", "progress.md");
 const projectProfilePath = path.join(rootDir, ".codex", "project-profile.md");
+const routingPolicyPath = path.join(rootDir, ".codex", "routing-policy.md");
 const validationProfilePath = path.join(rootDir, ".codex", "validation-profile.json");
 const evolutionPolicyPath = path.join(rootDir, ".codex", "evolution-policy.json");
 const testerAgentPath = path.join(rootDir, ".codex", "agents", "tester.toml");
@@ -34,6 +47,10 @@ const validationHandoffTemplatePath = path.join(rootDir, ".codex", "templates", 
 const productRegistryPath = path.join(rootDir, ".product", "registry.json");
 const productMemoryPath = path.join(rootDir, ".product", "memory.json");
 const productEvolutionPath = path.join(rootDir, ".product", "evolution.json");
+const aideSkillPath = path.join(rootDir, ".agents", "skills", "aide", "SKILL.md");
+const agentsGuidePath = path.join(rootDir, "AGENTS.md");
+const overviewDocPath = path.join(rootDir, "docs", "overview.md");
+const detailedGuidePath = path.join(rootDir, "docs", "detailed-guide.md");
 
 function makeTempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -210,6 +227,36 @@ function testProductAssistantContractAndDefaultsExist() {
   assert.equal(evolution.candidate_entry_shape.source, "product_assistant|aide");
   assert.equal(evolution.candidate_entry_shape.status, "queued|accepted|rejected|applied");
   assert.deepEqual(evolution.candidates, []);
+}
+
+function testAideContractHidesInternalWorkflowTermsAndDelegatesExecution() {
+  const aideSkill = fs.readFileSync(aideSkillPath, "utf8");
+  const agentsGuide = fs.readFileSync(agentsGuidePath, "utf8");
+  const overviewDoc = fs.readFileSync(overviewDocPath, "utf8");
+  const detailedGuide = fs.readFileSync(detailedGuidePath, "utf8");
+  const routingPolicy = fs.readFileSync(routingPolicyPath, "utf8");
+  const conductSkill = fs.readFileSync(path.join(rootDir, ".agents", "skills", "conduct", "SKILL.md"), "utf8");
+
+  assert.match(aideSkill, /never expose internal workflow terms/i);
+  assert.match(aideSkill, /do not implement repository changes/i);
+  assert.match(aideSkill, /sound like a capable personal assistant/i);
+  assert.match(aideSkill, /avoid stiff AI phrasing/i);
+  assert.match(aideSkill, /concrete repo-change requests are not discussion-shaped work/i);
+  assert.match(aideSkill, /hand off to the smallest clear execution role directly/i);
+  assert.match(aideSkill, /avoid deep duplicate reading/i);
+  assert.match(aideSkill, /do not read implementation files line by line/i);
+  assert.match(agentsGuide, /team-secretary and people-manager role/i);
+  assert.match(agentsGuide, /must not become the default implementer/i);
+  assert.match(overviewDoc, /team's secretary and people manager/i);
+  assert.match(overviewDoc, /delegate early and avoid deep local code reading/i);
+  assert.match(detailedGuide, /It is a manager, not the default implementer/i);
+  assert.match(detailedGuide, /delegate early and let the execution role read the code in detail/i);
+  assert.match(routingPolicy, /must not execute concrete repo changes itself/i);
+  assert.match(routingPolicy, /prefer cached state plus minimal boundary evidence/i);
+  assert.match(routingPolicy, /Do not present coordination work as if `Aide` is personally going to implement the change/i);
+  assert.match(routingPolicy, /Do not expose task class, delivery mode, enabled modules/i);
+  assert.match(conductSkill, /optimize for assigning the smallest clear execution role/i);
+  assert.match(conductSkill, /do not ask `Aide` to deep-read implementation details/i);
 }
 
 function testProgressSyncSupportsLegacyShape() {
@@ -2282,6 +2329,7 @@ testQcDetectionRequiresQcMarkers();
 testValidationProfileDefinesRepoBaselineAndTesterOwnership();
 testTesterContractIncludesTaskValidationHandoff();
 testProductAssistantContractAndDefaultsExist();
+testAideContractHidesInternalWorkflowTermsAndDelegatesExecution();
 testProgressSyncSupportsLegacyShape();
 testTaskContextJsonOverridesMarkdownProfile();
 testTaskContextRemainsHotStateAuthorityForCollaborationFields();
@@ -2322,5 +2370,17 @@ testProductFilesSupportRealisticWritebackEntries();
 testAideGovernanceInvestigateReportsPendingReviews();
 testAideGovernanceAuditDetectsBrokenContracts();
 testAideGovernanceDedupFindsSharedAuthorityCandidates();
+runAideDialogueRegressionTests(rootDir);
+runAideStaffingContractTests(rootDir);
+runAideAuthorityAlignmentTests(rootDir);
+runAideBaselineContractTests(rootDir);
+runAideConflictContractTests(rootDir);
+runAideRoutingMatrixContractTests(rootDir);
+runAideBaselineMutationTests();
+runAideConflictMutationTests();
+runAideRoutingMatrixMutationTests(rootDir);
+runAideReplyBehaviorTests();
+runAideDelegationBehaviorTests();
+runAideAdversarialBehaviorTests();
 
 process.stdout.write("runtime helper smoke tests passed\n");

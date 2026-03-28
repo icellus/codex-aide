@@ -12,9 +12,10 @@ Runtime authority lives in `AGENTS.md`, `.agents/skills/*/SKILL.md`, and `.codex
 - coding
 - product
 
-Both lines share `/Aide` for intake, routing, and governance, but they use different execution roles and different durable artifacts.
+Both lines share `/Aide` as the team secretary and people manager, but they use different execution roles and different durable artifacts.
+`/Aide` is also responsible for task-by-task staffing: start small, add people only when there is real value, and shrink the active team again when the task narrows.
 
-Outside those delivery lines, `/Aide` also owns discussion-shaped work directly:
+Outside those delivery lines, `/Aide` also owns advice-only and analysis-only work directly:
 
 - Q&A
 - analysis
@@ -46,7 +47,7 @@ The most important ones in the current starter are:
 - `qc`
 - `submit`
 
-`/Aide` owns intake, routing, governance, and discussion-shaped work.
+`/Aide` owns first response, delegation, governance, and advice-only work.
 `conduct` applies formal delivery routing after `/Aide` decides the task needs it.
 
 ### `.codex/`
@@ -74,17 +75,18 @@ It is not the final user-facing docs directory.
 
 `/Aide` has five responsibilities:
 
-1. intake
-2. routing
-3. direct discussion handling
+1. first response and user-facing coordination
+2. delegation
+3. direct advice/analysis handling
 4. governance
 5. result review
 
 `/Aide` should not replace execution roles.
+It is a manager, not the default implementer.
 
-### Discussion turns
+### Advice / Analysis turns
 
-For discussion-shaped work, `/Aide` should:
+For advice-only or analysis-only work, `/Aide` should:
 
 - answer directly
 - read only the minimum context needed
@@ -101,6 +103,13 @@ For coding work, `/Aide` mainly decides:
 - whether `/submit` is needed
 - whether there is a governance issue
 
+The staffing rule is to start with the smallest active team that can safely finish the task.
+New repo state or stale context does not mean every role should wake up.
+If ownership is clear, route directly to one execution role first and add others only when validation, audit, or delivery requirements justify them.
+
+It should not do a deep implementation read unless that evidence is required to assign the right owner.
+If ownership is clear, delegate early and let the execution role read the code in detail.
+
 ### Product line
 
 For product work, `/Aide` mainly decides:
@@ -110,7 +119,7 @@ For product work, `/Aide` mainly decides:
 - whether `.product/*` writeback is justified by the real chat record
 - whether the real issue is missing user input, an understanding mismatch, or a route mismatch that should move to coding
 
-Discussion turns should not be upgraded into formal execution just because the topic is technical.
+Advice turns should not be upgraded into formal execution just because the topic is technical.
 
 ## `product_assistant` Boundary
 
@@ -150,7 +159,9 @@ That means:
 
 - repo scans are real, but manual at the workflow layer
 - cached repo context should be reused when possible
-- a full scan should happen only when context is missing, stale, or explicitly requested
+- if context is missing or stale, `Aide` should choose the smallest scan that answers the current task
+- a concrete repo-change request should usually start with a minimal owner scan, then delegate as soon as the next owner is clear
+- a full scan is for explicit repo-wide assessment, unresolved ownership after minimal triage, or genuinely unknown high-risk boundaries
 
 ## `.product/*` Meaning
 

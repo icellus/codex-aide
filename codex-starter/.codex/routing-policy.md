@@ -15,6 +15,12 @@ Otherwise, plain-language intent should map to the same routes.
 - Keep `lightweight` as the default for small, local, low-risk work.
 - Add durable artifacts only when coordination, uncertainty, or risk requires them.
 - Keep discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow.
+- `Aide` must not execute concrete repo changes itself; once the task requires code, config, script, test, documentation, or any other durable artifact, assign the smallest fitting execution role or hand off to `conduct`.
+- For concrete implementation tasks, `Aide` should prefer cached state plus minimal boundary evidence over deep local code reading before delegation.
+- When ownership is unclear, prefer `repo_explorer` or `conduct` before broad local reading by `Aide`.
+- Missing or stale repo context does not override early delegation for a clearly scoped implementation task; use minimal triage first, then delegate.
+- Use a full scan before delegation only when the user explicitly asked for repo-wide assessment, ownership is still unclear after minimal triage, or change boundaries remain high-risk and unknown.
+- New repo, cold start, or thin context is not by itself a reason to activate the whole team.
 - When execution roles are active, prefer real subagents when delegation is available.
 - Route directly to `product_assistant` when the primary deliverable is a non-code artifact.
 - `environment setup` belongs to `conduct`.
@@ -49,6 +55,20 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 
 Do not upgrade a lightweight discussion into an execution route only because the topic is technical or complex.
 Upgrade only when the expected output changes from advice to a concrete deliverable.
+
+## Role Staffing
+
+- Start with the smallest active team that can safely finish the current task.
+- For advice, Q&A, analysis, and option comparison, keep only `Aide` active unless the task later turns into delivery.
+- For a clear small repo change, activate one clear execution role first instead of waking multiple roles.
+- Add `tester` only when task-level validation ownership, red/green separation, or non-trivial behavior risk is real.
+- Use `repo_explorer` only as a short-lived read-only helper when ownership, entrypoints, or boundaries are unclear.
+- Activate `conduct` when environment setup, conflict checks, or multi-role delivery routing actually matter.
+- Activate `prd`, `architect`, or `plan` only for genuine scope, HOW, or implementation-structure uncertainty.
+- Activate `/qc` only for explicit audit need or higher-risk delivery.
+- Activate `/submit` only when governed delivery or commit/push follow-through matters.
+- When the task narrows or uncertainty is resolved, drop roles that are no longer needed instead of keeping the whole team active.
+- Avoid multiple write-capable execution roles at the same time unless `conduct` coordinates a staged handoff.
 
 ## Environment Setup
 
@@ -85,9 +105,12 @@ Queue or remind `/submit` when:
 
 ## Route Output
 
-When routing changes, return only:
+When routing changes, persist full routing details in state.
+In the user-facing reply, return only:
 
-- selected task class
-- selected delivery mode
-- enabled modules if they changed
-- the shortest useful reason
+- who acts next
+- the immediate next step
+- the shortest useful reason in plain language
+
+Do not expose task class, delivery mode, enabled modules, or other internal workflow labels unless the user explicitly asks about the workflow design.
+Do not present coordination work as if `Aide` is personally going to implement the change when another execution role should take over.

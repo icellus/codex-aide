@@ -35,11 +35,13 @@ Use `PRD.md`, `ARCHITECTURE.md`, `PROGRESS.md`, and implementation plans only wh
 - if WHAT or MVP is unstable, route to `prd`
 - if HOW at system level is unstable, route to `architect`
 - if the task no longer needs heavier artifacts, do not force them
+- when the task is already a concrete repo change, optimize for assigning the smallest clear execution role instead of prolonging analysis
 
 ## Execution Rules
 
 - use `repo_explorer` before assigning a writer when ownership or boundaries are unclear
 - prefer one focused writer at a time
+- do not ask `Aide` to deep-read implementation details that the eventual writer will need to read again unless the routing decision truly depends on that evidence
 - do not force `tester`, `/qc`, or `/submit` onto `product` tasks
 - create `PROGRESS.md` only when `long-running` mode is active
 - record only resume-safe checkpoint state in `PROGRESS.md`

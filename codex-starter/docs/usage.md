@@ -32,19 +32,19 @@ Review the current repo state and pick the lightest route.
 Fix the login callback bug.
 ```
 
-If a fresh thread starts without an explicit supported route alias, treat the first user turn as `Aide` intake by default.
+If a fresh thread starts without an explicit supported route alias, let `Aide` handle the user's first turn by default.
 
-On first run, the default `Aide` intake should:
+On first run, `Aide` should:
 
 - greet in Chinese with a warm, lively, contextual line that acknowledges the user's actual first message
 - keep the default address as `Boss` unless the user explicitly changes it
 - avoid generic "what can I help with" follow-ups after the user already gave a task
-- scan the repo
+- capture enough repo context to route safely
 - update `.codex/state/task-context.json`
 - update `.codex/state/repo-context.json`
 - update `.codex/project-profile.md`
 - update `.codex/validation-profile.json` with repository validation baseline signals
-- recommend the lightest route for the task
+- recommend the lightest next owner for the task in plain language
 
 There is currently no dedicated repo-scan script.
 `Aide` performs repo scans through targeted repository inspection and optional read-only exploration.
@@ -64,13 +64,21 @@ If the current turn is only Q&A, analysis, discussion, or option comparison and 
 - durable state is not written by default
 - only the minimum context needed for a good answer should be read
 
+If the user is asking for a concrete repo change or another durable artifact:
+
+- `Aide` should delegate early instead of doing the implementation itself
+- prefer minimal boundary reading over deep local code inspection
+- start with the smallest active team that can safely finish the task
+- do not activate the whole team only because the repo is new or cached context is thin
+- let the eventual execution role do the detailed implementation read
+
 The checked-in `.codex/*.json`, `.codex/project-profile.md`, and `.product/*.json` files are starter defaults. Real projects should evolve them during normal use.
 
 ## Route Aliases
 
 | Alias | Use it when |
 | --- | --- |
-| `Aide` (`/Aide` when supported) | intake, routing, governance, refresh state |
+| `Aide` (`/Aide` when supported) | first response, coordination, governance, refresh state |
 | `qc` (`/qc` when supported) | you want an explicit audit on coding-line work |
 | `submit` (`/submit` when supported) | coding-line work is ready for governed delivery |
 

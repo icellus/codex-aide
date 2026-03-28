@@ -35,19 +35,19 @@ bash /path/to/codex-starter/install.sh
 修复登录回调 bug。
 ```
 
-如果新线程一开始没有显式支持的路由别名，就把用户第一条消息按 `Aide` intake 处理。
+如果新线程一开始没有显式支持的路由别名，就默认由 `Aide` 接住用户第一条消息。
 
-首次运行时，默认的 `Aide` intake 应该：
+首次运行时，`Aide` 应该：
 
 - 用中文做温暖、灵动、贴合当前消息的开场
 - 默认称呼固定为 `Boss`，除非用户明确要求修改
 - 如果用户已经给出任务，就直接承接任务，不要再追问泛泛的“有什么我可以帮你”
-- 扫描仓库
+- 获取足以安全路由的仓库上下文
 - 更新 `.codex/state/task-context.json`
 - 更新 `.codex/state/repo-context.json`
 - 更新 `.codex/project-profile.md`
 - 更新 `.codex/validation-profile.json`
-- 选择当前任务最轻且合理的路线
+- 用自然语言说明下一步该由谁接手、要做什么、为什么
 
 当前没有独立的 repo scan 脚本。
 `Aide` 通过针对性的仓库检索和可选的只读探索完成 scan。
@@ -67,13 +67,21 @@ bash /path/to/codex-starter/install.sh
 - 默认不写持久状态
 - 只读取回答当前问题所需的最小上下文
 
+如果用户要的是明确的仓库改动或其他持久产物：
+
+- `Aide` 要尽快分派，不要自己下场实现
+- 优先用最少的边界信息完成分派，不要先做一轮很深的本地读代码
+- 默认只启用完成当前任务所需的最小团队
+- 不要仅仅因为新仓库或缓存上下文偏薄，就把整支团队都激活
+- 详细的实现阅读应交给真正执行的角色
+
 仓库里的 `.codex/*.json`、`.codex/project-profile.md`、`.product/*.json` 都是 starter 默认值。真实项目中应在正常使用里持续演进。
 
 ## 路由别名
 
 | 别名 | 适用场景 |
 | --- | --- |
-| `Aide`（支持时可写 `/Aide`） | intake、路由、治理、刷新状态 |
+| `Aide`（支持时可写 `/Aide`） | 首轮接应、协调、治理、刷新状态 |
 | `qc`（支持时可写 `/qc`） | coding 线任务需要显式审计 |
 | `submit`（支持时可写 `/submit`） | coding 线任务需要进入受控交付 |
 

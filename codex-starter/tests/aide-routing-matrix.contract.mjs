@@ -1,0 +1,138 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+
+function readText(filePath) {
+  return fs.readFileSync(filePath, "utf8");
+}
+
+function assertAll(text, patterns, label) {
+  patterns.forEach((pattern) => {
+    assert.match(text, pattern, `${label} missing ${pattern}`);
+  });
+}
+
+export function runAideRoutingMatrixContractTests(rootDir) {
+  const aideSkill = readText(path.join(rootDir, ".agents", "skills", "aide", "SKILL.md"));
+  const conductSkill = readText(path.join(rootDir, ".agents", "skills", "conduct", "SKILL.md"));
+  const routingPolicy = readText(path.join(rootDir, ".codex", "routing-policy.md"));
+  const agentsGuide = readText(path.join(rootDir, "AGENTS.md"));
+  const readme = readText(path.join(rootDir, "README.md"));
+  const overview = readText(path.join(rootDir, "docs", "overview.md"));
+  const usage = readText(path.join(rootDir, "docs", "usage.md"));
+  const detailedGuide = readText(path.join(rootDir, "docs", "detailed-guide.md"));
+  const zhOverview = readText(path.join(rootDir, "docs", "overview.zh-CN.md"));
+  const zhUsage = readText(path.join(rootDir, "docs", "usage.zh-CN.md"));
+  const zhDetailedGuide = readText(path.join(rootDir, "docs", "detailed-guide.zh-CN.md"));
+
+  const authority = [aideSkill, conductSkill, routingPolicy, agentsGuide].join("\n");
+  const docs = [readme, overview, usage, detailedGuide, zhOverview, zhUsage, zhDetailedGuide].join("\n");
+
+  const scenarioMatrix = [
+    {
+      id: "discussion-qna-aide-only",
+      authorityPatterns: [
+        /for advice, Q&A, analysis, and option comparison, keep only `Aide` active unless the task later turns into delivery/i,
+        /Keep discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow\./i
+      ],
+      docsPatterns: [
+        /\|\s*discussion \/ Q&A\s*\|\s*`Aide`\s*direct\s*\|/i,
+        /\|\s*discussion \/ Q&A\s*\|\s*`Aide`\s*直接处理\s*\|/i,
+        /execution roles stay disabled by default|默认不启用执行角色/i
+      ]
+    },
+    {
+      id: "small-clear-repo-change-single-writer-first",
+      authorityPatterns: [
+        /for a clear small repo change, activate one clear execution role first; usually `coder` for code, config, script, or test work, or `product_assistant` for non-code artifacts/i,
+        /For a clear small repo change, activate one clear execution role first instead of waking multiple roles\./i,
+        /if ownership is obvious, assign directly to `coder`, `tester`, or `product_assistant` instead of doing another round of local implementation analysis yourself/i
+      ],
+      docsPatterns: [
+        /\|\s*small bugfix\s*\|\s*`Aide -> coder -> sanity checks -> submit`\s*\|/i,
+        /\|\s*小 bugfix\s*\|\s*`Aide -> coder -> sanity checks -> submit`\s*\|/i,
+        /`Aide` should activate one clear execution role first when the task is already concrete|如果任务已经很具体，`Aide` 应先激活一个明确的执行角色/i
+      ]
+    },
+    {
+      id: "higher-risk-bugfix-tester-coder-qc-gating",
+      authorityPatterns: [
+        /enable `tester` and `coder` when explicit red\/green separation or handoff value is real/i,
+        /enable `\/qc` when risk is high, the user asks for an audit, or release confidence needs it/i,
+        /add `tester` only when task-level validation ownership, red\/green separation, or non-trivial behavior risk is real/i,
+        /activate `\/qc` only for explicit audit need or higher-risk delivery/i
+      ],
+      docsPatterns: [
+        /\|\s*higher-risk bugfix\s*\|\s*`Aide -> tester -> coder -> tester or qc -> submit`\s*\|/i,
+        /\|\s*较高风险 bugfix\s*\|\s*`Aide -> tester -> coder -> tester 或 qc -> submit`\s*\|/i,
+        /For non-trivial behavior changes, `tester` owns task-level validation handoff|对非平凡行为改动，`tester` 负责任务级验证 handoff/i
+      ]
+    },
+    {
+      id: "product-artifact-routes-to-product-assistant",
+      authorityPatterns: [
+        /Route to `product_assistant` when the primary deliverable is a non-code artifact\./i,
+        /Route directly to `product_assistant` when the primary deliverable is a non-code artifact\./i,
+        /route directly to `product_assistant` when the primary deliverable is a non-code artifact/i
+      ],
+      docsPatterns: [
+        /\|\s*product\s*\|\s*`Aide -> product_assistant`\s*\|/i,
+        /For product tasks:[\s\S]*`Aide` routes to `product_assistant`[\s\S]*`tester`, `qc`, and `submit` are normally not involved/i,
+        /对 product 任务：[\s\S]*`Aide` 路由到 `product_assistant`[\s\S]*一般不会启用 `tester`、`qc`、`submit`/i
+      ]
+    },
+    {
+      id: "release-governed-delivery-conduct-and-submit",
+      authorityPatterns: [
+        /`environment setup` belongs to `conduct`\./i,
+        /activate `conduct` when environment setup, conflict checks, route composition, or longer delivery planning actually matter/i,
+        /activate `\/submit` only when governed delivery or commit\/push follow-through matters/i,
+        /`\/submit` is the governed delivery step after local completion or QC pass when commit, push, or post-push follow-through matters\./i
+      ],
+      docsPatterns: [
+        /\|\s*release\s*\|\s*`Aide -> conduct -> optional qc -> submit`\s*\|/i,
+        /release or governed delivery work|release \/ governed delivery|受控交付/i,
+        /coding-line work is ready for governed delivery|coding 线任务需要进入受控交付/i
+      ]
+    },
+    {
+      id: "new-repo-concrete-change-minimal-triage-then-delegate",
+      authorityPatterns: [
+        /Missing or stale repo context does not override early delegation for a clearly scoped implementation task; use minimal triage first, then delegate\./i,
+        /if repo context is missing or stale but the user already asked for a concrete repo change, do a minimal owner scan first and delegate as soon as the next owner is clear/i,
+        /reserve a full scan for explicit repo-wide assessment, unclear ownership after minimal triage, or genuinely high-risk changes whose boundaries are still unknown/i,
+        /Use a full scan before delegation only when the user explicitly asked for repo-wide assessment, ownership is still unclear after minimal triage, or change boundaries remain high-risk and unknown\./i
+      ],
+      docsPatterns: [
+        /On a concrete repo-change task, missing context should trigger only the minimum owner scan needed for delegation first; a full scan is for repo-wide assessment, unresolved ownership, or genuinely unknown high-risk boundaries\./i,
+        /a concrete repo-change request should usually start with a minimal owner scan, then delegate as soon as the next owner is clear/i,
+        /not an automatic full scan or a whole-team wake-up|而不是自动 full scan 或默认把整支团队都拉起来/i,
+        /New repo state or thin context alone is not a reason to activate `tester`, `architect`, `qc`, or other extra roles/i
+      ]
+    },
+    {
+      id: "narrowed-task-drops-extra-roles",
+      authorityPatterns: [
+        /when the task narrows or uncertainty is resolved, drop roles that are no longer needed instead of keeping the whole team active/i,
+        /When the task narrows or uncertainty is resolved, drop roles that are no longer needed instead of keeping the whole team active\./i,
+        /extra roles should be activated only when they add real routing, validation, audit, or delivery value, then dropped again when no longer needed/i
+      ],
+      docsPatterns: [
+        /drop extra roles again when they are no longer needed|drop them again when the task narrows/i,
+        /extra roles should be dropped again once the task no longer needs them|当任务收窄或风险解除后，额外角色应及时退出/i,
+        /任务收窄后再把多余角色收回去/i
+      ]
+    }
+  ];
+
+  scenarioMatrix.forEach((scenario) => {
+    assertAll(authority, scenario.authorityPatterns, `${scenario.id} authority`);
+    assertAll(docs, scenario.docsPatterns, `${scenario.id} docs`);
+  });
+}
+
+if (import.meta.url === new URL(process.argv[1], "file://").href) {
+  const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+  runAideRoutingMatrixContractTests(rootDir);
+  process.stdout.write("aide routing matrix contract tests passed\n");
+}
