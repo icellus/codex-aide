@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { getProjectDir, readJsonStdinEnvelope, startRuntimeInvocationLogging } from "./runtime-utils.mjs";
+import { getProjectContext, readJsonStdinEnvelope, startRuntimeInvocationLogging } from "./runtime-utils.mjs";
 
 function isBroadGitAddCommand(command) {
   const normalized = String(command || "").replace(/\s+/g, " ").trim();
@@ -24,12 +24,15 @@ function isBroadGitAddCommand(command) {
 async function main() {
   const envelope = await readJsonStdinEnvelope();
   const input = envelope.value;
-  const projectDir = getProjectDir(input);
+  const project = getProjectContext(input);
   const logger = startRuntimeInvocationLogging({
-    projectDir,
+    projectDir: project.projectDir,
     scriptName: "validate-git.mjs",
     input,
-    rawInput: envelope.raw
+    rawInput: envelope.raw,
+    metadata: {
+      projectDirSource: project.source
+    }
   });
   const restoreStreams = logger.captureProcessStreams();
 

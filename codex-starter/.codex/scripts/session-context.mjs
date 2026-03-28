@@ -4,7 +4,7 @@ import {
   basenameLabel,
   compareGovernanceSeverity,
   findProgressFile,
-  getProjectDir,
+  getProjectContext,
   isTaskSettled,
   loadProjectProfileState,
   loadRuntimeState,
@@ -61,12 +61,16 @@ function summarizeRetrospectiveActions(state, currentStory) {
 async function main() {
   const envelope = await readJsonStdinEnvelope();
   const input = envelope.value;
-  const projectDir = getProjectDir(input);
+  const project = getProjectContext(input);
+  const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
     scriptName: "session-context.mjs",
     input,
-    rawInput: envelope.raw
+    rawInput: envelope.raw,
+    metadata: {
+      projectDirSource: project.source
+    }
   });
   const restoreStreams = logger.captureProcessStreams();
 

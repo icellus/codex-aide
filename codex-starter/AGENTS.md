@@ -33,17 +33,20 @@ Project-level Codex workflow starter.
 - `.codex/validation-profile.json`: repository validation baseline and constraints
 - `PROGRESS.md`: long-running checkpoint tracking only
 - `.codex/state/runtime-state.json`: runtime memory, reminders, and QC follow-up
-- `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`: hook invocation log with stdin/stdout/stderr and runtime write traces
+- `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`: hook invocation log with stdin/stdout/stderr and runtime write traces; oversized daily logs rotate into numbered chunks
 - `.codex/project-profile.md`: short human summary, not the hot path
 
-## Runtime Hooks
+## Runtime Entrypoints
 
+- `node .codex/scripts/startup-context.mjs`
 - `node .codex/scripts/session-context.mjs`
 - `node .codex/scripts/task-overview.mjs`
 - `node .codex/scripts/aide-evolution.mjs`
 - `node .codex/scripts/aide-governance.mjs`
 - `node .codex/scripts/runtime-state.mjs`
 - `node .codex/scripts/validate-git.mjs`
+- `startup-context.mjs` is the recommended single entrypoint for startup/resume wiring; it runs task overview, startup evolution, and session reminder refresh in order
+- these scripts are callable entrypoints; actual startup or tool-hook wiring depends on the client/integration, not on this starter alone
 - prefer `{"event":"subagent_result",...}` and `{"event":"task_settled",...}` payloads; keep `session_end` as best-effort cleanup only
 
 ## Guardrails

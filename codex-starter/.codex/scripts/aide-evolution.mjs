@@ -6,7 +6,7 @@ import path from "node:path";
 import {
   compareGovernanceSeverity,
   compactText,
-  getProjectDir,
+  getProjectContext,
   highestGovernanceSeverity,
   logRuntimeFileWrite,
   loadEvolutionRegistry,
@@ -386,12 +386,16 @@ function sortAndTrimRegistry(registry) {
 async function main() {
   const envelope = await readJsonStdinEnvelope();
   const input = envelope.value;
-  const projectDir = getProjectDir(input);
+  const project = getProjectContext(input);
+  const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
     scriptName: "aide-evolution.mjs",
     input,
-    rawInput: envelope.raw
+    rawInput: envelope.raw,
+    metadata: {
+      projectDirSource: project.source
+    }
   });
   const restoreStreams = logger.captureProcessStreams();
 

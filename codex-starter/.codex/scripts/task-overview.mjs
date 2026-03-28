@@ -5,7 +5,7 @@ import {
   compactText,
   findProgressFile,
   getCurrentTaskRecord,
-  getProjectDir,
+  getProjectContext,
   listTaskRegistryTasks,
   loadProjectProfileState,
   loadRuntimeState,
@@ -47,12 +47,16 @@ function taskStatus(task) {
 async function main() {
   const envelope = await readJsonStdinEnvelope();
   const input = envelope.value;
-  const projectDir = getProjectDir(input);
+  const project = getProjectContext(input);
+  const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
     scriptName: "task-overview.mjs",
     input,
-    rawInput: envelope.raw
+    rawInput: envelope.raw,
+    metadata: {
+      projectDirSource: project.source
+    }
   });
   const restoreStreams = logger.captureProcessStreams();
 

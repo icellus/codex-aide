@@ -31,6 +31,46 @@ copy_file() {
   cp -f "$src_file" "$dst_file"
 }
 
+cleanup_legacy_codex_runtime_artifacts() {
+  local dst_dir="$1"
+
+  rm -f -- "$dst_dir/logs/runtime-hooks.jsonl"
+}
+
+prune_dir_children_except() {
+  local dir="$1"
+  shift
+
+  mkdir -p "$dir"
+
+  local find_args=("$dir" -mindepth 1 -maxdepth 1)
+  local name
+  for name in "$@"; do
+    find_args+=( ! -name "$name" )
+  done
+  find_args+=( -exec rm -rf -- {} + )
+
+  find "${find_args[@]}"
+}
+
+copy_codex_dir() {
+  local src_dir="$1"
+  local dst_dir="$2"
+
+  prune_dir_children_except "$dst_dir" "logs" "state"
+  cleanup_legacy_codex_runtime_artifacts "$dst_dir"
+
+  copy_dir "$src_dir/agents" "$dst_dir/agents"
+  copy_dir "$src_dir/scripts" "$dst_dir/scripts"
+  copy_dir "$src_dir/templates" "$dst_dir/templates"
+
+  copy_file "$src_dir/delivery-policy.json" "$dst_dir/delivery-policy.json"
+  copy_file "$src_dir/evolution-policy.json" "$dst_dir/evolution-policy.json"
+  copy_file "$src_dir/project-profile.md" "$dst_dir/project-profile.md"
+  copy_file "$src_dir/routing-policy.md" "$dst_dir/routing-policy.md"
+  copy_file "$src_dir/validation-profile.json" "$dst_dir/validation-profile.json"
+}
+
 append_gitignore_lines() {
   local gitignore_path="$1"
   shift
@@ -65,7 +105,7 @@ append_gitignore_lines() {
 
 copy_file "$SOURCE_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md"
 copy_dir "$SOURCE_DIR/.agents" "$TARGET_DIR/.agents"
-copy_dir "$SOURCE_DIR/.codex" "$TARGET_DIR/.codex"
+copy_codex_dir "$SOURCE_DIR/.codex" "$TARGET_DIR/.codex"
 copy_dir "$SOURCE_DIR/.product" "$TARGET_DIR/.product"
 
 append_gitignore_lines \

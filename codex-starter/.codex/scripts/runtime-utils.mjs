@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 let activeRuntimeLogger = null;
+const migratedLegacyRuntimeLogs = new Set();
 
 function invalidJsonInputError(error) {
   const detail = error instanceof Error && error.message ? `: ${error.message}` : "";
@@ -62,13 +63,75 @@ export async function readJsonStdin(options = {}) {
   return envelope.value;
 }
 
-export function getProjectDir(input = {}) {
-  if (process.env.CODEX_PROJECT_DIR) {
-    return process.env.CODEX_PROJECT_DIR;
+function normalizeProjectDirCandidate(value) {
+  if (typeof value !== "string") {
+    return null;
   }
 
-  const start = input.cwd || process.cwd();
-  return findProjectDir(start) || start;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function projectDirCandidates(input = {}) {
+  const sources = [
+    ["input.projectDir", input.projectDir],
+    ["input.project_dir", input.project_dir],
+    ["input.repoRoot", input.repoRoot],
+    ["input.repo_root", input.repo_root],
+    ["input.repoPath", input.repoPath],
+    ["input.repo_path", input.repo_path],
+    ["input.workdir", input.workdir],
+    ["input.workspace", input.workspace],
+    ["input.cwd", input.cwd],
+    ["input.tool_input.projectDir", input.tool_input?.projectDir],
+    ["input.tool_input.project_dir", input.tool_input?.project_dir],
+    ["input.tool_input.repoRoot", input.tool_input?.repoRoot],
+    ["input.tool_input.repo_root", input.tool_input?.repo_root],
+    ["input.tool_input.repoPath", input.tool_input?.repoPath],
+    ["input.tool_input.repo_path", input.tool_input?.repo_path],
+    ["input.tool_input.workdir", input.tool_input?.workdir],
+    ["input.tool_input.workspace", input.tool_input?.workspace],
+    ["input.tool_input.cwd", input.tool_input?.cwd]
+  ];
+
+  return sources
+    .map(([source, value]) => ({
+      source,
+      value: normalizeProjectDirCandidate(value)
+    }))
+    .filter((entry) => entry.value);
+}
+
+export function getProjectContext(input = {}) {
+  const envProjectDir = normalizeProjectDirCandidate(process.env.CODEX_PROJECT_DIR);
+  if (envProjectDir) {
+    const startPath = path.resolve(envProjectDir);
+    return {
+      projectDir: startPath,
+      source: "env.CODEX_PROJECT_DIR",
+      startPath
+    };
+  }
+
+  for (const candidate of projectDirCandidates(input)) {
+    const startPath = path.resolve(candidate.value);
+    return {
+      projectDir: findProjectDir(startPath) || startPath,
+      source: candidate.source,
+      startPath
+    };
+  }
+
+  const startPath = process.cwd();
+  return {
+    projectDir: findProjectDir(startPath) || startPath,
+    source: "process.cwd",
+    startPath
+  };
+}
+
+export function getProjectDir(input = {}) {
+  return getProjectContext(input).projectDir;
 }
 
 function findProjectDir(start) {
@@ -160,11 +223,180 @@ function normalizeRuntimeLogChunk(chunk, encoding) {
   return String(chunk ?? "");
 }
 
-function runtimeLogPath(projectDir, timestamp = new Date().toISOString()) {
-  const day = String(timestamp || new Date().toISOString()).slice(0, 10) || "unknown-date";
+function legacyRuntimeLogPath(projectDir) {
+  return path.join(projectDir, ".codex", "logs", "runtime-hooks.jsonl");
+}
+
+function runtimeLogDay(timestamp = new Date().toISOString()) {
+  return String(timestamp || new Date().toISOString()).slice(0, 10) || "unknown-date";
+}
+
+function runtimeLogDir(projectDir) {
   const logDir = path.join(projectDir, ".codex", "logs", "runtime-hooks");
   ensureDir(logDir);
-  return path.join(logDir, `${day}.jsonl`);
+  return logDir;
+}
+
+function escapeRegExpLiteral(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function runtimeLogPartName(day, partIndex) {
+  return partIndex === 0 ? `${day}.jsonl` : `${day}.part-${String(partIndex).padStart(3, "0")}.jsonl`;
+}
+
+function runtimeLogPathForPart(projectDir, day, partIndex) {
+  return path.join(runtimeLogDir(projectDir), runtimeLogPartName(day, partIndex));
+}
+
+function parseRuntimeLogPartIndex(day, fileName) {
+  if (fileName === `${day}.jsonl`) {
+    return 0;
+  }
+
+  const match = fileName.match(new RegExp(`^${escapeRegExpLiteral(day)}\\.part-(\\d{3})\\.jsonl$`));
+  if (!match) {
+    return null;
+  }
+
+  return Number.parseInt(match[1], 10);
+}
+
+function listRuntimeLogParts(projectDir, day) {
+  const logDir = runtimeLogDir(projectDir);
+
+  return fs
+    .readdirSync(logDir)
+    .map((fileName) => ({
+      fileName,
+      partIndex: parseRuntimeLogPartIndex(day, fileName)
+    }))
+    .filter((entry) => entry.partIndex !== null)
+    .sort((left, right) => left.partIndex - right.partIndex)
+    .map((entry) => ({
+      ...entry,
+      path: path.join(logDir, entry.fileName)
+    }));
+}
+
+function runtimeLogMaxBytes() {
+  const parsed = Number.parseInt(String(process.env.CODEX_RUNTIME_LOG_MAX_BYTES || "").trim(), 10);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  return 256 * 1024;
+}
+
+function runtimeLogPath(projectDir, timestamp = new Date().toISOString(), estimatedBytes = 0) {
+  const day = runtimeLogDay(timestamp);
+  const parts = listRuntimeLogParts(projectDir, day);
+  if (parts.length === 0) {
+    return runtimeLogPathForPart(projectDir, day, 0);
+  }
+
+  const current = parts[parts.length - 1];
+  let currentSize = 0;
+  try {
+    currentSize = fs.statSync(current.path).size;
+  } catch {
+    currentSize = 0;
+  }
+
+  if (currentSize > 0 && currentSize + Math.max(0, estimatedBytes) > runtimeLogMaxBytes()) {
+    return runtimeLogPathForPart(projectDir, day, current.partIndex + 1);
+  }
+
+  return current.path;
+}
+
+function runtimeLogEntryKey(entry) {
+  return [
+    entry?.script || "",
+    entry?.invocationId || "",
+    entry?.type || "",
+    entry?.timestamp || "",
+    entry?.pid || ""
+  ].join("::");
+}
+
+function migrateLegacyRuntimeLog(projectDir) {
+  const normalizedProjectDir = path.resolve(projectDir || process.cwd());
+  if (migratedLegacyRuntimeLogs.has(normalizedProjectDir)) {
+    return;
+  }
+
+  migratedLegacyRuntimeLogs.add(normalizedProjectDir);
+
+  const legacyPath = legacyRuntimeLogPath(normalizedProjectDir);
+  if (!fs.existsSync(legacyPath)) {
+    return;
+  }
+
+  try {
+    const lines = fs
+      .readFileSync(legacyPath, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length === 0) {
+      fs.unlinkSync(legacyPath);
+      return;
+    }
+
+    const groupedEntries = new Map();
+    for (const line of lines) {
+      const parsed = JSON.parse(line);
+      const day = runtimeLogDay(parsed?.timestamp);
+      const group = groupedEntries.get(day) || [];
+      group.push({
+        line,
+        entry: parsed
+      });
+      groupedEntries.set(day, group);
+    }
+
+    for (const [day, entries] of groupedEntries.entries()) {
+      const existingKeys = new Set();
+      const partFiles = listRuntimeLogParts(normalizedProjectDir, day);
+
+      for (const partFile of partFiles) {
+        const existingLines = fs
+          .readFileSync(partFile.path, "utf8")
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        for (const line of existingLines) {
+          try {
+            existingKeys.add(runtimeLogEntryKey(JSON.parse(line)));
+          } catch {
+            existingKeys.add(line);
+          }
+        }
+      }
+
+      const pendingLines = entries
+        .filter(({ entry, line }) => {
+          const key = runtimeLogEntryKey(entry);
+          if (existingKeys.has(key) || existingKeys.has(line)) {
+            return false;
+          }
+          existingKeys.add(key);
+          return true;
+        })
+        .map(({ entry }) => entry);
+
+      for (const entry of pendingLines) {
+        appendRuntimeLog(normalizedProjectDir, entry);
+      }
+    }
+
+    fs.unlinkSync(legacyPath);
+  } catch {
+    migratedLegacyRuntimeLogs.delete(normalizedProjectDir);
+  }
 }
 
 function runtimeRelativePath(projectDir, filePath) {
@@ -172,14 +404,18 @@ function runtimeRelativePath(projectDir, filePath) {
   return relative || path.basename(filePath);
 }
 
-function appendRuntimeLog(projectDir, entry) {
+function appendRuntimeLog(projectDir, entry, options = {}) {
   try {
+    migrateLegacyRuntimeLog(projectDir);
     const timestamp = typeof entry?.timestamp === "string" && entry.timestamp ? entry.timestamp : new Date().toISOString();
     const payload = {
       ...entry,
       timestamp
     };
-    fs.appendFileSync(runtimeLogPath(projectDir, timestamp), `${JSON.stringify(payload)}\n`, "utf8");
+    const serialized = `${JSON.stringify(payload)}\n`;
+    const targetPath =
+      options?.logFilePath || runtimeLogPath(projectDir, timestamp, Buffer.byteLength(serialized, "utf8"));
+    fs.appendFileSync(targetPath, serialized, "utf8");
   } catch {
     // 日志写入不应中断运行时主流程。
   }
@@ -193,15 +429,24 @@ export function startRuntimeInvocationLogging({ projectDir, scriptName, input = 
   let stderrBuffer = "";
   let finished = false;
   let restoreStreams = null;
+  let logFilePath = null;
 
   const append = (entry) => {
-    appendRuntimeLog(normalizedProjectDir, {
-      timestamp: new Date().toISOString(),
+    const timestamp = new Date().toISOString();
+    const payload = {
+      timestamp,
       invocationId,
       script: scriptName,
       pid: process.pid,
       ...entry
-    });
+    };
+
+    if (!logFilePath) {
+      const serialized = `${JSON.stringify(payload)}\n`;
+      logFilePath = runtimeLogPath(normalizedProjectDir, timestamp, Buffer.byteLength(serialized, "utf8"));
+    }
+
+    appendRuntimeLog(normalizedProjectDir, payload, { logFilePath });
   };
 
   append({

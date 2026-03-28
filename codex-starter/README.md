@@ -44,8 +44,17 @@ If you want a local installer, run this from the target repository root:
 bash /path/to/codex-starter/install.sh
 ```
 
-The installer recursively overwrites `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`, then creates or updates `.gitignore`.
+The installer refreshes `AGENTS.md`, `.agents/`, `.product/`, and the starter-managed files under `.codex/`, then creates or updates `.gitignore`.
+It preserves the target repository's `.codex/state/` and `.codex/logs/` contents, does not seed source runtime history into the target repository, and removes the legacy top-level `.codex/logs/runtime-hooks.jsonl` file if present.
 The copied starter files are ignored as a whole: `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`.
+
+If an integration wants a single startup command instead of wiring several scripts manually, use:
+
+```bash
+node .codex/scripts/startup-context.mjs
+```
+
+When wiring runtime scripts from outside the target repository root, pass the target path through `cwd`, `workdir`, `projectDir`, or `CODEX_PROJECT_DIR` so state and logs resolve to the intended repository.
 
 There is currently no dedicated repo-scan script.
 Repo scans are performed by `Aide` through targeted repository inspection and optional read-only exploration.
@@ -101,13 +110,15 @@ For discussion-shaped work, `/Aide` should stay lightweight:
 - `.codex/delivery-policy.json`: governed submit defaults
 - `.codex/evolution-policy.json`: low-risk automatic writeback policy
 - `.codex/state/evolution-registry.json`: governance evolution queue
-- `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`: full runtime hook invocation log, including input, output, and file writes
+- `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`: full runtime hook invocation log, including input, output, and file writes
 - `.codex/scripts/*.mjs`: runtime helpers
 - `.product/registry.json`: product template registry
 - `.product/memory.json`: lightweight product memory; current conversation wins on conflict
 - `.product/evolution.json`: product-line evolution candidates, reviewed against the real chat record
 
 The `.product/*.json` files ship with starter schemas and starter policy only. Real projects should evolve them through normal product-line work plus `/Aide` review.
+
+If a repository still has the legacy top-level `.codex/logs/runtime-hooks.jsonl`, the next runtime hook write will migrate it into the daily log chunks automatically and remove the stale file.
 
 ## Docs
 

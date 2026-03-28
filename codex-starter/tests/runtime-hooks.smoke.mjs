@@ -17,6 +17,7 @@ import {
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const runtimeStateScript = path.join(rootDir, ".codex", "scripts", "runtime-state.mjs");
 const sessionContextScript = path.join(rootDir, ".codex", "scripts", "session-context.mjs");
+const startupContextScript = path.join(rootDir, ".codex", "scripts", "startup-context.mjs");
 const taskOverviewScript = path.join(rootDir, ".codex", "scripts", "task-overview.mjs");
 const aideEvolutionScript = path.join(rootDir, ".codex", "scripts", "aide-evolution.mjs");
 const aideGovernanceScript = path.join(rootDir, ".codex", "scripts", "aide-governance.mjs");
@@ -76,6 +77,14 @@ function readTaskRegistry(projectDir) {
 
 function readEvolutionRegistry(projectDir) {
   return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "evolution-registry.json"), "utf8"));
+}
+
+function readTaskContextFile(projectDir) {
+  return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "task-context.json"), "utf8"));
+}
+
+function readRepoContextFile(projectDir) {
+  return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "repo-context.json"), "utf8"));
 }
 
 function readRuntimeLogEntries(projectDir) {
@@ -767,6 +776,173 @@ function testSessionContextWritesFullInvocationLogs() {
   assert.equal(finish.output.stderr, "");
 }
 
+function testStartupContextRunsStartupChainAndWritesInvocationLogs() {
+  const dir = makeTempDir("codex-starter-startup-chain-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "Boss",
+      greeting_style: "warm",
+      first_startup_greeting_completed: false
+    },
+    task: {
+      current_task: "",
+      status: "idle",
+      class: "unknown",
+      risk: "unknown",
+      delivery_mode: "lightweight",
+      route_rationale: "",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["startup scan or cached repo context", "lightweight execution"],
+      qc_policy: "disabled",
+      submit_policy: "enabled",
+      validation_profile_status: "not-set",
+      open_questions: []
+    }
+  });
+
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "run-submit:current-task",
+        type: "run_submit",
+        storyPath: null,
+        trigger: "coder_complete_without_qc",
+        note: "Run /submit."
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  const stdout = runNode(startupContextScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  const logs = readRuntimeLogEntries(dir);
+  const state = readRuntimeState(dir);
+
+  assert.match(stdout, /Task overview:/);
+  assert.match(stdout, /Aide evolution sweep:/);
+  assert.match(stdout, /Pending submit: run \/submit/);
+  assert.match(state.sessionContext.lastReminderText, /Pending submit: run \/submit/);
+
+  const invokedScripts = new Set(
+    logs.filter((entry) => entry.type === "invocation_start").map((entry) => entry.script)
+  );
+  assert.ok(invokedScripts.has("startup-context.mjs"));
+  assert.ok(invokedScripts.has("task-overview.mjs"));
+  assert.ok(invokedScripts.has("aide-evolution.mjs"));
+  assert.ok(invokedScripts.has("session-context.mjs"));
+
+  const finish = logs.find((entry) => entry.script === "startup-context.mjs" && entry.type === "invocation_finish");
+  assert.ok(finish);
+  assert.equal(finish.status, "ok");
+}
+
+function testRuntimeLogWriteMigratesLegacyTopLevelFile() {
+  const dir = makeTempDir("codex-starter-legacy-runtime-log-");
+  fs.mkdirSync(path.join(dir, ".codex", "logs"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+
+  fs.writeFileSync(
+    path.join(dir, ".codex", "logs", "runtime-hooks.jsonl"),
+    [
+      JSON.stringify({
+        timestamp: "2026-03-28T09:47:51.615Z",
+        invocationId: "legacy-invocation-1",
+        script: "validate-git.mjs",
+        pid: 1,
+        type: "invocation_start",
+        cwd: dir,
+        projectDir: dir,
+        nodeVersion: process.version,
+        rawInput: "{\"command\":\"git add .\"}\n",
+        input: { command: "git add ." },
+        metadata: {}
+      }),
+      JSON.stringify({
+        timestamp: "2026-03-28T09:47:51.617Z",
+        invocationId: "legacy-invocation-1",
+        script: "validate-git.mjs",
+        pid: 1,
+        type: "invocation_finish",
+        status: "blocked",
+        durationMs: 2,
+        output: {
+          stdout: "{\"ok\":false}\n",
+          stderr: ""
+        },
+        error: null,
+        metadata: {
+          blocked: true,
+          command: "git add ."
+        }
+      })
+    ].join("\n") + "\n",
+    "utf8"
+  );
+
+  const result = runNodeResult(validateGitScript, { command: "git add .", cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  const logFiles = listRuntimeLogFiles(dir);
+  const logs = readRuntimeLogEntries(dir);
+
+  assert.equal(result.status, 2);
+  assert.ok(!fs.existsSync(path.join(dir, ".codex", "logs", "runtime-hooks.jsonl")));
+  assert.deepEqual(logFiles, ["2026-03-28.jsonl"]);
+  assert.ok(logs.find((entry) => entry.invocationId === "legacy-invocation-1" && entry.type === "invocation_start"));
+  assert.ok(
+    logs.find(
+      (entry) =>
+        entry.script === "validate-git.mjs" &&
+        entry.type === "invocation_finish" &&
+        entry.metadata?.command === "git add ."
+    )
+  );
+}
+
+function testRuntimeLogSplitsLargeDailyLogsIntoChunks() {
+  const dir = makeTempDir("codex-starter-runtime-log-chunks-");
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+
+  const env = {
+    CODEX_PROJECT_DIR: dir,
+    CODEX_RUNTIME_LOG_MAX_BYTES: "256"
+  };
+
+  const first = runNodeResult(validateGitScript, { command: "git add .", cwd: dir }, env);
+  const second = runNodeResult(validateGitScript, { command: "git add .", cwd: dir }, env);
+  const logFiles = listRuntimeLogFiles(dir);
+  const logs = readRuntimeLogEntries(dir);
+
+  assert.equal(first.status, 2);
+  assert.equal(second.status, 2);
+  assert.ok(logFiles.length >= 2);
+  assert.ok(logFiles.includes(`${new Date().toISOString().slice(0, 10)}.jsonl`));
+  assert.ok(logFiles.some((name) => /^\d{4}-\d{2}-\d{2}\.part-\d{3}\.jsonl$/.test(name)));
+  assert.equal(logs.filter((entry) => entry.script === "validate-git.mjs" && entry.type === "invocation_start").length, 2);
+  assert.equal(logs.filter((entry) => entry.script === "validate-git.mjs" && entry.type === "invocation_finish").length, 2);
+}
+
 function testValidateGitRejectsBroadAdd() {
   const result = runNodeResult(validateGitScript, { command: "git add ." });
   assert.equal(result.status, 2);
@@ -790,6 +966,20 @@ function testValidateGitWritesBlockedInvocationLog() {
   assert.match(finish.output.stdout, /broad_git_add_denied/);
 }
 
+function testValidateGitResolvesProjectDirFromWorkdirAlias() {
+  const dir = makeTempDir("codex-starter-validate-workdir-");
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+
+  const result = runNodeResult(validateGitScript, { command: "git add .", workdir: dir });
+  const logs = readRuntimeLogEntries(dir);
+  const start = logs.find((entry) => entry.script === "validate-git.mjs" && entry.type === "invocation_start");
+
+  assert.equal(result.status, 2);
+  assert.ok(start);
+  assert.equal(start.projectDir, dir);
+  assert.equal(start.metadata?.projectDirSource, "input.workdir");
+}
+
 function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   const dir = makeTempDir("codex-starter-install-");
   fs.writeFileSync(path.join(dir, ".gitignore"), "node_modules/\n", "utf8");
@@ -798,6 +988,7 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   fs.mkdirSync(path.join(dir, ".product", "templates"), { recursive: true });
   fs.writeFileSync(path.join(dir, "AGENTS.md"), "stale agents\n", "utf8");
   fs.writeFileSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md"), "stale skill\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".codex", "config.toml"), "[agents]\nmax_threads = 99\n", "utf8");
   fs.writeFileSync(path.join(dir, ".codex", "state", "stale.json"), "{}\n", "utf8");
   fs.writeFileSync(path.join(dir, ".product", "templates", "stale.md"), "stale template\n", "utf8");
 
@@ -811,8 +1002,9 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
   assert.ok(fs.existsSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(dir, ".codex", "routing-policy.md")));
+  assert.ok(!fs.existsSync(path.join(dir, ".codex", "config.toml")));
   assert.ok(fs.existsSync(path.join(dir, ".product", "registry.json")));
-  assert.ok(!fs.existsSync(path.join(dir, ".codex", "state", "stale.json")));
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "state", "stale.json")));
   assert.ok(!fs.existsSync(path.join(dir, ".product", "templates", "stale.md")));
   assert.match(fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8"), /Project-level Codex workflow starter/);
   assert.match(fs.readFileSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md"), "utf8"), /name: aide/);
@@ -824,6 +1016,208 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   assert.match(gitignore, /^\.agents\/$/m);
   assert.match(gitignore, /^\.codex\/$/m);
   assert.match(gitignore, /^\.product\/$/m);
+}
+
+function testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFiles() {
+  const sandboxDir = makeTempDir("codex-starter-install-runtime-");
+  const sourceDir = path.join(sandboxDir, "source");
+  const targetDir = path.join(sandboxDir, "target");
+  const freshTargetDir = path.join(sandboxDir, "fresh-target");
+
+  fs.cpSync(rootDir, sourceDir, { recursive: true });
+  fs.mkdirSync(targetDir, { recursive: true });
+  fs.mkdirSync(freshTargetDir, { recursive: true });
+
+  fs.mkdirSync(path.join(sourceDir, ".codex", "logs", "runtime-hooks"), { recursive: true });
+  fs.writeFileSync(path.join(sourceDir, ".codex", "logs", "runtime-hooks.jsonl"), '{"legacy":"source"}\n', "utf8");
+  fs.writeFileSync(
+    path.join(sourceDir, ".codex", "logs", "runtime-hooks", "source-log.jsonl"),
+    '{"daily":"source"}\n',
+    "utf8"
+  );
+  writeJson(path.join(sourceDir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: "2026-03-28T00:00:00Z",
+    recentSubagentEvents: [],
+    pendingActions: [],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: "source runtime state"
+    }
+  });
+  writeJson(path.join(sourceDir, ".codex", "state", "evolution-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-28T00:00:00Z",
+    lastSweep: {
+      checkedAt: "2026-03-28T00:00:00Z",
+      trigger: "startup",
+      background: false,
+      candidateCount: 0,
+      settledTaskCount: 0,
+      note: "source evolution state"
+    },
+    candidates: [],
+    settledTaskReviews: []
+  });
+  writeJson(path.join(sourceDir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    collaboration: {
+      preferred_address: "Source Boss",
+      greeting_style: "warm",
+      first_startup_greeting_completed: false
+    },
+    task: {
+      current_task: "source task",
+      status: "active"
+    }
+  });
+  writeJson(path.join(sourceDir, ".codex", "state", "repo-context.json"), {
+    version: 1,
+    scan_status: "done",
+    project_type: "Source Project",
+    primary_languages: ["js"],
+    frameworks: [],
+    ci_or_deployment_signals: [],
+    validation_signals: [],
+    notes: []
+  });
+  writeJson(path.join(sourceDir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-28T00:00:00Z",
+    currentTaskId: "source-task",
+    tasks: [
+      {
+        id: "source-task",
+        title: "source task",
+        status: "active"
+      }
+    ]
+  });
+  writeJson(path.join(sourceDir, ".codex", "state", "source-only.json"), {
+    from: "source"
+  });
+
+  fs.mkdirSync(path.join(targetDir, ".codex", "logs", "runtime-hooks"), { recursive: true });
+  fs.writeFileSync(path.join(targetDir, ".codex", "logs", "runtime-hooks.jsonl"), '{"legacy":"target"}\n', "utf8");
+  fs.writeFileSync(
+    path.join(targetDir, ".codex", "logs", "runtime-hooks", "target-log.jsonl"),
+    '{"daily":"target"}\n',
+    "utf8"
+  );
+  writeJson(path.join(targetDir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: "2026-03-28T01:00:00Z",
+    recentSubagentEvents: [],
+    pendingActions: [],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: "target runtime state"
+    }
+  });
+  writeJson(path.join(targetDir, ".codex", "state", "evolution-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-28T01:00:00Z",
+    lastSweep: {
+      checkedAt: "2026-03-28T01:00:00Z",
+      trigger: "startup",
+      background: false,
+      candidateCount: 0,
+      settledTaskCount: 0,
+      note: "target evolution state"
+    },
+    candidates: [],
+    settledTaskReviews: []
+  });
+  writeJson(path.join(targetDir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    collaboration: {
+      preferred_address: "Target Boss",
+      greeting_style: "warm",
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "target task",
+      status: "active"
+    }
+  });
+  writeJson(path.join(targetDir, ".codex", "state", "repo-context.json"), {
+    version: 1,
+    scan_status: "done",
+    project_type: "Target Project",
+    primary_languages: ["ts"],
+    frameworks: ["node"],
+    ci_or_deployment_signals: [],
+    validation_signals: [],
+    notes: ["target repo"]
+  });
+  writeJson(path.join(targetDir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-28T01:00:00Z",
+    currentTaskId: "target-task",
+    tasks: [
+      {
+        id: "target-task",
+        title: "target task",
+        status: "active"
+      }
+    ]
+  });
+  writeJson(path.join(targetDir, ".codex", "state", "target-only.json"), {
+    from: "target"
+  });
+
+  const result = spawnSync("bash", [path.join(sourceDir, "install.sh")], {
+    cwd: targetDir,
+    encoding: "utf8"
+  });
+  const freshResult = spawnSync("bash", [path.join(sourceDir, "install.sh")], {
+    cwd: freshTargetDir,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0);
+  assert.equal(freshResult.status, 0);
+  assert.ok(!fs.existsSync(path.join(targetDir, ".codex", "logs", "runtime-hooks.jsonl")));
+  assert.ok(!fs.existsSync(path.join(targetDir, ".codex", "logs", "runtime-hooks", "source-log.jsonl")));
+  assert.ok(fs.existsSync(path.join(targetDir, ".codex", "logs", "runtime-hooks", "target-log.jsonl")));
+  assert.equal(readRuntimeState(targetDir).sessionContext.lastReminderText, "target runtime state");
+  assert.equal(readEvolutionRegistry(targetDir).lastSweep.note, "target evolution state");
+  assert.equal(readTaskContextFile(targetDir).collaboration.preferred_address, "Target Boss");
+  assert.equal(readRepoContextFile(targetDir).project_type, "Target Project");
+  assert.equal(readTaskRegistry(targetDir).currentTaskId, "target-task");
+  assert.ok(fs.existsSync(path.join(targetDir, ".codex", "state", "target-only.json")));
+  assert.ok(!fs.existsSync(path.join(targetDir, ".codex", "state", "source-only.json")));
+  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "task-context.json")));
+  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "repo-context.json")));
+  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "task-registry.json")));
 }
 
 function testQcReviewerAliasRecordsStructuredFail() {
@@ -1820,9 +2214,14 @@ testQcPassQueuesSubmitAfterCoderAudit();
 testSessionContextShowsPendingSubmitReminder();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
 testSessionContextWritesFullInvocationLogs();
+testStartupContextRunsStartupChainAndWritesInvocationLogs();
+testRuntimeLogWriteMigratesLegacyTopLevelFile();
+testRuntimeLogSplitsLargeDailyLogsIntoChunks();
 testValidateGitRejectsBroadAdd();
 testValidateGitWritesBlockedInvocationLog();
+testValidateGitResolvesProjectDirFromWorkdirAlias();
 testInstallScriptCopiesStarterFilesAndUpdatesGitignore();
+testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFiles();
 testQcReviewerAliasRecordsStructuredFail();
 testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();
 testTaskOverviewKeepsClearedHotTaskAsHistoricalUnfinished();

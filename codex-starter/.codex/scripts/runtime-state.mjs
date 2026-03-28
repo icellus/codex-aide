@@ -11,7 +11,7 @@ import {
   detectSubagentStatus,
   extractStructuredResult,
   findProgressFile,
-  getProjectDir,
+  getProjectContext,
   highestGovernanceSeverity,
   isLongRunningProfile,
   isQcEnabled,
@@ -1001,7 +1001,8 @@ function recordTaskSettled(input, state, activeStories, projectDir, profile, del
 async function main() {
   const envelope = await readJsonStdinEnvelope({ strict: true });
   const input = envelope.value;
-  const projectDir = getProjectDir(input);
+  const project = getProjectContext(input);
+  const projectDir = project.projectDir;
   const eventName = normalizeEventName(input);
   const logger = startRuntimeInvocationLogging({
     projectDir,
@@ -1010,7 +1011,8 @@ async function main() {
     rawInput: envelope.raw,
     metadata: {
       event: eventName || null,
-      role: normalizeRole(input, normalizeMessage(input)) || null
+      role: normalizeRole(input, normalizeMessage(input)) || null,
+      projectDirSource: project.source
     }
   });
   const restoreStreams = logger.captureProcessStreams();

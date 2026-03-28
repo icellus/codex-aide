@@ -124,14 +124,18 @@ bash /path/to/codex-starter/install.sh
 
 常用入口：
 
-1. `node .codex/scripts/task-overview.mjs`
-2. `node .codex/scripts/aide-evolution.mjs`
-3. `node .codex/scripts/aide-governance.mjs`
-4. `node .codex/scripts/session-context.mjs`
-5. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
-6. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
+1. `node .codex/scripts/startup-context.mjs`
+2. `node .codex/scripts/task-overview.mjs`
+3. `node .codex/scripts/aide-evolution.mjs`
+4. `node .codex/scripts/aide-governance.mjs`
+5. `node .codex/scripts/session-context.mjs`
+6. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
+7. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
-`runtime-state.json` 按需生成。hook 日志会追加写入 `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`，其中包含 stdin、stdout、stderr，以及 runtime 管理的文件写入记录。QC 提醒只会在当前任务明确启用了 `qc` 时出现。
+这些脚本是供客户端或外部集成接线的 runtime 入口；starter 本身不会自动注册一整条 startup hook 链。若要接 startup 或 resume，优先把 `startup-context.mjs` 当作单一入口，它会按顺序执行 task overview、startup evolution 和 session reminder 刷新。
+如果不是在目标仓库根目录里直接调用这些脚本，记得通过 `cwd`、`workdir`、`projectDir` 或 `CODEX_PROJECT_DIR` 显式传入目标仓库路径，否则日志和状态会落到调用方仓库。
+
+`runtime-state.json` 按需生成。hook 日志会追加写入 `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`，其中包含 stdin、stdout、stderr，以及 runtime 管理的文件写入记录。单日日志过大时会自动切到编号分片。若仍存在旧的顶层 `.codex/logs/runtime-hooks.jsonl`，下一次 runtime hook 写日志时会自动迁移到按日分片文件并删除该残留文件。QC 提醒只会在当前任务明确启用了 `qc` 时出现。
 
 ## Smoke Test
 

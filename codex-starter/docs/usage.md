@@ -121,14 +121,18 @@ For non-trivial behavior changes, `tester` owns task-level validation handoff.
 
 Useful entrypoints:
 
-1. `node .codex/scripts/task-overview.mjs`
-2. `node .codex/scripts/aide-evolution.mjs`
-3. `node .codex/scripts/aide-governance.mjs`
-4. `node .codex/scripts/session-context.mjs`
-5. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
-6. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
+1. `node .codex/scripts/startup-context.mjs`
+2. `node .codex/scripts/task-overview.mjs`
+3. `node .codex/scripts/aide-evolution.mjs`
+4. `node .codex/scripts/aide-governance.mjs`
+5. `node .codex/scripts/session-context.mjs`
+6. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
+7. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
-`runtime-state.json` is created on demand. Hook logs are appended to `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`, including stdin, stdout, stderr, and runtime-managed file writes. QC reminders appear only when the current task explicitly enables `qc`.
+These scripts are runtime entrypoints for client or integration wiring. The starter itself does not auto-register a startup hook chain. For startup or resume integration, prefer `startup-context.mjs` as the single entrypoint; it runs task overview, startup evolution, and session reminder refresh in order.
+When calling them from outside the project root, pass the target repository through `cwd`, `workdir`, `projectDir`, or `CODEX_PROJECT_DIR` so logs and state resolve to the correct repository.
+
+`runtime-state.json` is created on demand. Hook logs are appended to `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`, including stdin, stdout, stderr, and runtime-managed file writes. Oversized daily logs rotate into numbered chunks automatically. If the legacy top-level `.codex/logs/runtime-hooks.jsonl` file still exists, the next runtime hook write migrates it into the daily log chunks and removes the stale file. QC reminders appear only when the current task explicitly enables `qc`.
 
 ## Smoke Test
 
