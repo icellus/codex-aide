@@ -10,7 +10,8 @@ import {
   loadProjectProfileState,
   loadRuntimeState,
   parseProgressTasks,
-  readJsonStdin,
+  readJsonStdinEnvelope,
+  startRuntimeInvocationLogging,
   syncTaskRegistry
 } from "./runtime-utils.mjs";
 
@@ -44,73 +45,108 @@ function taskStatus(task) {
 }
 
 async function main() {
-  const input = await readJsonStdin();
+  const envelope = await readJsonStdinEnvelope();
+  const input = envelope.value;
   const projectDir = getProjectDir(input);
-  const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
-  const progressTasks = parseProgressTasks(progressPath);
-  const profile = loadProjectProfileState(projectDir);
-  const runtimeState = loadRuntimeState(projectDir);
-  const registry = syncTaskRegistry(projectDir, {
-    profile,
-    runtimeState,
-    progressPath,
-    progressTasks,
-    persist: false
+  const logger = startRuntimeInvocationLogging({
+    projectDir,
+    scriptName: "task-overview.mjs",
+    input,
+    rawInput: envelope.raw
   });
+  const restoreStreams = logger.captureProcessStreams();
 
-  const requestedStatus = String(input.status || "").trim().toLowerCase();
-  const limit = Math.max(1, Math.min(20, Number.parseInt(String(input.limit || "5"), 10) || 5));
-  const currentTask = getCurrentTaskRecord(registry);
+  try {
+    const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
+    const progressTasks = parseProgressTasks(progressPath);
+    const profile = loadProjectProfileState(projectDir);
+    const runtimeState = loadRuntimeState(projectDir);
+    const registry = syncTaskRegistry(projectDir, {
+      profile,
+      runtimeState,
+      progressPath,
+      progressTasks,
+      persist: false
+    });
 
-  if (requestedStatus === "done" || requestedStatus === "completed") {
-    const completed = listTaskRegistryTasks(
+    const requestedStatus = String(input.status || "").trim().toLowerCase();
+    const limit = Math.max(1, Math.min(20, Number.parseInt(String(input.limit || "5"), 10) || 5));
+    const currentTask = getCurrentTaskRecord(registry);
+
+    if (requestedStatus === "done" || requestedStatus === "completed") {
+      const completed = listTaskRegistryTasks(
+        registry,
+        (task) => taskStatus(task) === "done" || taskStatus(task) === "cancelled"
+      );
+
+      const lines = ["Task history:"];
+
+      if (completed.length === 0) {
+        lines.push("- Completed tasks: none recorded");
+      } else {
+        lines.push(`- Completed tasks: ${completed.length}`);
+        completed.slice(0, limit).forEach((task) => {
+          lines.push(formatTaskLine("Completed", task));
+        });
+      }
+
+      process.stdout.write(`${lines.join("\n")}\n`);
+      logger.finalize({
+        status: "ok",
+        metadata: {
+          mode: "completed",
+          resultCount: completed.length
+        }
+      });
+      return;
+    }
+
+    const unfinished = listTaskRegistryTasks(
       registry,
-      (task) => taskStatus(task) === "done" || taskStatus(task) === "cancelled"
+      (task) =>
+        (taskStatus(task) === "active" ||
+          taskStatus(task) === "parked" ||
+          taskStatus(task) === "blocked" ||
+          taskStatus(task) === "queued") &&
+        task.id !== currentTask?.id
     );
 
-    const lines = ["Task history:"];
+    const lines = ["Task overview:"];
 
-    if (completed.length === 0) {
-      lines.push("- Completed tasks: none recorded");
+    if (currentTask) {
+      lines.push(formatTaskLine("Current task", currentTask));
     } else {
-      lines.push(`- Completed tasks: ${completed.length}`);
-      completed.slice(0, limit).forEach((task) => {
-        lines.push(formatTaskLine("Completed", task));
+      lines.push("- Current task: none");
+    }
+
+    if (unfinished.length === 0) {
+      lines.push("- Historical unfinished tasks: none");
+    } else {
+      lines.push(`- Historical unfinished tasks: ${unfinished.length}`);
+      unfinished.slice(0, limit).forEach((task) => {
+        lines.push(formatTaskLine("Unfinished", task));
       });
     }
 
     process.stdout.write(`${lines.join("\n")}\n`);
-    return;
-  }
-
-  const unfinished = listTaskRegistryTasks(
-    registry,
-    (task) =>
-      (taskStatus(task) === "active" ||
-        taskStatus(task) === "parked" ||
-        taskStatus(task) === "blocked" ||
-        taskStatus(task) === "queued") &&
-      task.id !== currentTask?.id
-  );
-
-  const lines = ["Task overview:"];
-
-  if (currentTask) {
-    lines.push(formatTaskLine("Current task", currentTask));
-  } else {
-    lines.push("- Current task: none");
-  }
-
-  if (unfinished.length === 0) {
-    lines.push("- Historical unfinished tasks: none");
-  } else {
-    lines.push(`- Historical unfinished tasks: ${unfinished.length}`);
-    unfinished.slice(0, limit).forEach((task) => {
-      lines.push(formatTaskLine("Unfinished", task));
+    logger.finalize({
+      status: "ok",
+      metadata: {
+        mode: "overview",
+        currentTaskId: currentTask?.id || null,
+        resultCount: unfinished.length
+      }
     });
+  } catch (error) {
+    process.stderr.write(`task-overview error: ${error instanceof Error ? error.message : String(error)}\n`);
+    logger.finalize({
+      status: "error",
+      error
+    });
+    process.exit(1);
+  } finally {
+    restoreStreams();
   }
-
-  process.stdout.write(`${lines.join("\n")}\n`);
 }
 
 await main();

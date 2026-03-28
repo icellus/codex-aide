@@ -101,6 +101,7 @@ For discussion-shaped work, `/Aide` should stay lightweight:
 - `.codex/delivery-policy.json`: governed submit defaults
 - `.codex/evolution-policy.json`: low-risk automatic writeback policy
 - `.codex/state/evolution-registry.json`: governance evolution queue
+- `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`: full runtime hook invocation log, including input, output, and file writes
 - `.codex/scripts/*.mjs`: runtime helpers
 - `.product/registry.json`: product template registry
 - `.product/memory.json`: lightweight product memory; current conversation wins on conflict

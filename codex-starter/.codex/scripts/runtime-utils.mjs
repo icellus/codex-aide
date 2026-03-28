@@ -2,27 +2,64 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-export async function readJsonStdin(options = {}) {
-  const strict = Boolean(options?.strict);
+let activeRuntimeLogger = null;
+
+function invalidJsonInputError(error) {
+  const detail = error instanceof Error && error.message ? `: ${error.message}` : "";
+  return new Error(`Invalid JSON input${detail}`);
+}
+
+async function readRawStdin() {
   const chunks = [];
   for await (const chunk of process.stdin) {
     chunks.push(chunk);
   }
 
-  const raw = Buffer.concat(chunks).toString("utf8").trim();
-  if (!raw) {
-    return {};
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+export async function readJsonStdinEnvelope(options = {}) {
+  const strict = Boolean(options?.strict);
+  const raw = await readRawStdin();
+  const trimmed = raw.trim();
+
+  if (!trimmed) {
+    return {
+      raw,
+      value: {},
+      parseError: null
+    };
   }
 
   try {
-    return JSON.parse(raw);
+    return {
+      raw,
+      value: JSON.parse(trimmed),
+      parseError: null
+    };
   } catch (error) {
     if (!strict) {
-      return {};
+      return {
+        raw,
+        value: {},
+        parseError: null
+      };
     }
-    const detail = error instanceof Error && error.message ? `: ${error.message}` : "";
-    throw new Error(`Invalid JSON input${detail}`);
+
+    return {
+      raw,
+      value: {},
+      parseError: invalidJsonInputError(error)
+    };
   }
+}
+
+export async function readJsonStdin(options = {}) {
+  const envelope = await readJsonStdinEnvelope(options);
+  if (envelope.parseError) {
+    throw envelope.parseError;
+  }
+  return envelope.value;
 }
 
 export function getProjectDir(input = {}) {
@@ -85,6 +122,177 @@ function stripHtmlComments(text) {
 
 export function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function sanitizeLogValue(value) {
+  if (value === undefined) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return String(value);
+  }
+}
+
+function serializeRuntimeError(error) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack || ""
+    };
+  }
+
+  return {
+    name: "Error",
+    message: String(error),
+    stack: ""
+  };
+}
+
+function normalizeRuntimeLogChunk(chunk, encoding) {
+  if (Buffer.isBuffer(chunk)) {
+    return chunk.toString(typeof encoding === "string" ? encoding : "utf8");
+  }
+
+  return String(chunk ?? "");
+}
+
+function runtimeLogPath(projectDir, timestamp = new Date().toISOString()) {
+  const day = String(timestamp || new Date().toISOString()).slice(0, 10) || "unknown-date";
+  const logDir = path.join(projectDir, ".codex", "logs", "runtime-hooks");
+  ensureDir(logDir);
+  return path.join(logDir, `${day}.jsonl`);
+}
+
+function runtimeRelativePath(projectDir, filePath) {
+  const relative = path.relative(projectDir, filePath).replace(/\\/g, "/");
+  return relative || path.basename(filePath);
+}
+
+function appendRuntimeLog(projectDir, entry) {
+  try {
+    const timestamp = typeof entry?.timestamp === "string" && entry.timestamp ? entry.timestamp : new Date().toISOString();
+    const payload = {
+      ...entry,
+      timestamp
+    };
+    fs.appendFileSync(runtimeLogPath(projectDir, timestamp), `${JSON.stringify(payload)}\n`, "utf8");
+  } catch {
+    // 日志写入不应中断运行时主流程。
+  }
+}
+
+export function startRuntimeInvocationLogging({ projectDir, scriptName, input = {}, rawInput = "", metadata = {} }) {
+  const normalizedProjectDir = path.resolve(projectDir || process.cwd());
+  const invocationId = `${new Date().toISOString()}-${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
+  const startedAt = Date.now();
+  let stdoutBuffer = "";
+  let stderrBuffer = "";
+  let finished = false;
+  let restoreStreams = null;
+
+  const append = (entry) => {
+    appendRuntimeLog(normalizedProjectDir, {
+      timestamp: new Date().toISOString(),
+      invocationId,
+      script: scriptName,
+      pid: process.pid,
+      ...entry
+    });
+  };
+
+  append({
+    type: "invocation_start",
+    cwd: String(input?.cwd || process.cwd()),
+    projectDir: normalizedProjectDir,
+    nodeVersion: process.version,
+    rawInput: String(rawInput || ""),
+    input: sanitizeLogValue(input),
+    metadata: sanitizeLogValue(metadata)
+  });
+
+  const captureProcessStreams = () => {
+    if (restoreStreams) {
+      return restoreStreams;
+    }
+
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+    process.stdout.write = function patchedStdoutWrite(chunk, encoding, callback) {
+      stdoutBuffer += normalizeRuntimeLogChunk(chunk, encoding);
+      return originalStdoutWrite(chunk, encoding, callback);
+    };
+
+    process.stderr.write = function patchedStderrWrite(chunk, encoding, callback) {
+      stderrBuffer += normalizeRuntimeLogChunk(chunk, encoding);
+      return originalStderrWrite(chunk, encoding, callback);
+    };
+
+    restoreStreams = () => {
+      process.stdout.write = originalStdoutWrite;
+      process.stderr.write = originalStderrWrite;
+      return null;
+    };
+
+    return restoreStreams;
+  };
+
+  const logger = {
+    invocationId,
+    projectDir: normalizedProjectDir,
+    scriptName,
+    captureProcessStreams,
+    logFileWrite(filePath, content, details = {}) {
+      append({
+        type: "file_write",
+        target: runtimeRelativePath(normalizedProjectDir, filePath),
+        content: sanitizeLogValue(content),
+        details: sanitizeLogValue(details)
+      });
+    },
+    finalize({ status = "ok", error = null, metadata: finalMetadata = {} } = {}) {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      append({
+        type: "invocation_finish",
+        status,
+        durationMs: Date.now() - startedAt,
+        output: {
+          stdout: stdoutBuffer,
+          stderr: stderrBuffer
+        },
+        error: error ? serializeRuntimeError(error) : null,
+        metadata: sanitizeLogValue(finalMetadata)
+      });
+
+      if (activeRuntimeLogger === logger) {
+        activeRuntimeLogger = null;
+      }
+    }
+  };
+
+  activeRuntimeLogger = logger;
+  return logger;
+}
+
+export function logRuntimeFileWrite(projectDir, filePath, content, details = {}) {
+  if (!activeRuntimeLogger) {
+    return;
+  }
+
+  const normalizedProjectDir = path.resolve(projectDir || process.cwd());
+  if (activeRuntimeLogger.projectDir !== normalizedProjectDir) {
+    return;
+  }
+
+  activeRuntimeLogger.logFileWrite(filePath, content, details);
 }
 
 export function createEmptyTaskContext() {
@@ -309,6 +517,11 @@ export function saveRuntimeState(projectDir, state) {
 
   ensureDir(stateDir);
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n", "utf8");
+  logRuntimeFileWrite(projectDir, statePath, state, {
+    category: "state",
+    writer: "saveRuntimeState",
+    format: "json"
+  });
 }
 
 export function loadDeliveryPolicy(projectDir) {
@@ -387,6 +600,11 @@ export function saveTaskRegistry(projectDir, registry) {
 
   ensureDir(stateDir);
   fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n", "utf8");
+  logRuntimeFileWrite(projectDir, registryPath, registry, {
+    category: "state",
+    writer: "saveTaskRegistry",
+    format: "json"
+  });
 }
 
 export function loadTaskContext(projectDir) {
@@ -435,6 +653,11 @@ export function saveTaskContext(projectDir, taskContext) {
 
   ensureDir(stateDir);
   fs.writeFileSync(taskContextPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+  logRuntimeFileWrite(projectDir, taskContextPath, merged, {
+    category: "state",
+    writer: "saveTaskContext",
+    format: "json"
+  });
 }
 
 export function loadRepoContext(projectDir) {
@@ -477,6 +700,11 @@ export function saveRepoContext(projectDir, repoContext) {
 
   ensureDir(stateDir);
   fs.writeFileSync(repoContextPath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+  logRuntimeFileWrite(projectDir, repoContextPath, merged, {
+    category: "state",
+    writer: "saveRepoContext",
+    format: "json"
+  });
 }
 
 export function loadEvolutionRegistry(projectDir) {
@@ -517,6 +745,11 @@ export function saveEvolutionRegistry(projectDir, registry) {
 
   ensureDir(stateDir);
   fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n", "utf8");
+  logRuntimeFileWrite(projectDir, registryPath, registry, {
+    category: "state",
+    writer: "saveEvolutionRegistry",
+    format: "json"
+  });
 }
 
 function normalizeProfileValue(value) {
@@ -2002,6 +2235,7 @@ export function syncProgressFromState(progressPath, activeStories, state) {
     return;
   }
 
+  const projectDir = findProjectDir(path.dirname(progressPath)) || path.dirname(progressPath);
   const original = fs.readFileSync(progressPath, "utf8");
   const withRetryPattern = updateCurrentWorkSection(original, activeStories, state);
   const withLearningQueue = updateLearningQueueSection(withRetryPattern, state);
@@ -2009,5 +2243,10 @@ export function syncProgressFromState(progressPath, activeStories, state) {
 
   if (withRetrospective !== original) {
     fs.writeFileSync(progressPath, withRetrospective, "utf8");
+    logRuntimeFileWrite(projectDir, progressPath, withRetrospective, {
+      category: "progress",
+      writer: "syncProgressFromState",
+      format: "text"
+    });
   }
 }

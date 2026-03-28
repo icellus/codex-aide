@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readJsonStdin } from "./runtime-utils.mjs";
+import { getProjectDir, readJsonStdinEnvelope, startRuntimeInvocationLogging } from "./runtime-utils.mjs";
 
 function isBroadGitAddCommand(command) {
   const normalized = String(command || "").replace(/\s+/g, " ").trim();
@@ -22,12 +22,29 @@ function isBroadGitAddCommand(command) {
 }
 
 async function main() {
+  const envelope = await readJsonStdinEnvelope();
+  const input = envelope.value;
+  const projectDir = getProjectDir(input);
+  const logger = startRuntimeInvocationLogging({
+    projectDir,
+    scriptName: "validate-git.mjs",
+    input,
+    rawInput: envelope.raw
+  });
+  const restoreStreams = logger.captureProcessStreams();
+
   try {
-    const input = await readJsonStdin();
     const command = String(input.command || input.cmd || input.tool_input?.command || "").trim();
 
     const blocked = isBroadGitAddCommand(command);
     if (!blocked) {
+      logger.finalize({
+        status: "ok",
+        metadata: {
+          blocked: false,
+          command
+        }
+      });
       return;
     }
 
@@ -40,10 +57,23 @@ async function main() {
         examples: ["git add path/to/file.txt", "git add directory/", "git add '*.ts'"]
       }) + "\n"
     );
+    logger.finalize({
+      status: "blocked",
+      metadata: {
+        blocked: true,
+        command
+      }
+    });
     process.exit(2);
   } catch (error) {
     process.stderr.write(`validate-git error: ${error instanceof Error ? error.message : String(error)}\n`);
+    logger.finalize({
+      status: "error",
+      error
+    });
     process.exit(1);
+  } finally {
+    restoreStreams();
   }
 }
 

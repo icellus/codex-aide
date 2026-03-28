@@ -78,6 +78,35 @@ function readEvolutionRegistry(projectDir) {
   return JSON.parse(fs.readFileSync(path.join(projectDir, ".codex", "state", "evolution-registry.json"), "utf8"));
 }
 
+function readRuntimeLogEntries(projectDir) {
+  const logDir = path.join(projectDir, ".codex", "logs", "runtime-hooks");
+  if (!fs.existsSync(logDir)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(logDir)
+    .filter((name) => name.endsWith(".jsonl"))
+    .sort()
+    .flatMap((name) =>
+      fs
+        .readFileSync(path.join(logDir, name), "utf8")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+    );
+}
+
+function listRuntimeLogFiles(projectDir) {
+  const logDir = path.join(projectDir, ".codex", "logs", "runtime-hooks");
+  if (!fs.existsSync(logDir)) {
+    return [];
+  }
+
+  return fs.readdirSync(logDir).filter((name) => name.endsWith(".jsonl")).sort();
+}
+
 function prepareProjectProfile(targetPath, replacements = []) {
   let text = fs.readFileSync(projectProfilePath, "utf8");
   for (const [from, to] of replacements) {
@@ -678,10 +707,87 @@ function testSessionContextKeepsRetrospectiveReminderForDoneTask() {
   assert.match(state.sessionContext.lastReminderText, /Retrospective pending/);
 }
 
+function testSessionContextWritesFullInvocationLogs() {
+  const dir = makeTempDir("codex-starter-session-log-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
+    ["- Task status: `idle`", "- Task status: `active`"]
+  ]);
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "run-submit:current-task",
+        type: "run_submit",
+        storyPath: null,
+        trigger: "coder_complete_without_qc",
+        note: "Run /submit."
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  runNode(sessionContextScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
+
+  const logFiles = listRuntimeLogFiles(dir);
+  const logs = readRuntimeLogEntries(dir);
+  const start = logs.find((entry) => entry.script === "session-context.mjs" && entry.type === "invocation_start");
+  const write = logs.find((entry) => entry.script === "session-context.mjs" && entry.type === "file_write");
+  const finish = logs.find((entry) => entry.script === "session-context.mjs" && entry.type === "invocation_finish");
+
+  assert.equal(logFiles.length, 1);
+  assert.match(logFiles[0], /^\d{4}-\d{2}-\d{2}\.jsonl$/);
+  assert.ok(start);
+  assert.equal(start.input.cwd, dir);
+  assert.match(start.rawInput, /"cwd"/);
+  assert.ok(write);
+  assert.equal(write.target, ".codex/state/runtime-state.json");
+  assert.match(JSON.stringify(write.content), /run_submit/);
+  assert.ok(finish);
+  assert.equal(finish.status, "ok");
+  assert.match(finish.output.stdout, /Pending submit: run \/submit/);
+  assert.equal(finish.output.stderr, "");
+}
+
 function testValidateGitRejectsBroadAdd() {
   const result = runNodeResult(validateGitScript, { command: "git add ." });
   assert.equal(result.status, 2);
   assert.match(result.stdout, /broad_git_add_denied/);
+}
+
+function testValidateGitWritesBlockedInvocationLog() {
+  const dir = makeTempDir("codex-starter-validate-log-");
+  fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
+
+  const result = runNodeResult(validateGitScript, { command: "git add .", cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  const logs = readRuntimeLogEntries(dir);
+  const start = logs.find((entry) => entry.script === "validate-git.mjs" && entry.type === "invocation_start");
+  const finish = logs.find((entry) => entry.script === "validate-git.mjs" && entry.type === "invocation_finish");
+
+  assert.equal(result.status, 2);
+  assert.ok(start);
+  assert.equal(start.input.command, "git add .");
+  assert.ok(finish);
+  assert.equal(finish.status, "blocked");
+  assert.match(finish.output.stdout, /broad_git_add_denied/);
 }
 
 function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
@@ -1713,7 +1819,9 @@ testCoderCompletionQueuesSubmitWithoutQc();
 testQcPassQueuesSubmitAfterCoderAudit();
 testSessionContextShowsPendingSubmitReminder();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
+testSessionContextWritesFullInvocationLogs();
 testValidateGitRejectsBroadAdd();
+testValidateGitWritesBlockedInvocationLog();
 testInstallScriptCopiesStarterFilesAndUpdatesGitignore();
 testQcReviewerAliasRecordsStructuredFail();
 testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();

@@ -33,6 +33,7 @@ Project-level Codex workflow starter.
 - `.codex/validation-profile.json`: repository validation baseline and constraints
 - `PROGRESS.md`: long-running checkpoint tracking only
 - `.codex/state/runtime-state.json`: runtime memory, reminders, and QC follow-up
+- `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`: hook invocation log with stdin/stdout/stderr and runtime write traces
 - `.codex/project-profile.md`: short human summary, not the hot path
 
 ## Runtime Hooks

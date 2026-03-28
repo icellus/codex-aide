@@ -22,10 +22,11 @@ import {
   loadProjectProfileState,
   loadRuntimeState,
   parseActiveStories,
-  readJsonStdin,
+  readJsonStdinEnvelope,
   removePendingActions,
   resolveActiveStory,
   saveRuntimeState,
+  startRuntimeInvocationLogging,
   suggestedRoutesForCategory,
   syncTaskRegistry,
   syncProgressFromState,
@@ -998,10 +999,34 @@ function recordTaskSettled(input, state, activeStories, projectDir, profile, del
 }
 
 async function main() {
+  const envelope = await readJsonStdinEnvelope({ strict: true });
+  const input = envelope.value;
+  const projectDir = getProjectDir(input);
+  const eventName = normalizeEventName(input);
+  const logger = startRuntimeInvocationLogging({
+    projectDir,
+    scriptName: "runtime-state.mjs",
+    input,
+    rawInput: envelope.raw,
+    metadata: {
+      event: eventName || null,
+      role: normalizeRole(input, normalizeMessage(input)) || null
+    }
+  });
+  const restoreStreams = logger.captureProcessStreams();
+
   try {
-    const input = await readJsonStdin({ strict: true });
-    const eventName = normalizeEventName(input);
+    if (envelope.parseError) {
+      throw envelope.parseError;
+    }
+
     if (!eventName) {
+      logger.finalize({
+        status: "ignored",
+        metadata: {
+          reason: "missing_event"
+        }
+      });
       return;
     }
 
@@ -1011,7 +1036,6 @@ async function main() {
       );
     }
 
-    const projectDir = getProjectDir(input);
     const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
     const activeStories = parseActiveStories(progressPath);
     const state = loadRuntimeState(projectDir);
@@ -1034,9 +1058,26 @@ async function main() {
       progressPath
     });
     syncProgressFromState(progressPath, activeStories, state);
+    logger.finalize({
+      status: "ok",
+      metadata: {
+        event: eventName,
+        pendingActionCount: Array.isArray(state.pendingActions) ? state.pendingActions.length : 0,
+        recentSubagentEventCount: Array.isArray(state.recentSubagentEvents) ? state.recentSubagentEvents.length : 0
+      }
+    });
   } catch (error) {
     process.stderr.write(`runtime-state error: ${error instanceof Error ? error.message : String(error)}\n`);
+    logger.finalize({
+      status: "error",
+      error,
+      metadata: {
+        event: eventName || null
+      }
+    });
     process.exit(1);
+  } finally {
+    restoreStreams();
   }
 }
 

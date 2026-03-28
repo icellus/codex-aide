@@ -128,7 +128,7 @@ Useful entrypoints:
 5. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
 6. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
-`runtime-state.json` is created on demand. QC reminders appear only when the current task explicitly enables `qc`.
+`runtime-state.json` is created on demand. Hook logs are appended to `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`, including stdin, stdout, stderr, and runtime-managed file writes. QC reminders appear only when the current task explicitly enables `qc`.
 
 ## Smoke Test
 

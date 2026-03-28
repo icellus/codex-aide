@@ -10,7 +10,8 @@ import {
   loadEvolutionRegistry,
   loadRuntimeState,
   normalizeGovernanceSeverity,
-  readJsonStdin
+  readJsonStdinEnvelope,
+  startRuntimeInvocationLogging
 } from "./runtime-utils.mjs";
 
 function relativePath(projectDir, filePath) {
@@ -422,38 +423,65 @@ function renderDedup(lines, projectDir, limit) {
 }
 
 async function main() {
-  const input = await readJsonStdin();
+  const envelope = await readJsonStdinEnvelope();
+  const input = envelope.value;
   const projectDir = getProjectDir(input);
-  const state = loadRuntimeState(projectDir);
-  const mode = String(input.mode || "summary").trim().toLowerCase();
-  const parsedLimit = Number.parseInt(String(input.limit || ""), 10);
-  const defaultLimit = mode === "summary" ? 5 : 20;
-  const limit = Math.max(1, Math.min(20, Number.isFinite(parsedLimit) ? parsedLimit : defaultLimit));
-  const lines = [];
+  const logger = startRuntimeInvocationLogging({
+    projectDir,
+    scriptName: "aide-governance.mjs",
+    input,
+    rawInput: envelope.raw
+  });
+  const restoreStreams = logger.captureProcessStreams();
 
-  if (mode === "investigate") {
-    lines.push("Aide governance investigation:");
-    renderPendingReviews(lines, state, limit);
-    lines.push("");
-    renderEvolutionCandidates(lines, projectDir, limit);
-  } else if (mode === "audit") {
-    lines.push("Aide quality audit:");
-    renderAuditFindings(lines, projectDir, limit);
-  } else if (mode === "dedup") {
-    lines.push("Aide dedup review:");
-    renderDedup(lines, projectDir, limit);
-  } else {
-    lines.push("Aide governance summary:");
-    renderPendingReviews(lines, state, limit);
-    lines.push("");
-    renderEvolutionCandidates(lines, projectDir, Math.min(limit, 3));
-    lines.push("");
-    renderAuditFindings(lines, projectDir, Math.min(limit, 3));
-    lines.push("");
-    renderDedup(lines, projectDir, Math.min(limit, 3));
+  try {
+    const state = loadRuntimeState(projectDir);
+    const mode = String(input.mode || "summary").trim().toLowerCase();
+    const parsedLimit = Number.parseInt(String(input.limit || ""), 10);
+    const defaultLimit = mode === "summary" ? 5 : 20;
+    const limit = Math.max(1, Math.min(20, Number.isFinite(parsedLimit) ? parsedLimit : defaultLimit));
+    const lines = [];
+
+    if (mode === "investigate") {
+      lines.push("Aide governance investigation:");
+      renderPendingReviews(lines, state, limit);
+      lines.push("");
+      renderEvolutionCandidates(lines, projectDir, limit);
+    } else if (mode === "audit") {
+      lines.push("Aide quality audit:");
+      renderAuditFindings(lines, projectDir, limit);
+    } else if (mode === "dedup") {
+      lines.push("Aide dedup review:");
+      renderDedup(lines, projectDir, limit);
+    } else {
+      lines.push("Aide governance summary:");
+      renderPendingReviews(lines, state, limit);
+      lines.push("");
+      renderEvolutionCandidates(lines, projectDir, Math.min(limit, 3));
+      lines.push("");
+      renderAuditFindings(lines, projectDir, Math.min(limit, 3));
+      lines.push("");
+      renderDedup(lines, projectDir, Math.min(limit, 3));
+    }
+
+    process.stdout.write(`${lines.join("\n")}\n`);
+    logger.finalize({
+      status: "ok",
+      metadata: {
+        mode,
+        limit
+      }
+    });
+  } catch (error) {
+    process.stderr.write(`aide-governance error: ${error instanceof Error ? error.message : String(error)}\n`);
+    logger.finalize({
+      status: "error",
+      error
+    });
+    process.exit(1);
+  } finally {
+    restoreStreams();
   }
-
-  process.stdout.write(`${lines.join("\n")}\n`);
 }
 
 await main();

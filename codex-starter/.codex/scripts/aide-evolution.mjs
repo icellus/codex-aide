@@ -8,13 +8,15 @@ import {
   compactText,
   getProjectDir,
   highestGovernanceSeverity,
+  logRuntimeFileWrite,
   loadEvolutionRegistry,
   loadProjectProfileState,
   loadRuntimeState,
   listTaskRegistryTasks,
   normalizeGovernanceSeverity,
-  readJsonStdin,
+  readJsonStdinEnvelope,
   saveEvolutionRegistry,
+  startRuntimeInvocationLogging,
   syncTaskRegistry
 } from "./runtime-utils.mjs";
 
@@ -264,6 +266,12 @@ function applyGuidanceWriteback(projectDir, target, guidance) {
 
   if (inserted.changed) {
     fs.writeFileSync(targetPath, inserted.text, "utf8");
+    logRuntimeFileWrite(projectDir, targetPath, inserted.text, {
+      category: "automation_writeback",
+      writer: "applyGuidanceWriteback",
+      format: "text",
+      result: inserted.result
+    });
   }
 
   return {
@@ -376,149 +384,187 @@ function sortAndTrimRegistry(registry) {
 }
 
 async function main() {
-  const input = await readJsonStdin();
+  const envelope = await readJsonStdinEnvelope();
+  const input = envelope.value;
   const projectDir = getProjectDir(input);
-  const now = new Date().toISOString();
-  const trigger = String(input.trigger || "startup").trim().toLowerCase() || "startup";
-  const background = Boolean(input.background);
-  const quiet = Boolean(input.quiet);
-  const policy = loadEvolutionPolicy(projectDir);
-  const profile = loadProjectProfileState(projectDir);
-  const runtimeState = loadRuntimeState(projectDir);
-  const taskRegistry = syncTaskRegistry(projectDir, {
-    profile,
-    runtimeState
+  const logger = startRuntimeInvocationLogging({
+    projectDir,
+    scriptName: "aide-evolution.mjs",
+    input,
+    rawInput: envelope.raw
   });
-  const evolutionRegistry = loadEvolutionRegistry(projectDir);
-  const existingCandidateMap = new Map(
-    (Array.isArray(evolutionRegistry.candidates) ? evolutionRegistry.candidates : []).map((item) => [item.id, item])
-  );
+  const restoreStreams = logger.captureProcessStreams();
 
-  const pendingAideReviews = (Array.isArray(runtimeState.pendingActions) ? runtimeState.pendingActions : []).filter(
-    (item) => item.type === "aide_review"
-  );
-  const queuedLessons = (Array.isArray(runtimeState.learningQueue) ? runtimeState.learningQueue : []).filter(
-    (item) => String(item.status || "queued").trim().toLowerCase() === "queued"
-  );
+  try {
+    const now = new Date().toISOString();
+    const trigger = String(input.trigger || "startup").trim().toLowerCase() || "startup";
+    const background = Boolean(input.background);
+    const quiet = Boolean(input.quiet);
+    const policy = loadEvolutionPolicy(projectDir);
+    const profile = loadProjectProfileState(projectDir);
+    const runtimeState = loadRuntimeState(projectDir);
+    const taskRegistry = syncTaskRegistry(projectDir, {
+      profile,
+      runtimeState
+    });
+    const evolutionRegistry = loadEvolutionRegistry(projectDir);
+    const existingCandidateMap = new Map(
+      (Array.isArray(evolutionRegistry.candidates) ? evolutionRegistry.candidates : []).map((item) => [item.id, item])
+    );
 
-  const activeCandidates = [
-    ...pendingAideReviews.map(buildAideReviewCandidate),
-    ...queuedLessons.map(buildLearningQueueCandidate).map((item) => enrichLearningCandidateFromPolicy(item, policy))
-  ].filter((item) => existingCandidateMap.get(item.id)?.status !== "applied");
-  const activeCandidateIds = new Set(activeCandidates.map((item) => item.id));
+    const pendingAideReviews = (Array.isArray(runtimeState.pendingActions) ? runtimeState.pendingActions : []).filter(
+      (item) => item.type === "aide_review"
+    );
+    const queuedLessons = (Array.isArray(runtimeState.learningQueue) ? runtimeState.learningQueue : []).filter(
+      (item) => String(item.status || "queued").trim().toLowerCase() === "queued"
+    );
 
-  activeCandidates.forEach((entry) => {
-    upsertCandidate(evolutionRegistry, entry, now);
-  });
+    const activeCandidates = [
+      ...pendingAideReviews.map(buildAideReviewCandidate),
+      ...queuedLessons.map(buildLearningQueueCandidate).map((item) => enrichLearningCandidateFromPolicy(item, policy))
+    ].filter((item) => existingCandidateMap.get(item.id)?.status !== "applied");
+    const activeCandidateIds = new Set(activeCandidates.map((item) => item.id));
 
-  const settledTasks = listTaskRegistryTasks(taskRegistry, (task) => {
-    const status = String(task.status || "").trim().toLowerCase();
-    return status === "done" || status === "cancelled";
-  });
+    activeCandidates.forEach((entry) => {
+      upsertCandidate(evolutionRegistry, entry, now);
+    });
 
-  let reviewedSettledTaskCount = 0;
-  let newTaskCandidates = 0;
+    const settledTasks = listTaskRegistryTasks(taskRegistry, (task) => {
+      const status = String(task.status || "").trim().toLowerCase();
+      return status === "done" || status === "cancelled";
+    });
 
-  for (const task of settledTasks) {
-    if (hasSettledTaskReview(evolutionRegistry, task)) {
-      continue;
+    let reviewedSettledTaskCount = 0;
+    let newTaskCandidates = 0;
+
+    for (const task of settledTasks) {
+      if (hasSettledTaskReview(evolutionRegistry, task)) {
+        continue;
+      }
+
+      const relatedSignals = relatedSignalsForTask(task, activeCandidates);
+      const relatedSignalIds = relatedSignals.flatMap((item) => item.signalIds || []);
+      const taskCandidateCount = relatedSignals.length;
+      const outcome = taskCandidateCount > 0 ? "signals-present" : "no-candidates";
+      const note =
+        outcome === "signals-present"
+          ? `Settled task still has ${taskCandidateCount} governance signal(s) worth reviewing before archival.`
+          : "Settled task reviewed with no durable evolution signal.";
+
+      upsertSettledTaskReview(evolutionRegistry, {
+        taskKey: reviewedSettledTaskKey(task),
+        taskId: task.id,
+        taskTitle: task.title || "Untitled task",
+        taskStatus: task.status || "done",
+        storyPath: task.storyPath || null,
+        completedAt: task.completedAt || null,
+        checkedAt: now,
+        trigger,
+        outcome,
+        candidateCount: taskCandidateCount,
+        signalIds: relatedSignalIds,
+        note
+      });
+      reviewedSettledTaskCount += 1;
+
+      if (taskCandidateCount === 0) {
+        continue;
+      }
+
+      const routeTargets = Array.from(new Set(relatedSignals.map((item) => item.routeTarget).filter(Boolean)));
+      const taskCandidate = {
+        id: `task-settled:${task.id}`,
+        sourceType: "task_settled",
+        status: "queued",
+        severity: highestGovernanceSeverity(
+          relatedSignals.map((item) => item.severity),
+          "L1"
+        ),
+        capability:
+          relatedSignals.find((item) => item.capability === "writeback")?.capability ||
+          relatedSignals.find((item) => item.capability === "audit")?.capability ||
+          relatedSignals[0]?.capability ||
+          "investigation",
+        storyPath: task.storyPath || null,
+        taskId: task.id,
+        taskTitle: task.title || "Untitled task",
+        routeTarget: routeTargets.join(", ") || "/Aide review",
+        signalIds: relatedSignalIds,
+        summary: compactText(
+          `Task settled: ${task.title || "Untitled task"}. Review whether ${taskCandidateCount} active governance signal(s) should write back before archival.`,
+          160
+        )
+      };
+
+      upsertCandidate(evolutionRegistry, taskCandidate, now);
+      activeCandidateIds.add(taskCandidate.id);
+      newTaskCandidates += 1;
     }
 
-    const relatedSignals = relatedSignalsForTask(task, activeCandidates);
-    const relatedSignalIds = relatedSignals.flatMap((item) => item.signalIds || []);
-    const taskCandidateCount = relatedSignals.length;
-    const outcome = taskCandidateCount > 0 ? "signals-present" : "no-candidates";
-    const note =
-      outcome === "signals-present"
-        ? `Settled task still has ${taskCandidateCount} governance signal(s) worth reviewing before archival.`
-        : "Settled task reviewed with no durable evolution signal.";
-
-    upsertSettledTaskReview(evolutionRegistry, {
-      taskKey: reviewedSettledTaskKey(task),
-      taskId: task.id,
-      taskTitle: task.title || "Untitled task",
-      taskStatus: task.status || "done",
-      storyPath: task.storyPath || null,
-      completedAt: task.completedAt || null,
+    const autoAppliedCount = applyAutomaticWritebacks(projectDir, evolutionRegistry, now);
+    resolveStaleCandidates(evolutionRegistry, activeCandidateIds, now);
+    sortAndTrimRegistry(evolutionRegistry);
+    evolutionRegistry.lastSweep = {
       checkedAt: now,
       trigger,
-      outcome,
-      candidateCount: taskCandidateCount,
-      signalIds: relatedSignalIds,
-      note
-    });
-    reviewedSettledTaskCount += 1;
+      background,
+      candidateCount: evolutionRegistry.candidates.filter((item) => item.status === "queued").length,
+      settledTaskCount: reviewedSettledTaskCount,
+      note:
+        reviewedSettledTaskCount > 0
+          ? `Reviewed ${reviewedSettledTaskCount} settled task(s); ${newTaskCandidates} new task-level candidate(s); ${autoAppliedCount} auto-applied writeback(s).`
+          : `No newly settled tasks required review. Auto-applied writeback(s): ${autoAppliedCount}.`
+    };
+    evolutionRegistry.updatedAt = now;
 
-    if (taskCandidateCount === 0) {
-      continue;
+    saveEvolutionRegistry(projectDir, evolutionRegistry);
+
+    if (quiet) {
+      logger.finalize({
+        status: "ok",
+        metadata: {
+          trigger,
+          quiet: true,
+          queuedCandidateCount: evolutionRegistry.candidates.filter((item) => item.status === "queued").length,
+          autoAppliedCount
+        }
+      });
+      return;
     }
 
-    const routeTargets = Array.from(new Set(relatedSignals.map((item) => item.routeTarget).filter(Boolean)));
-    const taskCandidate = {
-      id: `task-settled:${task.id}`,
-      sourceType: "task_settled",
-      status: "queued",
-      severity: highestGovernanceSeverity(
-        relatedSignals.map((item) => item.severity),
-        "L1"
-      ),
-      capability:
-        relatedSignals.find((item) => item.capability === "writeback")?.capability ||
-        relatedSignals.find((item) => item.capability === "audit")?.capability ||
-        relatedSignals[0]?.capability ||
-        "investigation",
-      storyPath: task.storyPath || null,
-      taskId: task.id,
-      taskTitle: task.title || "Untitled task",
-      routeTarget: routeTargets.join(", ") || "/Aide review",
-      signalIds: relatedSignalIds,
-      summary: compactText(
-        `Task settled: ${task.title || "Untitled task"}. Review whether ${taskCandidateCount} active governance signal(s) should write back before archival.`,
-        160
-      )
-    };
+    const queuedCandidates = evolutionRegistry.candidates.filter((item) => item.status === "queued");
+    const lines = [
+      "Aide evolution sweep:",
+      `- Trigger: ${trigger}`,
+      `- Active candidates: ${queuedCandidates.length}`,
+      `- Newly reviewed settled tasks: ${reviewedSettledTaskCount}`,
+      `- Auto-applied writebacks: ${autoAppliedCount}`
+    ];
 
-    upsertCandidate(evolutionRegistry, taskCandidate, now);
-    activeCandidateIds.add(taskCandidate.id);
-    newTaskCandidates += 1;
+    queuedCandidates.slice(0, 5).forEach((item) => {
+      lines.push(`- [${item.severity}] ${item.summary}`);
+    });
+
+    process.stdout.write(`${lines.join("\n")}\n`);
+    logger.finalize({
+      status: "ok",
+      metadata: {
+        trigger,
+        quiet: false,
+        queuedCandidateCount: queuedCandidates.length,
+        autoAppliedCount
+      }
+    });
+  } catch (error) {
+    process.stderr.write(`aide-evolution error: ${error instanceof Error ? error.message : String(error)}\n`);
+    logger.finalize({
+      status: "error",
+      error
+    });
+    process.exit(1);
+  } finally {
+    restoreStreams();
   }
-
-  const autoAppliedCount = applyAutomaticWritebacks(projectDir, evolutionRegistry, now);
-  resolveStaleCandidates(evolutionRegistry, activeCandidateIds, now);
-  sortAndTrimRegistry(evolutionRegistry);
-  evolutionRegistry.lastSweep = {
-    checkedAt: now,
-    trigger,
-    background,
-    candidateCount: evolutionRegistry.candidates.filter((item) => item.status === "queued").length,
-    settledTaskCount: reviewedSettledTaskCount,
-    note:
-      reviewedSettledTaskCount > 0
-        ? `Reviewed ${reviewedSettledTaskCount} settled task(s); ${newTaskCandidates} new task-level candidate(s); ${autoAppliedCount} auto-applied writeback(s).`
-        : `No newly settled tasks required review. Auto-applied writeback(s): ${autoAppliedCount}.`
-  };
-  evolutionRegistry.updatedAt = now;
-
-  saveEvolutionRegistry(projectDir, evolutionRegistry);
-
-  if (quiet) {
-    return;
-  }
-
-  const queuedCandidates = evolutionRegistry.candidates.filter((item) => item.status === "queued");
-  const lines = [
-    "Aide evolution sweep:",
-    `- Trigger: ${trigger}`,
-    `- Active candidates: ${queuedCandidates.length}`,
-    `- Newly reviewed settled tasks: ${reviewedSettledTaskCount}`,
-    `- Auto-applied writebacks: ${autoAppliedCount}`
-  ];
-
-  queuedCandidates.slice(0, 5).forEach((item) => {
-    lines.push(`- [${item.severity}] ${item.summary}`);
-  });
-
-  process.stdout.write(`${lines.join("\n")}\n`);
 }
 
 await main();

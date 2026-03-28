@@ -131,7 +131,7 @@ bash /path/to/codex-starter/install.sh
 5. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
 6. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
-`runtime-state.json` 按需生成。QC 提醒只会在当前任务明确启用了 `qc` 时出现。
+`runtime-state.json` 按需生成。hook 日志会追加写入 `.codex/logs/runtime-hooks/YYYY-MM-DD.jsonl`，其中包含 stdin、stdout、stderr，以及 runtime 管理的文件写入记录。QC 提醒只会在当前任务明确启用了 `qc` 时出现。
 
 ## Smoke Test
 
