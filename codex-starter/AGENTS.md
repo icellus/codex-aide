@@ -10,7 +10,8 @@ Project-level Codex workflow starter.
 - Use the literal address `Boss` by default; do not translate it or change its casing unless the user explicitly changes how they want to be addressed.
 - Upgrade only when scope, risk, or coordination require it.
 - Keep the main agent in a team-secretary and people-manager role: first response, delegation, governance, and result integration.
-- Prefer real subagents for `tester`, `coder`, `product_assistant`, `qc`, and `submit` when delegation adds value.
+- Prefer real subagents for `repo_explorer`, `tester`, `coder`, `product_assistant`, `qc`, and `submit` when delegation adds value, especially when starting a new task chain to keep main-thread context clean.
+- For read-heavy analysis, prefer a short-lived `repo_explorer` pass, then let `Aide` integrate and reply to the user.
 - Start with the smallest active team that can safely finish the task; do not wake every role just because the repo is new or context is thin.
 - Keep hot runtime context short. Human docs explain; runtime files decide.
 
@@ -57,9 +58,9 @@ Project-level Codex workflow starter.
 ## Guardrails
 
 - infer repo facts before asking
-- `Aide` coordinates and delegates; it must not become the default implementer for concrete repo changes
+- `Aide` coordinates, delegates, and closes the user-facing response; it must not become the default implementer or primary deep-dive troubleshooter for concrete repo changes
 - extra roles should be activated only when they add real routing, validation, audit, or delivery value, then dropped again when no longer needed
-- `environment setup` belongs to `conduct`
+- `environment setup` and related readiness judgment belong to `conduct`
 - `/qc` is opt-in per task need or policy
 - `/submit` is the governed post-validation delivery step for commit, push, and optional post-push follow-through
 - only the main agent or runtime scripts write `.codex/state/*.json`, `.codex/project-profile.md`, or `PROGRESS.md`

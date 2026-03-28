@@ -32,8 +32,8 @@ export function runAideRoutingMatrixContractTests(rootDir) {
     {
       id: "discussion-qna-aide-only",
       authorityPatterns: [
-        /for advice, Q&A, analysis, and option comparison, keep only `Aide` active unless the task later turns into delivery/i,
-        /Keep discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow\./i
+        /for (?:lightweight )?advice, Q&A, analysis, and option comparison, keep only `Aide` active(?: unless the task later turns into delivery)?/i,
+        /Keep (?:lightweight )?discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow\./i
       ],
       docsPatterns: [
         /\|\s*discussion \/ Q&A\s*\|\s*`Aide`\s*direct\s*\|/i,
@@ -84,8 +84,8 @@ export function runAideRoutingMatrixContractTests(rootDir) {
     {
       id: "release-governed-delivery-conduct-and-submit",
       authorityPatterns: [
-        /`environment setup` belongs to `conduct`\./i,
-        /activate `conduct` when environment setup, conflict checks, route composition, or longer delivery planning actually matter/i,
+        /`environment setup` belongs to `conduct`/i,
+        /activate `conduct` when environment setup(?: decisions\/preparation)?, conflict checks, (?:route composition|or multi-role delivery routing|multi-role delivery routing actually matter|or longer delivery planning actually matter)/i,
         /activate `\/submit` only when governed delivery or commit\/push follow-through matters/i,
         /`\/submit` is the governed delivery step after local completion or QC pass when commit, push, or post-push follow-through matters\./i
       ],
@@ -108,6 +108,57 @@ export function runAideRoutingMatrixContractTests(rootDir) {
         /a concrete repo-change request should usually start with a minimal owner scan, then delegate as soon as the next owner is clear/i,
         /not an automatic full scan or a whole-team wake-up|而不是自动 full scan 或默认把整支团队都拉起来/i,
         /New repo state or thin context alone is not a reason to activate `tester`, `architect`, `qc`, or other extra roles/i
+      ]
+    },
+    {
+      id: "read-heavy-investigation-prefers-repo-explorer",
+      authorityPatterns: [
+        /if ownership or boundaries are unclear, use `repo_explorer` or `conduct` to resolve the assignment instead of doing a deep code read as `Aide`/i,
+        /do not ask `Aide` to deep-read implementation details that the eventual writer will need to read again unless the routing decision truly depends on that evidence/i,
+        /When ownership is unclear, prefer `repo_explorer` or `conduct` before broad local reading by `Aide`\./i
+      ],
+      docsPatterns: [
+        /for read-heavy analysis, default to a short-lived `repo_explorer` read and then close the user reply as `Aide`/i,
+        /For read-heavy analysis, default to a short-lived `repo_explorer` pass and let `Aide` synthesize the final response\./i,
+        /for read-heavy analysis, prefer a short-lived `repo_explorer` pass and keep `Aide` as the final user-facing responder/i
+      ]
+    },
+    {
+      id: "environment-judgement-and-setup-owned-by-conduct",
+      authorityPatterns: [
+        /`environment setup` belongs to `conduct`/i,
+        /activate `conduct` when environment setup(?: decisions\/preparation)?, conflict checks, (?:route composition|or multi-role delivery routing|multi-role delivery routing actually matter|or longer delivery planning actually matter)/i,
+        /`environment setup`: `skip`, `current-workspace`, or `isolated-workspace`/i
+      ],
+      docsPatterns: [
+        /(?:Environment judgment and )?`environment setup` belong[s]? to `conduct`, not `\/Aide`\./i,
+        /`environment setup` 属于 `conduct`，不属于 `\/Aide`。/i,
+        /`conduct` applies the active delivery route when environment judgment or setup, module activation, or longer execution planning matters\./i
+      ]
+    },
+    {
+      id: "new-task-chain-prefers-real-subagents",
+      authorityPatterns: [
+        /When execution roles are active, prefer real subagents when delegation is available\./i,
+        /Prefer real subagents for .*`tester`, `coder`, `product_assistant`, `qc`, and `submit` when delegation adds value/i
+      ],
+      docsPatterns: [
+        /for new task chains, prefer real subagents when delegation is available to reduce main-thread context pollution/i,
+        /For new task chains, prefer real subagents when delegation is available so the main thread stays focused on coordination and user communication\./i,
+        /prefer real subagents for new task chains when available/i
+      ]
+    },
+    {
+      id: "analysis-replies-stay-secretary-coordinator",
+      authorityPatterns: [
+        /sound like a capable personal assistant who understands the work context, not like a workflow engine explaining its internals/i,
+        /`Aide` is the coordinator, not the default implementer/i,
+        /do not read implementation files line by line just to feel informed when the task is clearly headed to `coder` or `tester`/i
+      ],
+      docsPatterns: [
+        /secretary-style coordination and closeout rather than acting as the primary deep-dive troubleshooter/i,
+        /`Aide` is intended to act like the user's team secretary and the team's people manager, not the default implementer(?: or primary deep-dive troubleshooter)?\./i,
+        /acting like a capable secretary for the user and a people manager for the team/i
       ]
     },
     {

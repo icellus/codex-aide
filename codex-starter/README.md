@@ -13,8 +13,9 @@ It keeps the default path lightweight, routes work through a small set of clear 
 - coding: code, tests, validation, governed delivery
 - product: documentation and other non-code deliverables
 
-For analysis, Q&A, and option-comparison work with no durable artifact, `Aide` answers directly instead of forcing an execution handoff.
-`Aide` is intended to act like the user's team secretary and the team's people manager, not the default implementer.
+For analysis, Q&A, and option-comparison work with no durable artifact, `Aide` owns the user-facing response instead of forcing an execution handoff.
+When analysis becomes read-heavy, default to a short-lived `repo_explorer` subagent for repository reading, then let `Aide` integrate and close the reply.
+`Aide` is intended to act like the user's team secretary and the team's people manager, not the default implementer or primary deep-dive troubleshooter.
 It should activate the smallest team that can safely finish the current task, then drop extra roles again when they are no longer needed.
 
 Route names such as `Aide`, `qc`, and `submit` are logical aliases.
@@ -63,7 +64,8 @@ node .codex/scripts/startup-context.mjs
 When wiring runtime scripts from outside the target repository root, pass the target path through `cwd`, `workdir`, `projectDir`, or `CODEX_PROJECT_DIR` so state and logs resolve to the intended repository.
 
 There is currently no dedicated repo-scan script.
-Repo scans are performed by `Aide` through targeted repository inspection and optional read-only exploration.
+Repo scans are coordinated by `Aide` through targeted repository inspection and optional read-only exploration.
+For read-heavy analysis or unclear ownership, prefer a short-lived read-only `repo_explorer` subagent and have `Aide` synthesize the result for the user.
 On a concrete repo-change task, missing context should trigger only the minimum owner scan needed for delegation first; a full scan is for repo-wide assessment, unresolved ownership, or genuinely unknown high-risk boundaries.
 
 If a fresh thread starts without an explicit supported route alias, let `Aide` handle the user's first turn by default.
@@ -86,27 +88,31 @@ If a fresh thread starts without an explicit supported route alias, let `Aide` h
 ## What `/Aide` Owns
 
 - first response, coordination, routing, and state maintenance
+- secretary-style closeout: delegate, coordinate, and integrate the user-facing answer instead of acting as the primary deep-dive investigator
 - direct handling of advice-only or analysis-only requests when the user is not asking for a durable artifact
+- for read-heavy analysis, default to a short-lived `repo_explorer` read and then close the user reply as `Aide`
 - systemic governance, not only one-off patching
 - review of `product_assistant` writeback against the real chat record
 - light feedback collection when product-task completion is still ambiguous
 - background evolution review without blocking the first route
 - quick delegation to the right execution role when the user actually wants a repo change or durable artifact
+- for new task chains, prefer real subagents when delegation is available to reduce main-thread context pollution
 - per-task staffing: start with the smallest active team, add roles only when they add real value, and drop them again when the task narrows
 
 For product work, `/Aide` should not replace `product_assistant` in doing the business work. It should review whether `.product/*` writeback is justified by the real conversation and whether the current task actually belongs on the product line.
 
 `conduct` is narrower than `/Aide`.
-`/Aide` decides whether formal delivery routing is needed at all, then `conduct` applies the active delivery route when environment setup, module activation, or longer execution planning matters.
+`/Aide` decides whether formal delivery routing is needed at all, then `conduct` applies the active delivery route when environment judgment or setup, module activation, or longer execution planning matters.
 
 For advice-only or analysis-only requests, `/Aide` should stay lightweight:
 
 - answer directly
 - inspect only the minimum context needed
+- for read-heavy analysis, prefer a short-lived `repo_explorer` pass and keep `Aide` as the final user-facing responder
 - avoid durable state writes unless the conversation becomes a tracked task
 - re-route only when the expected output becomes a concrete artifact or execution workflow
 
-For concrete implementation work, `/Aide` should avoid deep code reading when a writer will need to inspect the same area again. Prefer fast delegation with only the minimum boundary evidence needed to choose the next owner.
+For concrete implementation work, `/Aide` should avoid deep local troubleshooting when a writer will need to inspect the same area again. Prefer fast delegation with only the minimum boundary evidence needed to choose the next owner, and prefer real subagents for new task chains when available.
 New repo state or thin context alone is not a reason to activate `tester`, `architect`, `qc`, or other extra roles before that value is justified.
 
 ## Runtime Authority

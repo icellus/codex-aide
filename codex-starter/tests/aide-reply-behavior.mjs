@@ -35,6 +35,9 @@ const ROLE_PATTERN = /\b(coder|tester|conduct|product_assistant|repo_explorer)\b
 const HANDOFF_PATTERN = /(交给|交由|请|让|由|安排.*接手|接手)/;
 const NEXT_STEP_PATTERN = /(下一步|接下来|先|会|将).{0,24}(修复|实现|修改|补|验证|排查|起草|梳理|定位|提交|更新|编写|生成)/;
 const REASON_MARKER_PATTERN = /(因为|原因是|这样可以|为了|以便)/;
+const READ_HEAVY_ANALYSIS_TASK_PATTERN = /(read-heavy|深读|通读|逐行|深挖|全量扫描|大范围排查|investigation|调查根因)/i;
+const REPO_EXPLORER_REPLY_PATTERN = /\brepo_explorer\b|repo explorer|仓库探索|只读子代理/i;
+const PRIMARY_DEEP_DIVE_PATTERN = /我(先|会|将|打算|准备|直接).{0,24}(自己|亲自|在主线程)?.{0,24}(深读|通读|逐行|埋头|深挖|全量扫描|深度排查|从头到尾看|把仓库都看一遍|调查根因|定位根因)/;
 
 function normalize(text) {
   return String(text ?? "").replace(/\s+/g, " ").trim();
@@ -66,6 +69,10 @@ function isSingleSentenceTask(userMessage) {
   return splitSentences(userMessage).length === 1;
 }
 
+function isReadHeavyAnalysisTask(userMessage) {
+  return READ_HEAVY_ANALYSIS_TASK_PATTERN.test(userMessage);
+}
+
 function reasonIsShort(reply) {
   const match = reply.match(REASON_MARKER_PATTERN);
   if (!match) {
@@ -81,6 +88,10 @@ function isSelfImplementing(reply) {
   return /我(来|会|将|直接).{0,10}(改|修改|修复|实现|写|提交|重构|补(上)?测试|补单测)/.test(reply);
 }
 
+function soundsLikePrimaryDeepDive(reply) {
+  return PRIMARY_DEEP_DIVE_PATTERN.test(reply);
+}
+
 export function validateAideVisibleReply({ userMessage, reply }) {
   const normalizedUserMessage = normalize(userMessage);
   const normalizedReply = normalize(reply);
@@ -88,6 +99,7 @@ export function validateAideVisibleReply({ userMessage, reply }) {
 
   const mechanismAsked = asksSystemMechanism(normalizedUserMessage);
   const explicitImplementation = isExplicitImplementationTask(normalizedUserMessage);
+  const readHeavyAnalysisTask = isReadHeavyAnalysisTask(normalizedUserMessage);
   const singleSentenceTask = isSingleSentenceTask(normalizedUserMessage);
   const sentenceCount = splitSentences(normalizedReply).length;
 
@@ -111,6 +123,14 @@ export function validateAideVisibleReply({ userMessage, reply }) {
 
   if (explicitImplementation && isSelfImplementing(normalizedReply)) {
     errors.push("aide_should_not_self_implement");
+  }
+
+  if (!mechanismAsked && soundsLikePrimaryDeepDive(normalizedReply)) {
+    errors.push("analysis_reply_should_stay_secretary_coordinator");
+  }
+
+  if (readHeavyAnalysisTask && !REPO_EXPLORER_REPLY_PATTERN.test(normalizedReply)) {
+    errors.push("read_heavy_analysis_should_handoff_to_repo_explorer");
   }
 
   if (singleSentenceTask && hasAnyPattern(normalizedReply, TEMPLATE_OPENER_PATTERNS)) {
@@ -209,6 +229,22 @@ export function runAideReplyBehaviorTests() {
       reply: "作为 AI 助手，我将启动执行工作流并激活 implementation 模块，随后进入下一阶段。",
       expectPass: false,
       expectErrors: ["robotic_or_non_assistant_tone"]
+    },
+    {
+      id: "pass-read-heavy-analysis-delegates-to-repo-explorer",
+      userMessage: "先做一轮 read-heavy 调研，找登录回调偶发超时根因，不急着改代码。",
+      reply: "我会请 repo_explorer 接手，下一步做 read-heavy 排查并标出边界，因为这样主线程更干净。",
+      expectPass: true
+    },
+    {
+      id: "fail-read-heavy-analysis-aide-self-deep-dive",
+      userMessage: "先做一轮 read-heavy 调研，找登录回调偶发超时根因，不急着改代码。",
+      reply: "我会自己先通读仓库并逐行排查登录链路，下一步列出可疑点，因为我要先把细节摸透。",
+      expectPass: false,
+      expectErrors: [
+        "analysis_reply_should_stay_secretary_coordinator",
+        "read_heavy_analysis_should_handoff_to_repo_explorer"
+      ]
     }
   ];
 

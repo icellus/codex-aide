@@ -50,7 +50,8 @@ bash /path/to/codex-starter/install.sh
 - 用自然语言说明下一步该由谁接手、要做什么、为什么
 
 当前没有独立的 repo scan 脚本。
-`Aide` 通过针对性的仓库检索和可选的只读探索完成 scan。
+`Aide` 负责协调 repo scan，通过针对性的仓库检索和可选的只读探索完成。
+如果是 read-heavy 分析或 owner 不清晰，优先启用短生命周期、只读的 `repo_explorer` 子代理，再由 `Aide` 汇总并对用户回复。
 
 后续回合通常应：
 
@@ -66,12 +67,15 @@ bash /path/to/codex-starter/install.sh
 - 默认不启用执行角色
 - 默认不写持久状态
 - 只读取回答当前问题所需的最小上下文
+- 如果分析任务 read-heavy，阅读部分默认交给 `repo_explorer`，`Aide` 负责对用户收口
 
 如果用户要的是明确的仓库改动或其他持久产物：
 
 - `Aide` 要尽快分派，不要自己下场实现
+- `Aide` 应保持“代办/协调/收口”角色，而不是主力深度排查者
 - 优先用最少的边界信息完成分派，不要先做一轮很深的本地读代码
 - 默认只启用完成当前任务所需的最小团队
+- 新 task chain 能分派时优先用真实子代理，减少主线程上下文污染
 - 不要仅仅因为新仓库或缓存上下文偏薄，就把整支团队都激活
 - 详细的实现阅读应交给真正执行的角色
 
@@ -95,6 +99,8 @@ bash /path/to/codex-starter/install.sh
 | discussion / Q&A | `Aide` 直接处理 |
 | product | `Aide -> product_assistant` |
 | release | `Aide -> conduct -> optional qc -> submit` |
+
+进入正式 delivery routing 后，环境判断和准备由 `conduct` 负责。
 
 ## Product 任务
 

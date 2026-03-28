@@ -47,7 +47,8 @@ On first run, `Aide` should:
 - recommend the lightest next owner for the task in plain language
 
 There is currently no dedicated repo-scan script.
-`Aide` performs repo scans through targeted repository inspection and optional read-only exploration.
+`Aide` coordinates repo scans through targeted repository inspection and optional read-only exploration.
+For read-heavy analysis or unclear ownership, prefer a short-lived read-only `repo_explorer` subagent, then let `Aide` synthesize and reply.
 
 Later turns should usually:
 
@@ -63,12 +64,15 @@ If the current turn is only Q&A, analysis, discussion, or option comparison and 
 - execution roles stay disabled by default
 - durable state is not written by default
 - only the minimum context needed for a good answer should be read
+- if analysis becomes read-heavy, use `repo_explorer` for the read pass and keep `Aide` as the user-facing closer
 
 If the user is asking for a concrete repo change or another durable artifact:
 
 - `Aide` should delegate early instead of doing the implementation itself
+- `Aide` should stay in delegate/coordinate/closeout mode instead of becoming the primary deep-dive troubleshooter
 - prefer minimal boundary reading over deep local code inspection
 - start with the smallest active team that can safely finish the task
+- for new task chains, prefer real subagents when delegation is available to reduce main-thread context pollution
 - do not activate the whole team only because the repo is new or cached context is thin
 - let the eventual execution role do the detailed implementation read
 
@@ -92,6 +96,8 @@ The checked-in `.codex/*.json`, `.codex/project-profile.md`, and `.product/*.jso
 | discussion / Q&A | `Aide` direct |
 | product | `Aide -> product_assistant` |
 | release | `Aide -> conduct -> optional qc -> submit` |
+
+`conduct` owns environment judgment and preparation work when formal delivery routing is needed.
 
 ## Product Tasks
 

@@ -23,6 +23,7 @@ Outside those delivery lines, `/Aide` also owns advice-only and analysis-only wo
 - route recommendations
 
 These turns produce conclusions, not durable artifacts.
+When those turns become read-heavy, `repo_explorer` should do the read-only repo pass first, then `/Aide` should integrate and deliver the final user-facing answer.
 
 ## Directory Boundaries
 
@@ -48,7 +49,7 @@ The most important ones in the current starter are:
 - `submit`
 
 `/Aide` owns first response, delegation, governance, and advice-only work.
-`conduct` applies formal delivery routing after `/Aide` decides the task needs it.
+`conduct` applies formal delivery routing after `/Aide` decides the task needs it, including environment judgment and setup work.
 
 ### `.codex/`
 
@@ -82,7 +83,7 @@ It is not the final user-facing docs directory.
 5. result review
 
 `/Aide` should not replace execution roles.
-It is a manager, not the default implementer.
+It is a manager, not the default implementer or the primary deep-dive troubleshooter.
 
 ### Advice / Analysis turns
 
@@ -90,6 +91,7 @@ For advice-only or analysis-only work, `/Aide` should:
 
 - answer directly
 - read only the minimum context needed
+- when analysis is read-heavy, default to a short-lived `repo_explorer` read pass and keep `/Aide` as the final responder
 - avoid durable state writes by default
 - re-route only when the task becomes a request for a concrete artifact or execution workflow
 
@@ -106,6 +108,7 @@ For coding work, `/Aide` mainly decides:
 The staffing rule is to start with the smallest active team that can safely finish the task.
 New repo state or stale context does not mean every role should wake up.
 If ownership is clear, route directly to one execution role first and add others only when validation, audit, or delivery requirements justify them.
+For new task chains, prefer real subagents when delegation is available so the main thread stays focused on coordination and user communication.
 
 It should not do a deep implementation read unless that evidence is required to assign the right owner.
 If ownership is clear, delegate early and let the execution role read the code in detail.
@@ -153,12 +156,13 @@ The most important files are:
 - `task-registry.json`
 
 There is currently no dedicated repo-scan script.
-`/Aide` performs repo scanning through targeted repository inspection and optional read-only exploration.
+`/Aide` coordinates repo scanning through targeted repository inspection and optional read-only exploration.
 
 That means:
 
 - repo scans are real, but manual at the workflow layer
 - cached repo context should be reused when possible
+- for read-heavy analysis or unclear ownership, default to short-lived read-only `repo_explorer` passes and let `/Aide` synthesize
 - if context is missing or stale, `Aide` should choose the smallest scan that answers the current task
 - a concrete repo-change request should usually start with a minimal owner scan, then delegate as soon as the next owner is clear
 - a full scan is for explicit repo-wide assessment, unresolved ownership after minimal triage, or genuinely unknown high-risk boundaries

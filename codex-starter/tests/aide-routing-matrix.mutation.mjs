@@ -72,7 +72,7 @@ const mutationScenarios = [
       replaceExact(
         repoDir,
         ".codex/routing-policy.md",
-        "- Keep discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow.",
+        "- Keep lightweight discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow.",
         "- Keep discussion, Q&A, and option-comparison work inside `Aide` when possible, but allow execution routes by default."
       );
     }
@@ -116,7 +116,7 @@ const mutationScenarios = [
       replaceExact(
         repoDir,
         ".codex/routing-policy.md",
-        "- `environment setup` belongs to `conduct`.",
+        "- `environment setup` belongs to `conduct`, including dependency installation, toolchain bootstrap, and runtime preparation.",
         "- `environment setup` can be owned by any active execution role."
       );
     }

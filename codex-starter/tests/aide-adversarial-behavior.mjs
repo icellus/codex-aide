@@ -5,7 +5,10 @@ const ISSUE_CODES = {
   FLOW_MACHINE_STATUS_DUMP: "flow-machine-status-dump",
   FULL_REPO_READ_FIRST: "full-repo-read-first",
   FULL_SCAN_BEFORE_DELEGATION: "full-scan-before-delegation",
-  KEEPS_ALL_ROLES_AFTER_NARROWING: "keeps-all-roles-after-narrowing"
+  KEEPS_ALL_ROLES_AFTER_NARROWING: "keeps-all-roles-after-narrowing",
+  READ_HEAVY_MAIN_THREAD_DEEP_DIVE: "read-heavy-main-thread-deep-dive",
+  ENVIRONMENT_SETUP_NOT_CONDUCT: "environment-setup-not-conduct",
+  NEW_CHAIN_WITHOUT_REAL_SUBAGENT: "new-chain-without-real-subagent"
 };
 
 const INTERNAL_WORKFLOW_TERMS = [
@@ -48,6 +51,14 @@ const ROLE_PATTERNS = {
 
 const KEEP_ALL_ROLES_SIGNAL =
   /(?:all|全部|都).{0,10}(?:active|enabled|在线|挂着|保留|不退)|(?:先不退|先别退|暂不退)/i;
+const MAIN_THREAD_DEEP_DIVE_PATTERNS = [
+  /(?:我|Aide).{0,20}(?:先|会|将|直接).{0,20}(?:在主线程|自己|亲自).{0,24}(?:深读|通读|逐行|深挖|全量扫描|排查|调查|定位)/i,
+  /(?:先|会|将).{0,20}(?:把仓库|整个仓库|关键目录).{0,20}(?:看一遍|通读|深挖|逐行排查)/i
+];
+const REPO_EXPLORER_OR_SUBAGENT_PATTERN = /\brepo_explorer\b|repo explorer|real subagent|子代理|subagent|只读子代理/i;
+const ENVIRONMENT_STEP_PATTERN = /环境(判断|准备|检查|预检)|environment setup|environment judgement|preflight|依赖安装/i;
+const CONDUCT_OWNER_PATTERN = /\bconduct\b|由\s*conduct|交给\s*conduct|让\s*conduct|请\s*conduct/i;
+const ENVIRONMENT_NON_CONDUCT_OWNER_PATTERN = /(?:\bcoder\b|\btester\b|我).{0,24}(?:负责|处理|先做|来做).{0,24}(?:环境|environment|preflight|依赖)/i;
 
 function countMatches(text, pattern) {
   const matches = text.match(pattern);
@@ -81,6 +92,18 @@ function keepsTesterCoderQcTogether(reply) {
   const hasCoder = ROLE_PATTERNS.coder.test(reply);
   const hasQc = ROLE_PATTERNS.qc.test(reply);
   return hasTester && hasCoder && hasQc && KEEP_ALL_ROLES_SIGNAL.test(reply);
+}
+
+function mentionsMainThreadDeepDive(reply) {
+  return MAIN_THREAD_DEEP_DIVE_PATTERNS.some((pattern) => pattern.test(reply));
+}
+
+function routesEnvironmentSetupOutsideConduct(reply) {
+  return (
+    ENVIRONMENT_STEP_PATTERN.test(reply) &&
+    !CONDUCT_OWNER_PATTERN.test(reply) &&
+    ENVIRONMENT_NON_CONDUCT_OWNER_PATTERN.test(reply)
+  );
 }
 
 function validateAideResponse({ reply, context = {} }) {
@@ -123,6 +146,31 @@ function validateAideResponse({ reply, context = {} }) {
     issues.push({
       code: ISSUE_CODES.KEEPS_ALL_ROLES_AFTER_NARROWING,
       message: "narrowed task should not keep tester/coder/qc all active"
+    });
+  }
+
+  if (context.readHeavyInvestigation && mentionsMainThreadDeepDive(reply)) {
+    issues.push({
+      code: ISSUE_CODES.READ_HEAVY_MAIN_THREAD_DEEP_DIVE,
+      message: "read-heavy investigation should not keep Aide as primary deep-dive worker"
+    });
+  }
+
+  if (context.environmentSetupNeeded && routesEnvironmentSetupOutsideConduct(reply)) {
+    issues.push({
+      code: ISSUE_CODES.ENVIRONMENT_SETUP_NOT_CONDUCT,
+      message: "environment judgement/setup should be owned by conduct"
+    });
+  }
+
+  if (
+    context.newTaskChain &&
+    mentionsMainThreadDeepDive(reply) &&
+    !REPO_EXPLORER_OR_SUBAGENT_PATTERN.test(reply)
+  ) {
+    issues.push({
+      code: ISSUE_CODES.NEW_CHAIN_WITHOUT_REAL_SUBAGENT,
+      message: "new task chain should prefer real subagent delegation over main-thread deep dive"
     });
   }
 
@@ -196,6 +244,24 @@ const negativeCases = [
     context: { taskNarrowed: true },
     expectedCode: ISSUE_CODES.KEEPS_ALL_ROLES_AFTER_NARROWING,
     reply: "范围已经收窄，但 tester、coder、/qc 我先都挂着，先不退，避免后续再拉起。"
+  },
+  {
+    id: "read-heavy-analysis-kept-in-main-thread",
+    context: { readHeavyInvestigation: true },
+    expectedCode: ISSUE_CODES.READ_HEAVY_MAIN_THREAD_DEEP_DIVE,
+    reply: "这是 read-heavy 调研，我先在主线程自己通读仓库并逐行排查，再给你结论。"
+  },
+  {
+    id: "environment-setup-routed-to-coder",
+    context: { environmentSetupNeeded: true },
+    expectedCode: ISSUE_CODES.ENVIRONMENT_SETUP_NOT_CONDUCT,
+    reply: "这个任务我让 coder 先做环境准备和 preflight，再开始改代码。"
+  },
+  {
+    id: "new-task-chain-without-real-subagent",
+    context: { newTaskChain: true },
+    expectedCode: ISSUE_CODES.NEW_CHAIN_WITHOUT_REAL_SUBAGENT,
+    reply: "这是新 task chain，我先在主线程自己把关键目录深挖一遍，再决定要不要委派。"
   }
 ];
 
@@ -228,6 +294,21 @@ const positiveCases = [
     id: "workflow-terms-allowed-when-user-explicitly-asks",
     context: { isLongReply: true, explicitWorkflowQuestion: true },
     reply: "你在问系统如何工作：intake 负责入口整理，route 负责分派，governance 负责策略约束。"
+  },
+  {
+    id: "read-heavy-analysis-prefers-repo-explorer-pass",
+    context: { readHeavyInvestigation: true },
+    reply: "这是 read-heavy 调研，我先让 repo_explorer 子代理做一轮只读扫描，然后由我汇总关键结论给你。"
+  },
+  {
+    id: "environment-setup-owned-by-conduct",
+    context: { environmentSetupNeeded: true },
+    reply: "这类环境判断和准备先交给 conduct，再让 coder 根据 preflight 结果执行修复。"
+  },
+  {
+    id: "new-task-chain-prefers-real-subagent",
+    context: { newTaskChain: true },
+    reply: "这是新 task chain，我先拉起 real subagent 做最小 owner scan，再按结果委派执行角色。"
   }
 ];
 

@@ -30,13 +30,13 @@ export function runAideDialogueRegressionTests(rootDir) {
   const authorityGuidance = [aideSkill, conductSkill, routingPolicy, agentsGuide].join("\n");
 
   function testPureQaStaysInsideAide() {
-    assertAll(aideSkill, [/directly answer analysis, Q&A, discussion, and option-comparison requests/i], "pure Q&A");
+    assertAll(aideSkill, [/directly answer (?:lightweight )?analysis, Q&A, discussion, and option-comparison requests/i], "pure Q&A");
     assertAll(aideSkill, [/prefer the minimum local context needed to answer well/i], "pure Q&A minimal read");
   }
 
   function testOptionComparisonStaysAdviceMode() {
     assertAll(aideSkill, [/answer directly when the user mainly wants understanding, tradeoff analysis, planning advice, or route recommendations/i], "option comparison");
-    assertAll(routingPolicy, [/Keep discussion, Q&A, and option-comparison work inside `Aide`/], "option comparison policy");
+    assertAll(routingPolicy, [/Keep (?:lightweight )?discussion, Q&A, and option-comparison work inside `Aide`/], "option comparison policy");
   }
 
   function testExplicitCodeFixDelegatesEarly() {
@@ -91,8 +91,51 @@ export function runAideDialogueRegressionTests(rootDir) {
   }
 
   function testCodeBackgroundAnalysisAllowsAnswerWithoutDelegation() {
-    assertAll(aideSkill, [/directly answer analysis, Q&A, discussion, and option-comparison requests/i], "code background analysis");
+    assertAll(aideSkill, [/directly answer (?:lightweight )?analysis, Q&A, discussion, and option-comparison requests/i], "code background analysis");
     assertAll(aideSkill, [/before delegation, limit yourself to the smallest evidence set needed/i], "code background minimal evidence");
+  }
+
+  function testReadHeavyInvestigationUsesRepoExplorerBeforeAideDeepRead() {
+    assertAll(
+      aideSkill,
+      [
+        /if ownership or boundaries are unclear, use `repo_explorer` or `conduct` to resolve the assignment instead of doing a deep code read as `Aide`/i,
+        /when you only need ownership, entrypoint, or validation clues, prefer `repo_explorer` over broad local reading/i
+      ],
+      "read-heavy investigation ownership"
+    );
+    assertAll(
+      conductSkill,
+      [/use `repo_explorer` before assigning a writer when ownership or boundaries are unclear/i, /do not ask `Aide` to deep-read implementation details/i],
+      "read-heavy investigation conduct boundary"
+    );
+    assertAll(
+      routingPolicy,
+      [/When ownership is unclear, prefer `repo_explorer` or `conduct` before broad local reading by `Aide`\./i],
+      "read-heavy investigation policy"
+    );
+  }
+
+  function testEnvironmentJudgementAndPrepBelongToConduct() {
+    assertAll(aideSkill, [/hand delivery routing to `conduct` when environment setup matters/i], "environment owner aide handoff");
+    assertAll(conductSkill, [/`environment setup`: `skip`, `current-workspace`, or `isolated-workspace`/i], "environment owner conduct scope");
+    assertAll(routingPolicy, [/`environment setup` belongs to `conduct`/i], "environment owner policy");
+    assertAll(overview, [/(?:Environment judgment and )?`environment setup` belong[s]? to `conduct`, not `\/Aide`\./i], "environment owner overview");
+  }
+
+  function testExecutionTaskChainPrefersRealSubagents() {
+    assertAll(routingPolicy, [/When execution roles are active, prefer real subagents when delegation is available\./i], "real subagent policy");
+    assertAll(agentsGuide, [/Prefer real subagents for .*`tester`, `coder`, `product_assistant`, `qc`, and `submit` when delegation adds value/i], "real subagent guide");
+  }
+
+  function testAnalysisReplyStaysSecretaryCoordinator() {
+    assertAll(
+      aideSkill,
+      [/sound like a capable personal assistant/i, /`Aide` is the coordinator, not the default implementer/i, /do not read implementation files line by line just to feel informed/i],
+      "analysis secretary coordinator"
+    );
+    assertAll(readme, [/team secretary and the team's people manager, not the default implementer/i], "analysis secretary readme");
+    assertAll(overview, [/acting like a capable secretary for the user and a people manager for the team/i], "analysis secretary overview");
   }
 
   function testUserFacingRepliesHideInternalLabelsByDefault() {
@@ -113,6 +156,10 @@ export function runAideDialogueRegressionTests(rootDir) {
     testReleaseStyleTaskUsesConductSubmitPath,
     testSingleSentenceTaskAvoidsJargonDump,
     testCodeBackgroundAnalysisAllowsAnswerWithoutDelegation,
+    testReadHeavyInvestigationUsesRepoExplorerBeforeAideDeepRead,
+    testEnvironmentJudgementAndPrepBelongToConduct,
+    testExecutionTaskChainPrefersRealSubagents,
+    testAnalysisReplyStaysSecretaryCoordinator,
     testUserFacingRepliesHideInternalLabelsByDefault
   ].forEach((testFn) => testFn());
 }

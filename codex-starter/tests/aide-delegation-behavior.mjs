@@ -57,6 +57,10 @@ function executionRoles(decision) {
   return decision.activeRoles.filter((role) => role !== "aide");
 }
 
+function routeUsesRealSubagentDelegation(route) {
+  return route.some((step) => /(?:real_subagent|subagent)/i.test(step.action));
+}
+
 function validateDecisionShape(fixture) {
   assertNonEmptyString(fixture.id, "fixture.id");
   assertNonEmptyString(fixture.input.userTask, `${fixture.id}: input.userTask`);
@@ -175,6 +179,18 @@ function validateDecisionShape(fixture) {
     );
   }
 
+  if (context.needsEnvironmentSetup === true) {
+    const firstExecutionStep = decision.route.find((step) => step.owner !== "aide");
+    assert.ok(decision.activeRoles.includes("conduct"), `${fixture.id}: environment setup should activate conduct`);
+    assert.equal(decision.next.owner, "conduct", `${fixture.id}: environment setup should start with conduct`);
+    assert.ok(firstExecutionStep, `${fixture.id}: environment setup route needs an execution step`);
+    assert.equal(
+      firstExecutionStep.owner,
+      "conduct",
+      `${fixture.id}: conduct should own environment judgement/prep before writers`
+    );
+  }
+
   if (decision.activeRoles.includes("submit") || decision.gates.submit === "required") {
     assert.ok(
       context.governedDelivery || context.requiresCommitPush,
@@ -186,6 +202,30 @@ function validateDecisionShape(fixture) {
     assert.ok(
       context.risk === "high" || context.auditRequested === true,
       `${fixture.id}: qc should require high risk or explicit audit need`
+    );
+  }
+
+  if (context.readHeavyInvestigation === true) {
+    assert.ok(
+      decision.activeRoles.includes("repo_explorer"),
+      `${fixture.id}: read-heavy investigation should activate repo_explorer`
+    );
+    assert.equal(
+      decision.next.owner,
+      "repo_explorer",
+      `${fixture.id}: read-heavy investigation should delegate to repo_explorer`
+    );
+    assert.notEqual(
+      decision.next.type,
+      "answer",
+      `${fixture.id}: read-heavy investigation should not stay as aide-only deep read`
+    );
+  }
+
+  if ((context.newTaskChain === true || context.readHeavyInvestigation === true) && executionRoles(decision).length > 0) {
+    assert.ok(
+      routeUsesRealSubagentDelegation(decision.route),
+      `${fixture.id}: new chain/read-heavy work should prefer real subagent delegation markers`
     );
   }
 
@@ -276,6 +316,10 @@ function verifyNewRepoConcreteMinimalTriage(fixture) {
   );
   assert.ok(routeOwners.includes("coder"), `${id}: route should still delegate to coder`);
   assert.ok(routeOwners.indexOf("coder") > routeOwners.indexOf("repo_explorer"), `${id}: delegate after triage`);
+  assert.ok(
+    routeUsesRealSubagentDelegation(decision.route),
+    `${id}: new task chain should prefer real subagent delegation`
+  );
 }
 
 function verifyNarrowedTaskDropsRoles(fixture) {
@@ -290,6 +334,39 @@ function verifyNarrowedTaskDropsRoles(fixture) {
   ["tester", "qc", "repo_explorer", "conduct", "submit"].forEach((role) => {
     assert.ok(!decision.activeRoles.includes(role), `${id}: ${role} should be dropped/inactive`);
   });
+}
+
+function verifyReadHeavyInvestigationDelegatesToRepoExplorer(fixture) {
+  const { id, decision } = fixture;
+  assertSameMembers(
+    decision.activeRoles,
+    ["aide", "repo_explorer"],
+    `${id}: read-heavy investigation should keep aide + repo_explorer only`
+  );
+  assert.equal(decision.mode, "delivery", `${id}: read-heavy investigation should route through delegation`);
+  assert.equal(decision.next.type, "delegate", `${id}: read-heavy investigation should delegate`);
+  assert.equal(
+    decision.next.owner,
+    "repo_explorer",
+    `${id}: read-heavy investigation should hand off to repo_explorer`
+  );
+  assert.ok(
+    routeUsesRealSubagentDelegation(decision.route),
+    `${id}: read-heavy investigation should prioritize real subagent delegation`
+  );
+}
+
+function verifyEnvironmentSetupOwnedByConductBeforeWriters(fixture) {
+  const { id, decision } = fixture;
+  const routeOwners = decision.route.map((step) => step.owner);
+  assertIncludesAll(decision.activeRoles, ["conduct", "coder"], `${id}: environment setup ownership roles`);
+  assert.equal(decision.next.owner, "conduct", `${id}: environment setup should be routed to conduct first`);
+  assert.ok(routeOwners.includes("conduct"), `${id}: route should include conduct`);
+  assert.ok(routeOwners.includes("coder"), `${id}: route should include coder for later implementation`);
+  assert.ok(
+    routeOwners.indexOf("conduct") < routeOwners.indexOf("coder"),
+    `${id}: conduct must run environment judgement/prep before coder`
+  );
 }
 
 const behaviorFixtures = [
@@ -433,6 +510,77 @@ const behaviorFixtures = [
     verify: verifyProductArtifactRoute
   },
   {
+    id: "read-heavy-analysis-routes-to-repo-explorer-subagent",
+    input: {
+      userTask: "先做 read-heavy 调研，定位登录回调偶发超时根因，暂时不动代码。",
+      context: {
+        repoContext: "fresh",
+        concreteChange: false,
+        risk: "medium",
+        readHeavyInvestigation: true
+      }
+    },
+    decision: {
+      mode: "delivery",
+      activeRoles: ["aide", "repo_explorer"],
+      droppedRoles: [],
+      next: {
+        type: "delegate",
+        owner: "repo_explorer",
+        reason: "read-heavy 调研先交给只读子代理，Aide 负责综合结论。"
+      },
+      triage: {
+        level: "minimal",
+        blocksDelegation: false
+      },
+      gates: {
+        qc: "off",
+        submit: "off"
+      },
+      route: [
+        { owner: "aide", action: "classify_read_heavy_investigation" },
+        { owner: "repo_explorer", action: "delegate_real_subagent_read_heavy_scan" }
+      ]
+    },
+    verify: verifyReadHeavyInvestigationDelegatesToRepoExplorer
+  },
+  {
+    id: "environment-setup-owned-by-conduct-before-coder",
+    input: {
+      userTask: "先做环境判断和准备，再修复启动失败问题。",
+      context: {
+        repoContext: "fresh",
+        concreteChange: true,
+        risk: "medium",
+        needsEnvironmentSetup: true
+      }
+    },
+    decision: {
+      mode: "delivery",
+      activeRoles: ["aide", "conduct", "coder"],
+      droppedRoles: [],
+      next: {
+        type: "delegate",
+        owner: "conduct",
+        reason: "环境判断/准备先由 conduct 处理，再交 coder 改动。"
+      },
+      triage: {
+        level: "minimal",
+        blocksDelegation: false
+      },
+      gates: {
+        qc: "off",
+        submit: "off"
+      },
+      route: [
+        { owner: "aide", action: "classify_environment_setup_needs" },
+        { owner: "conduct", action: "decide_environment_setup_and_preflight" },
+        { owner: "coder", action: "implement_fix_after_conduct_preflight" }
+      ]
+    },
+    verify: verifyEnvironmentSetupOwnedByConductBeforeWriters
+  },
+  {
     id: "release-governed-delivery-conduct-submit-conditions",
     input: {
       userTask: "准备发布：要做环境检查、整理交付并完成受控提交。",
@@ -477,7 +625,8 @@ const behaviorFixtures = [
       context: {
         repoContext: "new",
         concreteChange: true,
-        risk: "medium"
+        risk: "medium",
+        newTaskChain: true
       }
     },
     decision: {
@@ -499,8 +648,8 @@ const behaviorFixtures = [
       },
       route: [
         { owner: "aide", action: "classify_concrete_change_on_new_repo" },
-        { owner: "repo_explorer", action: "minimal_owner_scan_only" },
-        { owner: "coder", action: "apply_targeted_change" }
+        { owner: "repo_explorer", action: "minimal_owner_scan_via_real_subagent" },
+        { owner: "coder", action: "delegate_real_subagent_apply_targeted_change" }
       ]
     },
     verify: verifyNewRepoConcreteMinimalTriage
@@ -613,12 +762,45 @@ function runNegativeGuardrailScenarios() {
       expected: /product artifact should route to product_assistant|wrong product route owner/i
     },
     {
+      id: "read-heavy-investigation-stays-in-aide",
+      baseId: "read-heavy-analysis-routes-to-repo-explorer-subagent",
+      mutate(fixture) {
+        fixture.decision.mode = "discussion";
+        fixture.decision.activeRoles = ["aide"];
+        fixture.decision.next = {
+          type: "answer",
+          owner: "aide",
+          reason: "wrong mutation"
+        };
+        fixture.decision.triage = { level: "none", blocksDelegation: false };
+        fixture.decision.route = [{ owner: "aide", action: "deep_local_read_then_answer" }];
+      },
+      expected: /read-heavy investigation should activate repo_explorer|read-heavy investigation should delegate to repo_explorer|read-heavy investigation should not stay as aide-only deep read/i
+    },
+    {
       id: "release-without-governed-submit-gate",
       baseId: "release-governed-delivery-conduct-submit-conditions",
       mutate(fixture) {
         fixture.decision.gates.submit = "off";
       },
       expected: /submit cannot be active with submit gate off|release should require submit gate/i
+    },
+    {
+      id: "environment-setup-owned-by-coder",
+      baseId: "environment-setup-owned-by-conduct-before-coder",
+      mutate(fixture) {
+        fixture.decision.activeRoles = ["aide", "coder"];
+        fixture.decision.next = {
+          type: "delegate",
+          owner: "coder",
+          reason: "wrong mutation"
+        };
+        fixture.decision.route = [
+          { owner: "aide", action: "classify_environment_setup_needs" },
+          { owner: "coder", action: "do_environment_setup_and_fix" }
+        ];
+      },
+      expected: /environment setup should activate conduct|environment setup should start with conduct|conduct should own environment judgement\/prep before writers/i
     },
     {
       id: "new-repo-full-scan-block",
@@ -628,6 +810,18 @@ function runNegativeGuardrailScenarios() {
         fixture.decision.triage.blocksDelegation = true;
       },
       expected: /concrete change in new\/stale repo should not force a full scan|new repo concrete change should use minimal triage/i
+    },
+    {
+      id: "new-task-chain-without-real-subagent-markers",
+      baseId: "new-repo-concrete-change-minimal-triage-then-delegate",
+      mutate(fixture) {
+        fixture.decision.route = [
+          { owner: "aide", action: "classify_concrete_change_on_new_repo" },
+          { owner: "repo_explorer", action: "minimal_owner_scan_only" },
+          { owner: "coder", action: "apply_targeted_change" }
+        ];
+      },
+      expected: /new chain\/read-heavy work should prefer real subagent delegation markers|new task chain should prefer real subagent delegation/i
     },
     {
       id: "narrowed-task-keeps-extra-roles",
@@ -653,16 +847,22 @@ function runNegativeGuardrailScenarios() {
       `${scenario.id}: mutated route should be rejected`
     );
   });
+
+  return mutationScenarios.length;
 }
 
 export function runAideDelegationBehaviorTests() {
   runPositiveBehaviorScenarios();
-  runNegativeGuardrailScenarios();
+  const guardrailCount = runNegativeGuardrailScenarios();
+  return {
+    fixtureCount: behaviorFixtures.length,
+    guardrailCount
+  };
 }
 
 if (import.meta.url === new URL(process.argv[1], "file://").href) {
-  runAideDelegationBehaviorTests();
+  const { fixtureCount, guardrailCount } = runAideDelegationBehaviorTests();
   process.stdout.write(
-    `aide delegation behavior tests passed (${behaviorFixtures.length} fixtures + 7 guardrail mutations)\n`
+    `aide delegation behavior tests passed (${fixtureCount} fixtures + ${guardrailCount} guardrail mutations)\n`
   );
 }

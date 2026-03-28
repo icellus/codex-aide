@@ -25,7 +25,7 @@
 - 运行时权威明确
 - `Aide` 像团队秘书兼人事主管一样工作
 - `Aide` 默认只启用完成当前任务所需的最小团队，只有在确有价值时才加人
-- 纯建议型、分析型任务默认由 `Aide` 直接回答
+- 建议型、分析型任务由 `Aide` 对用户收口；如果是 read-heavy 分析，默认先用 `repo_explorer` 做只读检索
 - 执行角色负责具体交付
 - product 记忆保持轻量且可修正
 
@@ -54,7 +54,7 @@
 | 项目 | 作用 | 默认状态 |
 | --- | --- | --- |
 | `Aide` | 首轮接应、分派、治理、结果复审 | 启用 |
-| `conduct` | delivery routing 与 environment setup | 关闭 |
+| `conduct` | delivery routing、环境判断与 environment setup | 关闭 |
 | `prd` | WHAT / WHY / MVP 澄清 | 关闭 |
 | `architect` | HOW 层面的系统设计 | 关闭 |
 | `plan` | 实施 handoff | 关闭 |
@@ -68,6 +68,7 @@
 
 - 新仓库或上下文不足，本身不应该让全队一起醒来
 - 如果任务已经很具体，`Aide` 应先激活一个明确的执行角色
+- 新 task chain 启动时，能分派就优先用真实子代理，减少主线程上下文污染
 - 当任务收窄或风险解除后，额外角色应及时退出
 
 ## 两条交付线
@@ -80,6 +81,7 @@
 - 路线建议
 
 这类任务没有持久产物要求时，不默认下派执行角色，也不默认落持久状态。
+如果分析任务本身 read-heavy，优先让 `repo_explorer` 做只读扫描，再由 `Aide` 对用户汇总收口。
 
 ### Coding 线
 
@@ -119,12 +121,14 @@ Aide -> product_assistant
 - 像团队秘书一样接住用户，像人事主管一样安排最合适的人
 - 为当前任务选择最轻且合理的下一位负责人
 - 对没有持久产物要求的任务直接给出结论和建议
+- 以“代办/协调/收口”为主，不把 `/Aide` 当成主力深度排查角色
 - 做系统治理，而不是只修一次性产物
 - 对 product 线结果做基于真实聊天记录的复审
 - 在 product 任务完成边界不稳时，做轻量用户反馈确认
 - 在不阻塞首条路由的前提下做低成本进化检查
 
 对明确要落地实现的任务，`/Aide` 应尽快分派，不要为了显得懂而先深读一轮代码；只有在判断 owner 或回答用户问题真的需要时，才做更深的阅读。
+对 read-heavy 分析任务，默认用短生命周期的 `repo_explorer` 做阅读，再由 `Aide` 统一对用户回复。
 上下文缺失或过期时，也应先做足以安全分派的最小 owner scan，而不是自动 full scan 或默认把整支团队都拉起来。
 
 对 product 任务，`/Aide` 重点要看：
@@ -150,4 +154,4 @@ Aide -> product_assistant
 - `standard`：受益于计划产物的任务
 - `long-running`：跨 session、多 checkpoint、发布或更高风险任务
 
-`environment setup` 属于 `conduct`，不属于 `/Aide`。
+环境判断与 `environment setup` 属于 `conduct`，不属于 `/Aide`。

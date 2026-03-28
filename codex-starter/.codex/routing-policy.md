@@ -14,7 +14,9 @@ Otherwise, plain-language intent should map to the same routes.
 - Prefer the lightest workflow that can safely finish the task.
 - Keep `lightweight` as the default for small, local, low-risk work.
 - Add durable artifacts only when coordination, uncertainty, or risk requires them.
-- Keep discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow.
+- Keep lightweight discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow.
+- For read-heavy analysis requests that need repository evidence (for example, checking whether a copied service is incomplete), default to `Aide -> repo_explorer -> Aide`.
+- In that read-heavy analysis flow, `Aide` should synthesize findings instead of deep-reading large implementation areas or running validation commands unless the user explicitly asks for execution-level proof.
 - `Aide` must not execute concrete repo changes itself; once the task requires code, config, script, test, documentation, or any other durable artifact, assign the smallest fitting execution role or hand off to `conduct`.
 - For concrete implementation tasks, `Aide` should prefer cached state plus minimal boundary evidence over deep local code reading before delegation.
 - When ownership is unclear, prefer `repo_explorer` or `conduct` before broad local reading by `Aide`.
@@ -22,8 +24,9 @@ Otherwise, plain-language intent should map to the same routes.
 - Use a full scan before delegation only when the user explicitly asked for repo-wide assessment, ownership is still unclear after minimal triage, or change boundaries remain high-risk and unknown.
 - New repo, cold start, or thin context is not by itself a reason to activate the whole team.
 - When execution roles are active, prefer real subagents when delegation is available.
+- When a new task chain starts and read-heavy analysis or multi-step delegation has clear value, prefer subagent-first execution to keep the main thread context clean.
 - Route directly to `product_assistant` when the primary deliverable is a non-code artifact.
-- `environment setup` belongs to `conduct`.
+- `environment setup` belongs to `conduct`, including dependency installation, toolchain bootstrap, and runtime preparation.
 - `/qc` is optional unless the task or policy explicitly enables it.
 - `/submit` is the governed delivery step after local completion or QC pass when commit, push, or post-push follow-through matters.
 
@@ -59,11 +62,12 @@ Upgrade only when the expected output changes from advice to a concrete delivera
 ## Role Staffing
 
 - Start with the smallest active team that can safely finish the current task.
-- For advice, Q&A, analysis, and option comparison, keep only `Aide` active unless the task later turns into delivery.
+- For lightweight advice, Q&A, analysis, and option comparison, keep only `Aide` active unless the task later turns into delivery.
+- For read-heavy analysis with repository fact-finding value, keep `Aide` user-facing and add a short-lived `repo_explorer` pass.
 - For a clear small repo change, activate one clear execution role first instead of waking multiple roles.
 - Add `tester` only when task-level validation ownership, red/green separation, or non-trivial behavior risk is real.
 - Use `repo_explorer` only as a short-lived read-only helper when ownership, entrypoints, or boundaries are unclear.
-- Activate `conduct` when environment setup, conflict checks, or multi-role delivery routing actually matter.
+- Activate `conduct` when environment setup decisions/preparation, conflict checks, or multi-role delivery routing actually matter.
 - Activate `prd`, `architect`, or `plan` only for genuine scope, HOW, or implementation-structure uncertainty.
 - Activate `/qc` only for explicit audit need or higher-risk delivery.
 - Activate `/submit` only when governed delivery or commit/push follow-through matters.
@@ -111,6 +115,8 @@ In the user-facing reply, return only:
 - who acts next
 - the immediate next step
 - the shortest useful reason in plain language
+
+Aide analysis replies should sound like coordination: concise conclusion, next owner, and next move, not memo-style technical writeups unless the user explicitly asks for that format.
 
 Do not expose task class, delivery mode, enabled modules, or other internal workflow labels unless the user explicitly asks about the workflow design.
 Do not present coordination work as if `Aide` is personally going to implement the change when another execution role should take over.

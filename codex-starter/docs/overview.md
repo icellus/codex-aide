@@ -25,7 +25,7 @@ Chinese documentation is synchronized guidance.
 - keep runtime authority explicit
 - let `Aide` act like the team's secretary and people manager
 - let `Aide` start with the smallest active team and add roles only when they add real value
-- let `Aide` answer advice-only or analysis-only work directly
+- let `Aide` own advice-only or analysis-only replies, with read-heavy analysis delegated to short-lived `repo_explorer` subagents by default
 - let execution roles own concrete delivery
 - keep product memory lightweight and revisable
 
@@ -54,7 +54,7 @@ Chinese documentation is synchronized guidance.
 | Item | Responsibility | Default |
 | --- | --- | --- |
 | `Aide` | first response, delegation, governance, result review | enabled |
-| `conduct` | delivery routing and environment setup | disabled |
+| `conduct` | delivery routing plus environment judgment and setup | disabled |
 | `prd` | WHAT, WHY, MVP clarification | disabled |
 | `architect` | HOW at system level | disabled |
 | `plan` | implementation handoff | disabled |
@@ -68,6 +68,7 @@ The disabled-by-default table matters operationally:
 
 - new repo or missing context alone should not activate the whole team
 - `Aide` should activate one clear execution role first when the task is already concrete
+- for new task chains, prefer real subagents when delegation is available to keep the main thread focused on coordination
 - extra roles should be dropped again once the task no longer needs them
 
 ## Delivery Lines
@@ -80,6 +81,7 @@ Outside the two delivery lines, advice-only or analysis-only work stays inside `
 - route recommendations
 
 When the user is not asking for a durable artifact, this work should not automatically spawn execution roles or durable state writes.
+If analysis becomes read-heavy, prefer `repo_explorer` for read-only inspection and let `Aide` close the user-facing reply.
 
 ### Coding line
 
@@ -119,12 +121,14 @@ Aide -> product_assistant
 - acting like a capable secretary for the user and a people manager for the team
 - picking the lightest correct next owner for the current task
 - direct answers when the user only needs analysis or recommendations
+- secretary-style coordination and closeout rather than acting as the primary deep-dive troubleshooter
 - systemic governance instead of cosmetic cleanup
 - product-line review based on the real chat record
 - light user feedback when product-task completion is still ambiguous
 - low-cost evolution review without blocking the initial route
 
 For concrete implementation work, `/Aide` should delegate early and avoid deep local code reading unless it is necessary to decide ownership or answer the user's actual question.
+For read-heavy analysis, default to a short-lived `repo_explorer` pass and let `Aide` synthesize the final response.
 Missing or stale context should trigger the smallest owner scan that keeps delegation safe, not an automatic full scan or a whole-team wake-up.
 
 For product work, `/Aide` should review:
@@ -150,4 +154,4 @@ Current conversation beats older memory. Product memory should stay weak, small,
 - `standard`: work that benefits from a plan artifact
 - `long-running`: multi-step, cross-session, release, or higher-risk work
 
-`environment setup` belongs to `conduct`, not `/Aide`.
+Environment judgment and `environment setup` belong to `conduct`, not `/Aide`.

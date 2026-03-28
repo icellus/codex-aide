@@ -64,7 +64,13 @@ export function runAideStaffingContractTests(rootDir) {
   }
 
   function testConductAndPlanningRolesStayConditional() {
-    assertAll(authority, [/Activate `conduct` when environment setup, conflict checks, or multi-role delivery routing actually matter/i], "conduct conditional");
+    assertAll(
+      authority,
+      [
+        /Activate `conduct` when environment setup(?: decisions\/preparation)?(?:, conflict checks, (?:route composition|multi-role delivery routing)|, or longer delivery planning actually matter| actually matter)/i
+      ],
+      "conduct conditional"
+    );
     assertAll(authority, [/Activate `prd`, `architect`, or `plan` only for genuine scope, HOW, or implementation-structure uncertainty/i], "planning roles conditional");
   }
 
