@@ -23,6 +23,9 @@ Project-level Codex workflow starter.
 
 ## Runtime Files
 
+- `.codex/config.toml`: minimal project-scoped Codex config; starter only enables repo-local hooks here and leaves other settings to higher-level config
+- `.codex/hooks.json`: repo-local Codex hook wiring
+- `.codex/hooks/*.mjs`: hook handlers for deterministic lifecycle logging
 - `.codex/routing-policy.md`: routing and module activation authority
 - `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk auto-writeback policy
 - `.codex/delivery-policy.json`: governed submit policy for commit, push, and optional post-push delivery steps
@@ -32,6 +35,7 @@ Project-level Codex workflow starter.
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: repository validation baseline and constraints
 - `PROGRESS.md`: long-running checkpoint tracking only
+- `.codex/logs/codex-hooks/YYYY-MM-DD.jsonl`: raw Codex lifecycle event log captured by repo-local hooks
 - `.codex/state/runtime-state.json`: runtime memory, reminders, and QC follow-up
 - `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`: hook invocation log with stdin/stdout/stderr and runtime write traces; oversized daily logs rotate into numbered chunks
 - `.codex/project-profile.md`: short human summary, not the hot path
@@ -46,7 +50,7 @@ Project-level Codex workflow starter.
 - `node .codex/scripts/runtime-state.mjs`
 - `node .codex/scripts/validate-git.mjs`
 - `startup-context.mjs` is the recommended single entrypoint for startup/resume wiring; it runs task overview, startup evolution, and session reminder refresh in order
-- these scripts are callable entrypoints; actual startup or tool-hook wiring depends on the client/integration, not on this starter alone
+- repo-local Codex hooks are enabled through `.codex/config.toml` and `.codex/hooks.json`; the project layer only turns on hooks and should not duplicate global defaults
 - prefer `{"event":"subagent_result",...}` and `{"event":"task_settled",...}` payloads; keep `session_end` as best-effort cleanup only
 
 ## Guardrails

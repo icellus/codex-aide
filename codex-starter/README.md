@@ -45,10 +45,14 @@ bash /path/to/codex-starter/install.sh
 ```
 
 The installer refreshes `AGENTS.md`, `.agents/`, `.product/`, and the starter-managed files under `.codex/`, then creates or updates `.gitignore`.
-It preserves the target repository's `.codex/state/` and `.codex/logs/` contents, does not seed source runtime history into the target repository, and removes the legacy top-level `.codex/logs/runtime-hooks.jsonl` file if present.
+It installs a minimal project-local `.codex/config.toml` that only enables repo-local Codex hooks, copies `.codex/hooks.json` and `.codex/hooks/`, seeds the baseline `.codex/state/task-context.json`, `.codex/state/repo-context.json`, and `.codex/state/task-registry.json` files only when they are missing, preserves existing `.codex/state/` and `.codex/logs/` contents, does not seed source runtime history into the target repository, and removes the legacy top-level `.codex/logs/runtime-hooks.jsonl` file if present.
 The copied starter files are ignored as a whole: `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`.
 
-If an integration wants a single startup command instead of wiring several scripts manually, use:
+To make repo-local hooks effective, Codex must trust the project so that `<repo>/.codex/config.toml` is loaded. The project-local config only sets `[features].codex_hooks = true`; all other defaults continue to come from `~/.codex/config.toml` unless the project layer explicitly overrides them.
+
+With hooks active, Codex automatically appends raw lifecycle events to `.codex/logs/codex-hooks/YYYY-MM-DD.jsonl` and also runs the startup helper on `SessionStart`.
+
+If an integration wants a single startup command outside the hook system instead of wiring several scripts manually, use:
 
 ```bash
 node .codex/scripts/startup-context.mjs
@@ -110,7 +114,11 @@ For discussion-shaped work, `/Aide` should stay lightweight:
 - `.codex/delivery-policy.json`: governed submit defaults
 - `.codex/evolution-policy.json`: low-risk automatic writeback policy
 - `.codex/state/evolution-registry.json`: governance evolution queue
+- `.codex/logs/codex-hooks/YYYY-MM-DD.jsonl`: raw Codex lifecycle events captured by repo-local hooks
 - `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`: full runtime hook invocation log, including input, output, and file writes
+- `.codex/config.toml`: minimal repo-local hook enablement; leave global defaults in `~/.codex/config.toml`
+- `.codex/hooks.json`: repo-local hook wiring
+- `.codex/hooks/*.mjs`: repo-local hook handlers
 - `.codex/scripts/*.mjs`: runtime helpers
 - `.product/registry.json`: product template registry
 - `.product/memory.json`: lightweight product memory; current conversation wins on conflict

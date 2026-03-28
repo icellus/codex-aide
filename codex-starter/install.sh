@@ -31,6 +31,16 @@ copy_file() {
   cp -f "$src_file" "$dst_file"
 }
 
+copy_file_if_missing() {
+  local src_file="$1"
+  local dst_file="$2"
+
+  mkdir -p "$(dirname "$dst_file")"
+  if [[ ! -e "$dst_file" ]]; then
+    cp -f "$src_file" "$dst_file"
+  fi
+}
+
 cleanup_legacy_codex_runtime_artifacts() {
   local dst_dir="$1"
 
@@ -61,14 +71,21 @@ copy_codex_dir() {
   cleanup_legacy_codex_runtime_artifacts "$dst_dir"
 
   copy_dir "$src_dir/agents" "$dst_dir/agents"
+  copy_dir "$src_dir/hooks" "$dst_dir/hooks"
   copy_dir "$src_dir/scripts" "$dst_dir/scripts"
   copy_dir "$src_dir/templates" "$dst_dir/templates"
 
+  copy_file "$src_dir/config.toml" "$dst_dir/config.toml"
   copy_file "$src_dir/delivery-policy.json" "$dst_dir/delivery-policy.json"
   copy_file "$src_dir/evolution-policy.json" "$dst_dir/evolution-policy.json"
+  copy_file "$src_dir/hooks.json" "$dst_dir/hooks.json"
   copy_file "$src_dir/project-profile.md" "$dst_dir/project-profile.md"
   copy_file "$src_dir/routing-policy.md" "$dst_dir/routing-policy.md"
   copy_file "$src_dir/validation-profile.json" "$dst_dir/validation-profile.json"
+
+  copy_file_if_missing "$src_dir/bootstrap-state/task-context.json" "$dst_dir/state/task-context.json"
+  copy_file_if_missing "$src_dir/bootstrap-state/repo-context.json" "$dst_dir/state/repo-context.json"
+  copy_file_if_missing "$src_dir/bootstrap-state/task-registry.json" "$dst_dir/state/task-registry.json"
 }
 
 append_gitignore_lines() {

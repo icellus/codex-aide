@@ -18,6 +18,7 @@ const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), ".
 const runtimeStateScript = path.join(rootDir, ".codex", "scripts", "runtime-state.mjs");
 const sessionContextScript = path.join(rootDir, ".codex", "scripts", "session-context.mjs");
 const startupContextScript = path.join(rootDir, ".codex", "scripts", "startup-context.mjs");
+const hookLogScript = path.join(rootDir, ".codex", "hooks", "log-event.mjs");
 const taskOverviewScript = path.join(rootDir, ".codex", "scripts", "task-overview.mjs");
 const aideEvolutionScript = path.join(rootDir, ".codex", "scripts", "aide-evolution.mjs");
 const aideGovernanceScript = path.join(rootDir, ".codex", "scripts", "aide-governance.mjs");
@@ -114,6 +115,26 @@ function listRuntimeLogFiles(projectDir) {
   }
 
   return fs.readdirSync(logDir).filter((name) => name.endsWith(".jsonl")).sort();
+}
+
+function readCodexHookLogEntries(projectDir) {
+  const logDir = path.join(projectDir, ".codex", "logs", "codex-hooks");
+  if (!fs.existsSync(logDir)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(logDir)
+    .filter((name) => name.endsWith(".jsonl"))
+    .sort()
+    .flatMap((name) =>
+      fs
+        .readFileSync(path.join(logDir, name), "utf8")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+    );
 }
 
 function prepareProjectProfile(targetPath, replacements = []) {
@@ -859,6 +880,39 @@ function testStartupContextRunsStartupChainAndWritesInvocationLogs() {
   assert.equal(finish.status, "ok");
 }
 
+function testCodexHookLoggerCapturesSessionStartAndStopEvents() {
+  const dir = makeTempDir("codex-starter-hook-log-");
+  fs.mkdirSync(path.join(dir, ".codex"), { recursive: true });
+
+  const startupStdout = runNode(hookLogScript, {
+    cwd: dir,
+    hook_event_name: "SessionStart",
+    source: "startup",
+    session_id: "session-1",
+    transcript_path: path.join(dir, "transcript.jsonl")
+  });
+  const stopStdout = runNode(hookLogScript, {
+    cwd: dir,
+    hook_event_name: "Stop",
+    session_id: "session-1",
+    turn_id: "turn-1",
+    last_assistant_message: "done"
+  });
+  const logs = readCodexHookLogEntries(dir);
+  const start = logs.find((entry) => entry.hookEventName === "SessionStart");
+  const stop = logs.find((entry) => entry.hookEventName === "Stop");
+
+  assert.equal(startupStdout, "");
+  assert.deepEqual(JSON.parse(stopStdout), { continue: true });
+  assert.ok(start);
+  assert.equal(start.payload.source, "startup");
+  assert.equal(start.sessionId, "session-1");
+  assert.equal(start.projectDir, dir);
+  assert.ok(stop);
+  assert.equal(stop.payload.last_assistant_message, "done");
+  assert.equal(stop.turnId, "turn-1");
+}
+
 function testRuntimeLogWriteMigratesLegacyTopLevelFile() {
   const dir = makeTempDir("codex-starter-legacy-runtime-log-");
   fs.mkdirSync(path.join(dir, ".codex", "logs"), { recursive: true });
@@ -984,11 +1038,14 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   const dir = makeTempDir("codex-starter-install-");
   fs.writeFileSync(path.join(dir, ".gitignore"), "node_modules/\n", "utf8");
   fs.mkdirSync(path.join(dir, ".agents", "skills", "aide"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".codex", "hooks"), { recursive: true });
   fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
   fs.mkdirSync(path.join(dir, ".product", "templates"), { recursive: true });
   fs.writeFileSync(path.join(dir, "AGENTS.md"), "stale agents\n", "utf8");
   fs.writeFileSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md"), "stale skill\n", "utf8");
-  fs.writeFileSync(path.join(dir, ".codex", "config.toml"), "[agents]\nmax_threads = 99\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".codex", "config.toml"), "[features]\ncodex_hooks = false\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".codex", "hooks.json"), "{\"stale\":true}\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".codex", "hooks", "stale.mjs"), "stale\n", "utf8");
   fs.writeFileSync(path.join(dir, ".codex", "state", "stale.json"), "{}\n", "utf8");
   fs.writeFileSync(path.join(dir, ".product", "templates", "stale.md"), "stale template\n", "utf8");
 
@@ -1002,9 +1059,15 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
   assert.ok(fs.existsSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(dir, ".codex", "routing-policy.md")));
-  assert.ok(!fs.existsSync(path.join(dir, ".codex", "config.toml")));
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "config.toml")));
+  assert.match(fs.readFileSync(path.join(dir, ".codex", "config.toml"), "utf8"), /\[features\]\s+codex_hooks = true/);
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "hooks.json")));
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "hooks", "log-event.mjs")));
   assert.ok(fs.existsSync(path.join(dir, ".product", "registry.json")));
   assert.ok(fs.existsSync(path.join(dir, ".codex", "state", "stale.json")));
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "state", "task-context.json")));
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "state", "repo-context.json")));
+  assert.ok(fs.existsSync(path.join(dir, ".codex", "state", "task-registry.json")));
   assert.ok(!fs.existsSync(path.join(dir, ".product", "templates", "stale.md")));
   assert.match(fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8"), /Project-level Codex workflow starter/);
   assert.match(fs.readFileSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md"), "utf8"), /name: aide/);
@@ -1029,12 +1092,14 @@ function testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFi
   fs.mkdirSync(freshTargetDir, { recursive: true });
 
   fs.mkdirSync(path.join(sourceDir, ".codex", "logs", "runtime-hooks"), { recursive: true });
+  fs.mkdirSync(path.join(sourceDir, ".codex", "logs", "codex-hooks"), { recursive: true });
   fs.writeFileSync(path.join(sourceDir, ".codex", "logs", "runtime-hooks.jsonl"), '{"legacy":"source"}\n', "utf8");
   fs.writeFileSync(
     path.join(sourceDir, ".codex", "logs", "runtime-hooks", "source-log.jsonl"),
     '{"daily":"source"}\n',
     "utf8"
   );
+  fs.writeFileSync(path.join(sourceDir, ".codex", "logs", "codex-hooks", "source-hook-log.jsonl"), '{"hook":"source"}\n', "utf8");
   writeJson(path.join(sourceDir, ".codex", "state", "runtime-state.json"), {
     version: 1,
     updatedAt: "2026-03-28T00:00:00Z",
@@ -1112,12 +1177,14 @@ function testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFi
   });
 
   fs.mkdirSync(path.join(targetDir, ".codex", "logs", "runtime-hooks"), { recursive: true });
+  fs.mkdirSync(path.join(targetDir, ".codex", "logs", "codex-hooks"), { recursive: true });
   fs.writeFileSync(path.join(targetDir, ".codex", "logs", "runtime-hooks.jsonl"), '{"legacy":"target"}\n', "utf8");
   fs.writeFileSync(
     path.join(targetDir, ".codex", "logs", "runtime-hooks", "target-log.jsonl"),
     '{"daily":"target"}\n',
     "utf8"
   );
+  fs.writeFileSync(path.join(targetDir, ".codex", "logs", "codex-hooks", "target-hook-log.jsonl"), '{"hook":"target"}\n', "utf8");
   writeJson(path.join(targetDir, ".codex", "state", "runtime-state.json"), {
     version: 1,
     updatedAt: "2026-03-28T01:00:00Z",
@@ -1207,17 +1274,31 @@ function testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFi
   assert.equal(freshResult.status, 0);
   assert.ok(!fs.existsSync(path.join(targetDir, ".codex", "logs", "runtime-hooks.jsonl")));
   assert.ok(!fs.existsSync(path.join(targetDir, ".codex", "logs", "runtime-hooks", "source-log.jsonl")));
+  assert.ok(!fs.existsSync(path.join(targetDir, ".codex", "logs", "codex-hooks", "source-hook-log.jsonl")));
   assert.ok(fs.existsSync(path.join(targetDir, ".codex", "logs", "runtime-hooks", "target-log.jsonl")));
+  assert.ok(fs.existsSync(path.join(targetDir, ".codex", "logs", "codex-hooks", "target-hook-log.jsonl")));
   assert.equal(readRuntimeState(targetDir).sessionContext.lastReminderText, "target runtime state");
   assert.equal(readEvolutionRegistry(targetDir).lastSweep.note, "target evolution state");
   assert.equal(readTaskContextFile(targetDir).collaboration.preferred_address, "Target Boss");
   assert.equal(readRepoContextFile(targetDir).project_type, "Target Project");
   assert.equal(readTaskRegistry(targetDir).currentTaskId, "target-task");
+  assert.match(fs.readFileSync(path.join(targetDir, ".codex", "config.toml"), "utf8"), /\[features\]\s+codex_hooks = true/);
+  assert.ok(fs.existsSync(path.join(targetDir, ".codex", "hooks.json")));
+  assert.ok(fs.existsSync(path.join(targetDir, ".codex", "hooks", "log-event.mjs")));
   assert.ok(fs.existsSync(path.join(targetDir, ".codex", "state", "target-only.json")));
   assert.ok(!fs.existsSync(path.join(targetDir, ".codex", "state", "source-only.json")));
-  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "task-context.json")));
-  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "repo-context.json")));
-  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "task-registry.json")));
+  assert.match(fs.readFileSync(path.join(freshTargetDir, ".codex", "config.toml"), "utf8"), /\[features\]\s+codex_hooks = true/);
+  assert.ok(fs.existsSync(path.join(freshTargetDir, ".codex", "hooks.json")));
+  assert.ok(fs.existsSync(path.join(freshTargetDir, ".codex", "hooks", "log-event.mjs")));
+  assert.ok(fs.existsSync(path.join(freshTargetDir, ".codex", "state", "task-context.json")));
+  assert.ok(fs.existsSync(path.join(freshTargetDir, ".codex", "state", "repo-context.json")));
+  assert.ok(fs.existsSync(path.join(freshTargetDir, ".codex", "state", "task-registry.json")));
+  assert.equal(readTaskContextFile(freshTargetDir).collaboration.preferred_address, "Boss");
+  assert.equal(readRepoContextFile(freshTargetDir).scan_status, "not-scanned");
+  assert.equal(readTaskRegistry(freshTargetDir).currentTaskId, null);
+  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "runtime-state.json")));
+  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "evolution-registry.json")));
+  assert.ok(!fs.existsSync(path.join(freshTargetDir, ".codex", "state", "source-only.json")));
 }
 
 function testQcReviewerAliasRecordsStructuredFail() {
@@ -2215,6 +2296,7 @@ testSessionContextShowsPendingSubmitReminder();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
 testSessionContextWritesFullInvocationLogs();
 testStartupContextRunsStartupChainAndWritesInvocationLogs();
+testCodexHookLoggerCapturesSessionStartAndStopEvents();
 testRuntimeLogWriteMigratesLegacyTopLevelFile();
 testRuntimeLogSplitsLargeDailyLogsIntoChunks();
 testValidateGitRejectsBroadAdd();

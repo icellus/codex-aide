@@ -18,8 +18,9 @@
 bash /path/to/codex-starter/install.sh
 ```
 
-这个脚本会递归覆盖 starter 文件，并把复制过去的 starter 内容整体补进 `.gitignore`：
+这个脚本会刷新 starter 管理的文件，并把复制过去的 starter 内容整体补进 `.gitignore`：
 `AGENTS.md`、`.agents/`、`.codex/`、`.product/`。
+它会安装一个最小化的项目级 `.codex/config.toml`，里面只开启 repo-local Codex hooks；同时复制 `.codex/hooks.json` 和 `.codex/hooks/`，只在缺失时补入基础的 `task-context.json`、`repo-context.json`、`task-registry.json`，保留已有 `.codex/state/` 与 `.codex/logs/`，并且不会把 source 仓库里的 runtime 历史一起带到目标仓库。
 
 `Aide`、`qc`、`submit` 是逻辑路由别名。
 如果客户端不支持自定义 slash command，就不要提示用户输入 `/Aide`、`/qc`、`/submit`。
@@ -132,10 +133,13 @@ bash /path/to/codex-starter/install.sh
 6. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
 7. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
-这些脚本是供客户端或外部集成接线的 runtime 入口；starter 本身不会自动注册一整条 startup hook 链。若要接 startup 或 resume，优先把 `startup-context.mjs` 当作单一入口，它会按顺序执行 task overview、startup evolution 和 session reminder 刷新。
-如果不是在目标仓库根目录里直接调用这些脚本，记得通过 `cwd`、`workdir`、`projectDir` 或 `CODEX_PROJECT_DIR` 显式传入目标仓库路径，否则日志和状态会落到调用方仓库。
+repo-local Codex hooks 通过 `.codex/config.toml` 和 `.codex/hooks.json` 启用。项目级配置只写 `[features].codex_hooks = true`，所以其余默认值继续来自 `~/.codex/config.toml`，除非你在项目级显式覆盖。同样，Codex 只有在仓库被标记为 trusted 之后，才会加载项目级这一层配置。
 
-`runtime-state.json` 按需生成。hook 日志会追加写入 `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`，其中包含 stdin、stdout、stderr，以及 runtime 管理的文件写入记录。单日日志过大时会自动切到编号分片。若仍存在旧的顶层 `.codex/logs/runtime-hooks.jsonl`，下一次 runtime hook 写日志时会自动迁移到按日分片文件并删除该残留文件。QC 提醒只会在当前任务明确启用了 `qc` 时出现。
+hooks 启用后，原始生命周期事件会追加写入 `.codex/logs/codex-hooks/YYYY-MM-DD.jsonl`，用于后续分析 prompt、stop 和 Bash 使用情况。现有 runtime helper 的调用日志仍然写在 `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`。
+
+对于 startup / resume，repo-local 的 `SessionStart` hook 会自动调用 `startup-context.mjs`。如果不是通过 hook 系统，而是从外部集成直接接线，仍然优先把 `startup-context.mjs` 当作单一入口；若调用位置不在目标仓库根目录，记得通过 `cwd`、`workdir`、`projectDir` 或 `CODEX_PROJECT_DIR` 显式传入目标仓库路径。
+
+`runtime-state.json` 按需生成。runtime helper 日志会追加写入 `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`，其中包含 stdin、stdout、stderr，以及 runtime 管理的文件写入记录。单日日志过大时会自动切到编号分片。若仍存在旧的顶层 `.codex/logs/runtime-hooks.jsonl`，下一次 runtime hook 写日志时会自动迁移到按日分片文件并删除该残留文件。QC 提醒只会在当前任务明确启用了 `qc` 时出现。
 
 ## Smoke Test
 

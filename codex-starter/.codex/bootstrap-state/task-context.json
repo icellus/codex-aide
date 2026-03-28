@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "updated_at": null,
+  "collaboration": {
+    "preferred_address": "Boss",
+    "greeting_style": "warm",
+    "first_startup_greeting_completed": false
+  },
+  "task": {
+    "current_task": "",
+    "status": "idle",
+    "class": "unknown",
+    "risk": "unknown",
+    "delivery_mode": "lightweight",
+    "route_rationale": "",
+    "routing_overrides": [],
+    "enabled_roles": ["Aide", "main agent"],
+    "enabled_modules": ["startup scan or cached repo context", "lightweight execution"],
+    "qc_policy": "disabled",
+    "submit_policy": "enabled",
+    "validation_profile_status": "not-set",
+    "open_questions": []
+  }
+}

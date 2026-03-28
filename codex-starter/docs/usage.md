@@ -15,8 +15,9 @@ You can also install from the target repository root with:
 bash /path/to/codex-starter/install.sh
 ```
 
-The installer recursively overwrites the starter files and ignores the copied starter files as a whole in `.gitignore`:
+The installer refreshes starter-managed files and ignores the copied starter files as a whole in `.gitignore`:
 `AGENTS.md`, `.agents/`, `.codex/`, and `.product/`.
+It installs a minimal project-local `.codex/config.toml` that only enables repo-local Codex hooks, copies `.codex/hooks.json` and `.codex/hooks/`, seeds baseline `task-context.json`, `repo-context.json`, and `task-registry.json` only when they are missing, preserves existing `.codex/state/` and `.codex/logs/`, and does not seed source runtime history into the target repository.
 
 Route names such as `Aide`, `qc`, and `submit` are logical aliases.
 If the client does not support custom slash commands, do not tell the user to type `/Aide`, `/qc`, or `/submit`.
@@ -129,10 +130,13 @@ Useful entrypoints:
 6. `printf '%s\n' '{"event":"subagent_result","role":"coder","status":"complete","message":"...","cwd":"..."}' | node .codex/scripts/runtime-state.mjs`
 7. `printf '%s\n' '{"command":"git add ."}' | node .codex/scripts/validate-git.mjs`
 
-These scripts are runtime entrypoints for client or integration wiring. The starter itself does not auto-register a startup hook chain. For startup or resume integration, prefer `startup-context.mjs` as the single entrypoint; it runs task overview, startup evolution, and session reminder refresh in order.
-When calling them from outside the project root, pass the target repository through `cwd`, `workdir`, `projectDir`, or `CODEX_PROJECT_DIR` so logs and state resolve to the correct repository.
+Repo-local Codex hooks are enabled through `.codex/config.toml` and `.codex/hooks.json`. The project-local config only sets `[features].codex_hooks = true`, so the rest of your defaults continue to come from `~/.codex/config.toml` unless you explicitly override them. Codex must trust the project before it loads the project-scoped config layer.
 
-`runtime-state.json` is created on demand. Hook logs are appended to `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`, including stdin, stdout, stderr, and runtime-managed file writes. Oversized daily logs rotate into numbered chunks automatically. If the legacy top-level `.codex/logs/runtime-hooks.jsonl` file still exists, the next runtime hook write migrates it into the daily log chunks and removes the stale file. QC reminders appear only when the current task explicitly enables `qc`.
+With hooks active, raw lifecycle events are appended to `.codex/logs/codex-hooks/YYYY-MM-DD.jsonl`. This log is intended for later analysis of prompts, stops, and Bash usage. The existing runtime helper logs remain under `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`.
+
+For startup or resume, the repo-local `SessionStart` hook runs `startup-context.mjs` automatically. If you are wiring runtime scripts from outside the hook system, prefer `startup-context.mjs` as the single entrypoint and pass the target repository through `cwd`, `workdir`, `projectDir`, or `CODEX_PROJECT_DIR` so logs and state resolve to the correct repository.
+
+`runtime-state.json` is created on demand. Runtime helper logs are appended to `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`, including stdin, stdout, stderr, and runtime-managed file writes. Oversized daily logs rotate into numbered chunks automatically. If the legacy top-level `.codex/logs/runtime-hooks.jsonl` file still exists, the next runtime hook write migrates it into the daily log chunks and removes the stale file. QC reminders appear only when the current task explicitly enables `qc`.
 
 ## Smoke Test
 
