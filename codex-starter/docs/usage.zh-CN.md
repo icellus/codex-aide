@@ -160,5 +160,11 @@ hooks 启用后，原始生命周期事件会追加写入 `.codex/logs/codex-hoo
 ## Smoke Test
 
 ```bash
-node tests/runtime-hooks.smoke.mjs
+node tests/codex-starter/run.mjs
+node tests/codex-starter/run.mjs --file codex-starter/AGENTS.md
+node tests/codex-starter/run.mjs --suite smoke
 ```
+
+对仓库自身维护，优先先跑不带参数的 `run.mjs`。
+它会根据当前 git worktree 自动选择最小必要 suite。
+如果是子线程拿着明确 write set 做收口，就用 `--file` 传入它负责的路径，避免手工拼测试列表。

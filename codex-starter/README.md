@@ -36,8 +36,8 @@ If the client does not support custom slash commands, the user should just descr
 
 ## Quick Start
 
-1. Copy `AGENTS.md`, `.agents/skills/`, `.codex/`, `.product/`, and optionally `docs/` and `tests/` into the target repository.
-2. Ensure `node` is available if you want runtime helpers and smoke tests.
+1. Copy `AGENTS.md`, `.agents/skills/`, `.codex/`, `.product/`, and optionally `docs/` into the target repository.
+2. Ensure `node` is available if you want runtime helpers.
 3. Start by describing your goal in plain language.
 4. Let `Aide` take the first coordination pass, refresh current state if needed, and decide the next owner in plain language.
 
@@ -152,8 +152,18 @@ If a repository still has the legacy top-level `.codex/logs/runtime-hooks.jsonl`
 - 中文使用说明: [`docs/usage.zh-CN.md`](./docs/usage.zh-CN.md)
 - 中文详细说明: [`docs/detailed-guide.zh-CN.md`](./docs/detailed-guide.zh-CN.md)
 
-## Smoke Test
+## Repository Development Tests
+
+Repository-level maintenance tests now live at the repository root instead of inside `codex-starter/`.
+
+Common entrypoints:
 
 ```bash
-node tests/runtime-hooks.smoke.mjs
+node tests/codex-starter/run.mjs
+node tests/codex-starter/run.mjs --file codex-starter/AGENTS.md
+node tests/codex-starter/run.mjs --suite fast
+node tests/codex-starter/run.mjs --suite smoke
 ```
+
+Use `run.mjs` with no arguments for current-worktree auto-selection.
+For bounded subagent work, prefer `--file` with the owned path set instead of hand-assembling test file lists.

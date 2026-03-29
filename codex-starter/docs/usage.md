@@ -157,5 +157,11 @@ For startup or resume, the repo-local `SessionStart` hook runs `startup-context.
 ## Smoke Test
 
 ```bash
-node tests/runtime-hooks.smoke.mjs
+node tests/codex-starter/run.mjs
+node tests/codex-starter/run.mjs --file codex-starter/AGENTS.md
+node tests/codex-starter/run.mjs --suite smoke
 ```
+
+For repository maintenance, prefer `run.mjs` without arguments first.
+It auto-selects the minimal mapped suites from the current git worktree.
+For bounded subagent-owned edits, use `--file` with the owned paths so validation stays aligned with the actual write set.

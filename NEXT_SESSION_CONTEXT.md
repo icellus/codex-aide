@@ -67,22 +67,23 @@ There are now multiple layers of `Aide` tests:
 - mutation guard tests
 - black-box behavior tests
 - integrated smoke coverage
+- manifest-driven suite selection for repo maintenance
 
 Important test files now include:
 
-- [aide-dialogue.contract.mjs](/workspace/agent-skills/codex-starter/tests/aide-dialogue.contract.mjs)
-- [aide-staffing.contract.mjs](/workspace/agent-skills/codex-starter/tests/aide-staffing.contract.mjs)
-- [aide-authority-alignment.contract.mjs](/workspace/agent-skills/codex-starter/tests/aide-authority-alignment.contract.mjs)
-- [aide-baseline.contract.mjs](/workspace/agent-skills/codex-starter/tests/aide-baseline.contract.mjs)
-- [aide-conflict.contract.mjs](/workspace/agent-skills/codex-starter/tests/aide-conflict.contract.mjs)
-- [aide-routing-matrix.contract.mjs](/workspace/agent-skills/codex-starter/tests/aide-routing-matrix.contract.mjs)
-- [aide-baseline.mutation.mjs](/workspace/agent-skills/codex-starter/tests/aide-baseline.mutation.mjs)
-- [aide-conflict.mutation.mjs](/workspace/agent-skills/codex-starter/tests/aide-conflict.mutation.mjs)
-- [aide-routing-matrix.mutation.mjs](/workspace/agent-skills/codex-starter/tests/aide-routing-matrix.mutation.mjs)
-- [aide-reply-behavior.mjs](/workspace/agent-skills/codex-starter/tests/aide-reply-behavior.mjs)
-- [aide-delegation-behavior.mjs](/workspace/agent-skills/codex-starter/tests/aide-delegation-behavior.mjs)
-- [aide-adversarial-behavior.mjs](/workspace/agent-skills/codex-starter/tests/aide-adversarial-behavior.mjs)
-- [runtime-hooks.smoke.mjs](/workspace/agent-skills/codex-starter/tests/runtime-hooks.smoke.mjs)
+- [aide-dialogue.contract.mjs](/workspace/agent-skills/tests/codex-starter/contract/aide-dialogue.contract.mjs)
+- [aide-staffing.contract.mjs](/workspace/agent-skills/tests/codex-starter/contract/aide-staffing.contract.mjs)
+- [aide-authority-alignment.contract.mjs](/workspace/agent-skills/tests/codex-starter/contract/aide-authority-alignment.contract.mjs)
+- [aide-baseline.contract.mjs](/workspace/agent-skills/tests/codex-starter/contract/aide-baseline.contract.mjs)
+- [aide-conflict.contract.mjs](/workspace/agent-skills/tests/codex-starter/contract/aide-conflict.contract.mjs)
+- [aide-routing-matrix.contract.mjs](/workspace/agent-skills/tests/codex-starter/contract/aide-routing-matrix.contract.mjs)
+- [aide-baseline.mutation.mjs](/workspace/agent-skills/tests/codex-starter/mutation/aide-baseline.mutation.mjs)
+- [aide-conflict.mutation.mjs](/workspace/agent-skills/tests/codex-starter/mutation/aide-conflict.mutation.mjs)
+- [aide-routing-matrix.mutation.mjs](/workspace/agent-skills/tests/codex-starter/mutation/aide-routing-matrix.mutation.mjs)
+- [aide-reply-behavior.mjs](/workspace/agent-skills/tests/codex-starter/behavior/aide-reply-behavior.mjs)
+- [aide-delegation-behavior.mjs](/workspace/agent-skills/tests/codex-starter/behavior/aide-delegation-behavior.mjs)
+- [aide-adversarial-behavior.mjs](/workspace/agent-skills/tests/codex-starter/behavior/aide-adversarial-behavior.mjs)
+- [runtime-hooks.smoke.mjs](/workspace/agent-skills/tests/codex-starter/smoke/runtime-hooks.smoke.mjs)
 
 ## Real-Log Findings That Matter
 
@@ -124,6 +125,7 @@ These are important and should be preserved in future work:
 - The user is comfortable using multiple subagents for independent testing.
 - The user wants temporary files cleaned before final submission.
 - The user wants a strong preference for real-world evidence over theoretical prompt polishing.
+- Do not conflate the repository-root `AGENTS.md` with `codex-starter/AGENTS.md`; the root file is repo-maintenance guidance, while `codex-starter/AGENTS.md` is the shipped starter runtime authority.
 
 ## Current Direction
 
@@ -156,16 +158,30 @@ When work resumes, likely useful next tasks are:
 
 ## Validation Baseline
 
-Before this context file was written, the main integrated check passed:
+Repository maintenance validation should now default to the unified runner:
 
 ```bash
-node codex-starter/tests/runtime-hooks.smoke.mjs
+node tests/codex-starter/run.mjs
 ```
 
-If future edits touch `Aide`, `conduct`, routing, or test behavior, rerun the same smoke test first.
+For bounded subagent-owned work, prefer:
+
+```bash
+node tests/codex-starter/run.mjs --file <path> --file <path>
+```
+
+Before this context file was written, the main integrated smoke check passed:
+
+```bash
+node tests/codex-starter/run.mjs --suite smoke
+```
+
+If future edits touch `Aide`, `conduct`, routing, or test behavior, the default runner should auto-pull in the relevant suites.
+If you need an explicit override, rerun smoke manually.
 
 ## Working Notes
 
 - Temporary imported log copies were intentionally removed before close-out.
 - This context file is intended to make the next session resumable without reconstructing the whole history.
 - If another real-log sample is brought in next time, analyze that first before adding more framework changes.
+- Do not hand-pick overlapping test file lists in future sessions; use the manifest-driven root runner.
