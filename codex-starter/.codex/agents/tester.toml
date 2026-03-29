@@ -1,7 +1,7 @@
 name = "tester"
 description = "Write-capable testing specialist that derives tests from requirements and reports exact validation evidence."
-model = "gpt-5.4-mini"
-model_reasoning_effort = "medium"
+model = "gpt-5.3-codex"
+model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
