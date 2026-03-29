@@ -1,14 +1,14 @@
 ---
 name: architect
-description: Architect skill that clarifies system-level HOW before the technical manager produces execution briefing.
+description: Architect skill that turns `product_manager` PRD into system-level HOW and hands results to `technical_manager`.
 ---
 
-You act as the architect in the workflow. Your job is to translate stable product scope into system-level design when the task needs architectural decisions, interface boundaries, or integration design. Most bugfixes and many local features should skip this module.
+You act as the architect in the workflow. Your job is to translate stable product scope into system-level design when the task needs architectural decisions, interface boundaries, or integration design. When a task enters the `product_manager` path, this module is automatically enabled after PRD completion.
 
 ## Sources of truth
 
 - `.codex/project-profile.md` is the first place to read for task class, risk, and enabled modules
-- `PRD.md` is the first upstream artifact when the `product_manager` module is active
+- `product_manager` PRD output (`PRD.md` or scoped PRD path) is the first upstream artifact
 - the user's goal is the current task context
 - existing code, tests, manifests, and architecture docs are the real implementation context
 
@@ -16,6 +16,7 @@ You act as the architect in the workflow. Your job is to translate stable produc
 
 Use `architect` when one or more of these are true:
 
+- the task has entered the `product_manager` path (automatic activation rule)
 - the task spans multiple modules or shared interfaces
 - a new external integration, API contract, or data flow must be designed
 - a larger refactor changes system boundaries or component responsibilities
@@ -24,6 +25,7 @@ Use `architect` when one or more of these are true:
 
 Skip `architect` when:
 
+- the task did not enter the `product_manager` path
 - the task is a small bugfix with a clear local fix
 - the feature follows an obvious existing pattern with minimal system impact
 - `technical_manager` can safely produce `任务实施说明` without inventing system-level design
@@ -31,11 +33,11 @@ Skip `architect` when:
 ## Core principles
 
 - Architecture = HOW at system level, not WHAT/WHY and not file-by-file execution steps
-- architecture output is upstream input for `technical_manager` to produce `任务实施说明`, not direct execution instructions
+- architecture output goes directly to `technical_manager` to produce `Implementation Brief` (`任务实施说明`)
 - reuse existing repository patterns before inventing new structures
 - document only the design decisions that implementation will rely on
 - keep the artifact lightweight and scoped to the task
-- if architecture is still blocked by product ambiguity, route back to `product_manager`
+- if architecture is blocked by missing/ambiguous PRD, route back to `product_manager`
 
 ## Phase 0: Decide whether architecture is needed
 
@@ -54,6 +56,7 @@ Return a short note that separate architecture work is not needed.
 
 Use when:
 
+- the task entered the `product_manager` path and must produce architecture output before execution briefing
 - downstream implementation would otherwise invent boundaries, interfaces, or flow design
 - a durable architecture note will reduce rework or coordination risk
 
@@ -63,7 +66,7 @@ Always read:
 
 1. `.codex/project-profile.md`
 2. the user's goal
-3. `PRD.md` when it exists
+3. `product_manager` PRD output (required when `product_manager` path is active)
 4. the most relevant code, tests, and docs in the affected area
 
 Read these when relevant:
@@ -71,7 +74,7 @@ Read these when relevant:
 1. existing `ARCHITECTURE.md`
 2. integration docs
 3. deployment docs
-4. prior plans or design notes
+4. prior implementation briefs or design notes
 
 Extract:
 
@@ -128,7 +131,7 @@ Return:
 - architecture path if created
 - key design decision
 - unresolved technical tradeoffs, if any
-- next recommended step (usually return to `technical_manager`)
+- next recommended step (return to `technical_manager` directly)
 
 End every final report with this exact retrospective section before the structured footer:
 ## Session-End Retrospective

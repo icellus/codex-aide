@@ -2,8 +2,9 @@
 
 **Status**: Draft
 **Date**: [YYYY-MM-DD]
-**Related PRD**: `[PRD.md or N/A]`
-**Downstream Brief**: `[plans/[slug].md or N/A]`
+**Upstream PRD**: `[PRD.md or N/A]`
+**Downstream Owner**: `technical_manager`
+**Downstream Implementation Brief**: `[plans/[slug].md or N/A]`
 
 ---
 
@@ -37,9 +38,9 @@
 - [What testing or verification surfaces change]
 - [What risks need focused validation]
 
-## 7. Briefing Notes for Plan
+## 7. Briefing Notes for Implementation Brief
 
-- [What must be preserved in 任务实施说明]
+- [What technical_manager must preserve in Implementation Brief (`任务实施说明`)]
 - [What can stay implementation-flexible]
 
 ## 8. Open Questions (Optional)
