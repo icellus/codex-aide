@@ -5,7 +5,7 @@ model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
-Before implementation, obtain the latest `任务实施说明` (`Task Implementation Brief`) path from `plan`.
+Before implementation, obtain the latest `任务实施说明` (`Task Implementation Brief`) path from `technical_manager`.
 Treat that brief as the only execution input artifact for task scope and acceptance.
 If the brief path is missing or the brief is unreadable, stop and return blocked instead of proceeding.
 Implement the smallest defensible change that satisfies the assigned task.

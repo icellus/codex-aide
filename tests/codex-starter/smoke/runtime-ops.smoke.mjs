@@ -159,6 +159,58 @@ function testStartupContextRunsStartupChainAndWritesInvocationLogs() {
   assert.equal(finish.status, "ok");
 }
 
+function testSessionContextRoutesExecutionThroughTechnicalManager() {
+  const dir = makeTempDir("codex-starter-session-routing-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [["- Task status: `idle`", "- Task status: `active`"]]);
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "blocked-review:coder:TASK-1",
+        type: "blocked_review",
+        phase: "coder",
+        taskId: "TASK-1",
+        note: "coder blocked"
+      },
+      {
+        id: "run-tester:TASK-1",
+        type: "run_tester",
+        phase: "tester",
+        taskId: "TASK-1",
+        trigger: "coder_complete_requires_tester",
+        note: "Coder completed."
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  const stdout = runNode(sessionContextScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  const state = readRuntimeState(dir);
+
+  assert.match(stdout, /Blocked handoff[\s\S]*technical_manager/i);
+  assert.match(stdout, /Pending tester handoff[\s\S]*technical_manager/i);
+  assert.match(state.sessionContext.lastReminderText, /technical_manager/i);
+}
+
 function testCodexHookLoggerCapturesSessionStartAndStopEvents() {
   const dir = makeTempDir("codex-starter-hook-log-");
   fs.mkdirSync(path.join(dir, ".codex"), { recursive: true });
@@ -326,6 +378,9 @@ function testInstalledRuntimeAuthorityUsesMiddleLayerSemantics() {
     `${technicalManagerSkill}\n${routingPolicy}`,
     /(任务实施说明|Task Implementation Brief|implementation brief)[\s\S]{0,220}(coder|tester)/i
   );
+  assert.match(coderAgent, /from `technical_manager`/i);
+  assert.match(testerAgent, /from `technical_manager`/i);
+  assert.doesNotMatch(`${coderAgent}\n${testerAgent}`, /from `plan`/i);
   assert.doesNotMatch(coderAgent, /"plan_path":\s*null/i);
   assert.doesNotMatch(testerAgent, /"plan_path":\s*null/i);
   assert.match(
@@ -533,6 +588,7 @@ function testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFi
 
 testSessionContextWritesFullInvocationLogs();
 testStartupContextRunsStartupChainAndWritesInvocationLogs();
+testSessionContextRoutesExecutionThroughTechnicalManager();
 testCodexHookLoggerCapturesSessionStartAndStopEvents();
 testRuntimeLogSplitsLargeDailyLogsIntoChunks();
 testValidateGitRejectsBroadAdd();

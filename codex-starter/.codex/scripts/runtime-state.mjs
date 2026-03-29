@@ -941,7 +941,7 @@ function queueTesterHandoff(
   taskId,
   trigger = "coder_complete_requires_tester",
   chainId = null,
-  note = "Coder completed. Route to tester for required validation handoff."
+  note = "Coder completed. Route back through technical_manager to hand off tester for required validation."
 ) {
   const normalizedChainId = normalizeWorkflowChainId(chainId);
   upsertPendingAction(state, {
@@ -1322,7 +1322,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         type: "blocked_review",
         phase: role,
         taskId,
-        note: `${contract.reason} Do not continue this handoff until the role returns a valid structured footer.`
+        note: `${contract.reason} Route back through technical_manager before retrying this handoff.`
       });
 
       upsertAideReview(state, {
@@ -1333,7 +1333,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         severity: "L3",
         issueType: "workflow_break",
         routeTarget: "/Aide investigate",
-        note: `${contract.reason} Runtime rejected the handoff to prevent silent workflow break.`
+        note: `${contract.reason} Runtime rejected the handoff to prevent silent workflow break in the technical_manager-owned chain.`
       });
       return;
     }
@@ -1480,10 +1480,10 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
     const blockedScopeLabel = isAmbiguousBlockedScope ? "ambiguous-plan-scope" : scopedTaskId || "current-task";
     const blockedNote = isAmbiguousBlockedScope
       ? `Recent ${role} blockage detected, but active task ownership is ambiguous. Resolve ownership (currentTaskId/cwd/worktree/branch) before resuming.`
-      : `Recent ${role} blockage detected. Review structured handoff before continuing.`;
+      : `Recent ${role} blockage detected. Route back through technical_manager and review the structured handoff before continuing.`;
     const reviewNote = isAmbiguousBlockedScope
       ? `A ${role} handoff blocked while multiple active plans were unresolved. Investigate task ownership first, then route fixes to the correct task chain.`
-      : `A ${role} handoff blocked the workflow. Investigate whether the issue comes from routing, role boundaries, or missing shared guidance.`;
+      : `A ${role} handoff blocked the workflow. Investigate whether execution entry, technical_manager brief ownership, role boundaries, or shared guidance caused the break.`;
 
     upsertPendingAction(state, {
       id: `blocked-review:${role}:${blockedScopeLabel}`,

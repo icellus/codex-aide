@@ -2203,6 +2203,20 @@ function normalizeStructuredRole(value) {
   return raw;
 }
 
+function normalizeStructuredPlanPath(structured) {
+  if (!structured || typeof structured !== "object" || Array.isArray(structured)) {
+    return "";
+  }
+
+  for (const candidate of [structured.plan_path, structured.planPath, structured.plan]) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
+}
+
 export function validateStructuredResultContract(role, message) {
   const normalizedRole = normalizeStructuredRole(role);
   if (normalizedRole !== "coder" && normalizedRole !== "tester") {
@@ -2280,6 +2294,15 @@ export function validateStructuredResultContract(role, message) {
       ok: false,
       code: "structured_result_needs_qc_not_true",
       reason: `${normalizedRole} structured result must set needs_qc: true.`,
+      structured
+    };
+  }
+
+  if (status === "complete" && !normalizeStructuredPlanPath(structured)) {
+    return {
+      ok: false,
+      code: "missing_structured_result_plan_path",
+      reason: `${normalizedRole} structured result must include a non-empty plan_path to the active Task Implementation Brief.`,
       structured
     };
   }

@@ -156,7 +156,7 @@ async function main() {
     for (const item of blocked) {
       pushReminder(
         100,
-        `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: review the structured blockage before resuming ${item.phase || "work"}.`
+        `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: route back through technical_manager, review the structured blockage, then resume ${item.phase || "work"}.`
       );
     }
 
@@ -180,7 +180,7 @@ async function main() {
     for (const item of pendingTesterPool.slice(-1)) {
       pushReminder(
         95,
-        `- Pending tester handoff${item.taskId ? ` for ${item.taskId}` : ""}: route to tester before QC/submit/settlement`
+        `- Pending tester handoff${item.taskId ? ` for ${item.taskId}` : ""}: route through technical_manager to tester before QC/submit/settlement`
       );
     }
 

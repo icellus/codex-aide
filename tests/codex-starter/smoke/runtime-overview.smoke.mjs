@@ -103,6 +103,7 @@ function testTaskSettledDoesNotBypassRequiredTesterHandoff() {
           {
             role: "coder",
             status: "complete",
+            plan_path: "docs/plans/task-settled-missing-tester.md",
             needs_qc: true,
             files_changed: ["src/demo.ts"],
             validation: [{ command: "npm test -- demo", result: "PASS" }],

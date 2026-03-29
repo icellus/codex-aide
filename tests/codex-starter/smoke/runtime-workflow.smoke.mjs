@@ -479,6 +479,49 @@ function testRuntimeRejectsCoderCompletionWithoutStructuredFooter() {
   assert.equal(testerAction, undefined);
 }
 
+function testRuntimeRejectsCoderCompletionWithoutPlanPath() {
+  const dir = makeTempDir("codex-starter-plan-path-missing-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "coder");
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
+
+  assert.ok(blocked);
+  assert.match(blocked.note, /plan_path/i);
+  assert.match(blocked.note, /technical_manager/i);
+  assert.equal(testerAction, undefined);
+}
+
 function testRuntimeRejectsStructuredResultBypassWithPostSectionJson() {
   const dir = makeTempDir("codex-starter-structured-bypass-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
@@ -503,6 +546,7 @@ function testRuntimeRejectsStructuredResultBypassWithPostSectionJson() {
           {
             role: "coder",
             status: "complete",
+            plan_path: "docs/plans/qc-after-tester.md",
             needs_qc: true,
             files_changed: ["src/demo.ts"],
             validation: [{ command: "npm test -- demo", result: "PASS" }],
@@ -571,6 +615,7 @@ function testQcBeforeTesterCannotQueueSubmit() {
           {
             role: "coder",
             status: "complete",
+            plan_path: "docs/plans/qc-before-tester.md",
             needs_qc: true,
             files_changed: ["src/demo.ts"],
             validation: [{ command: "npm test -- demo", result: "PASS" }],
@@ -643,6 +688,7 @@ function testQcPassQueuesSubmitAfterTesterAudit() {
           {
             role: "coder",
             status: "complete",
+            plan_path: "docs/plans/qc-after-tester.md",
             needs_qc: true,
             files_changed: ["src/demo.ts"],
             validation: [{ command: "npm test -- demo", result: "PASS" }],
@@ -677,6 +723,7 @@ function testQcPassQueuesSubmitAfterTesterAudit() {
           {
             role: "tester",
             status: "complete",
+            plan_path: "docs/plans/qc-after-tester.md",
             needs_qc: true,
             workflow_chain_id: workflowChainId,
             validation_targets: ["retry behavior"],
@@ -741,6 +788,7 @@ testCoderAndTesterCompletionUpdateWorkflowHotState();
 testTesterCompletionFallsBackToRequiredHandoffTaskIdWhenTaskLookupIsMissing();
 testTesterCompletionWithoutWorkflowChainIdKeepsGuardEvenWithPlanPath();
 testRuntimeRejectsCoderCompletionWithoutStructuredFooter();
+testRuntimeRejectsCoderCompletionWithoutPlanPath();
 testRuntimeRejectsStructuredResultBypassWithPostSectionJson();
 testRuntimeRejectsTesterCompletionWithoutStructuredFooter();
 testQcBeforeTesterCannotQueueSubmit();
