@@ -1,37 +1,41 @@
 # Discussion Current
 
-Updated: 2026-03-30 00:44 Asia/Shanghai
-Source: `discussion/history/2026-03-30-0044-middle-role-rename-and-plan-sync.md`
+Updated: 2026-03-30 02:21 Asia/Shanghai
+Source: `discussion/history/2026-03-30-0221-refactor-rules-and-review-separation.md`
 
 ## 当前状态
 
 本仓库当前只维护 `codex-starter`。
 
-当前主线工作已经从“`story` 一词历史性”切到 `codex-starter` 中层重构：
+当前主线工作仍是 `codex-starter` 中层重构，但当前阶段已经从“继续讨论规则”切到“先复核两组已完成子线程改动”：
 
-- 中层 authority / skill / template 收敛已完成第一阶段
-- 中层角色已真正改名为 `product_manager / architect / technical_manager`
+- 关键规则已经确认：
+  - `product_manager -> architect -> technical_manager`
+  - `Implementation Brief` 取代旧 `plan`
+  - `plan-summary` 之后直接删除
+  - 缺少 `Implementation Brief` 时，`coder/tester` 直接 `blocked` 回 `technical_manager`
 - 当前工作分支：`refactor/codex-starter-middle-layer`
-- 当前最新提交：`15463ba`
+- 当前最新提交：`9d91d8e`
 
 当前仍有一个明确 blocker：
 
-- `任务实施说明` 已被 authority 定义为 `coder/tester` 唯一执行输入
-- 但 runtime 还没有完全强制这条约束
+- 已确认规则很多，但工作区里两组实现都还没有经过主线程复核
+- 现在不能继续开新的实现线程，必须先复核现有改动
 
 ## 下一轮焦点
 
-只继续一个主题：
+下一轮只继续一个主题：
 
-- 把 `任务实施说明` 从 authority / 协议层，继续落到 runtime 约束层
+- 主线程先复核子线程 1 和子线程 2 的改动，再决定哪些并入主线、哪些继续修改
 
-不要重新发散去讨论整套模型，也不要重新打开更大的重命名/兼容话题。
+不要再把“规则已确认”和“代码已完成”混在一起，也不要在复核前继续新增实现线程。
 
 ## 当前判断
 
-- 第一阶段 authority 收敛已经足够，不应回退
-- 执行协议收口已基本完成
-- 下一步重点不是再改命名或概念，而是补 runtime 行为
+- discussion 文档已经重写为“已确认规则 / 已提交施工 / 待复核施工 / 未完成施工”分离结构
+- 子线程 1 已完成一组 runtime / blocked / handoff / reminder 改动，但未复核
+- 子线程 2 已完成 `product_manager` / `architect` / `Implementation Brief` 模板相关改动，但未复核
+- `Implementation Brief` 主模板目前只存在于工作区草稿，尚未被主线程确认
 - `discussion/codex-starter-refactor/` 已成为这轮重构的 canonical 跟踪目录
 
 ## 本轮必读文件
@@ -40,6 +44,7 @@ Source: `discussion/history/2026-03-30-0044-middle-role-rename-and-plan-sync.md`
 
 1. [CONTEXT.md](/workspace/agent-skills/discussion/codex-starter-refactor/CONTEXT.md)
 2. [PLAN.md](/workspace/agent-skills/discussion/codex-starter-refactor/PLAN.md)
+3. 当前工作区里两组未复核改动的 diff
 
 ## 测试与验证提醒
 
@@ -63,6 +68,7 @@ node tests/codex-starter/run.mjs --suite full
 
 ## 关联历史
 
+- `discussion/history/2026-03-30-0221-refactor-rules-and-review-separation.md`
 - `discussion/history/2026-03-30-0044-middle-role-rename-and-plan-sync.md`
 - `discussion/history/2026-03-30-0033-codex-starter-middle-layer-refactor.md`
 - `discussion/history/2026-03-29-1740-story-term-next-context.md`
