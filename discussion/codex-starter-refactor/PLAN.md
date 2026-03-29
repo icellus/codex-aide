@@ -28,18 +28,22 @@
 
 - [x] 中层角色已经收敛到 `product_manager`、`architect`、`technical_manager`
 - [x] `Aide` 已经从“直接带执行角色”的定义里退出来
-- [x] `technical_manager` 已经被确定为执行任务入口
+- [x] `technical_manager` 的角色定义已经明确下来
+- [x] `Aide` 在流程线上只和 `technical_manager` 对接
 - [x] `任务实施说明` 已经被确定为执行层共享输入
 - [x] `coder` / `tester` 已经开始围绕同一份执行说明工作
+- [x] 编码任务中，`coder` 完成后必须接 `tester`
+- [x] 编码任务中，`tester` 之后是否进入 `qc`，由 `technical_manager` 决定
+- [x] `coder` / `tester` / `qc` 统一回复给 `technical_manager`
 - [x] 缺少执行说明路径的正常完成态，已经开始被拦住
 - [x] 一部分提醒和交接文案，已经开始向新链路收口
 
 ### 未完成
 
-- [ ] `technical_manager` 这个“唯一入口”到底要落实到多严，还没完全定清
-- [ ] `Aide` 在治理、提醒、复盘里还保留到什么程度，还没完全定清
+- [ ] authority、交接规则、运行期行为是否都已经体现这套权能关系，还没完全收齐
+- [ ] `Aide` 在治理、提醒、复盘里的保留范围，还没完全收齐
 - [ ] 旧命名、旧字段、旧语义哪些继续兼容，哪些必须清掉，还没完全定清
-- [ ] “没有任务实施说明就不能继续”到底阻断到哪一步，还没完全定清
+- [ ] “没有任务实施说明就不能继续”这条规则，在系统里阻断到哪一步，还没完全收齐
 - [ ] 按最终定下来的结论，把剩余实现全部收口
 - [ ] 做整轮统一 review
 - [ ] 做整轮统一验证
@@ -51,14 +55,19 @@
 - [x] authority、routing、中层 skill 文本已经完成第一轮收敛
 - [x] 中层角色命名已经切到 `product_manager / architect / technical_manager`
 - [x] `Aide` 不直接带执行角色的约束已经落到 authority
+- [x] `Aide -> technical_manager -> 下游角色` 的主关系已经写清
+- [x] `coder / tester / qc -> technical_manager` 的回报关系已经明确
 - [x] `coder` / `tester` 的执行说明已经切到围绕 `technical_manager` 提供的输入
 - [x] 运行期 contract 已经开始阻断缺少执行说明路径的正常完成态
 - [x] 部分 reminder / handoff 文案已经开始从旧执行入口语义收口
 
 ### 未完成
 
-- [ ] 把“唯一入口”在 authority、交接规则、运行期行为三层分别定清
-- [ ] 把 `Aide` 的治理边界和执行边界分清
+- [ ] 检查 authority、交接规则、运行期行为，是否都体现 `technical_manager` 的权能范围
+- [ ] 检查 `Aide` 是否还残留直接碰执行角色的语义
+- [ ] 检查 `coder` / `tester` / `qc` 是否还残留直接对外对接的语义
+- [ ] 把编码任务里 `coder -> tester -> 可选 qc` 的链路继续按 `technical_manager` 决策收齐
+- [ ] 把 `Aide` 的治理边界和执行边界继续分清
 - [ ] 把底层兼容边界定清，避免边做边摇摆
 - [ ] 把“无任务实施说明不得继续”的阻断范围定清
 - [ ] 按定下来的结论，继续补剩余运行期行为
@@ -69,7 +78,7 @@
 
 ## 当前最优先
 
-- 先把上面四个“还没定清”的问题定下来
+- 先把“`technical_manager` 的权能关系如何在系统里落实一致”这组问题收清
 - 不继续盲目展开更多细碎施工项
 - 规则定清后，再继续往下补实现
 
