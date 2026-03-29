@@ -32,6 +32,21 @@ Repository-level maintenance guidance for this repo.
 - When a subagent owns a clear write set, pass the owned files and let it validate with `--file` for those paths.
 - Prefer one authoritative test entrypoint over long file lists in prompts.
 
+## Discussion Context Sync
+
+- Root-level `discussion/` is the lightweight cross-session context mechanism for this repository.
+- Do not require the user to remember an exact magic command. Treat `同步disc` and semantically equivalent natural-language requests as the same intent when the user is clearly asking to sync session context.
+- This intent covers both directions:
+  load context when the user wants to resume/continue,
+  and write context when the user wants to wrap up/leave notes for next time.
+- Common valid phrasings include shorthand, mixed Chinese/English, and spoken variants such as:
+  `同步disc`、`同步 discussion`、`续一下上次`、`接着上轮继续`、`记一下这次留给下次`、`把这次进展记进去`
+- When the intent is to resume, read `discussion/prefs.md` then `discussion/current.md`, and only read the history files referenced by `current.md` when needed.
+- When the intent is to wrap up, append a record under `discussion/history/YYYY-MM-DD-HHMM-<slug>.md`, then update `discussion/current.md`.
+- Only update `discussion/prefs.md` when the user is changing durable preferences or stable workflow rules.
+- If the user provides extra points to remember, next-step guidance, or risks to watch, merge them into the new history record and the refreshed current state.
+- Prefer intent recognition over literal command matching. If the user's wording is clearly about syncing the session context, just do it.
+
 ## Testing
 
 - Repository-level tests live under `tests/codex-starter/`.
