@@ -1,8 +1,7 @@
 const allowedTypes = ["feat", "fix", "refactor", "docs", "test", "chore", "ci", "build", "perf", "revert"];
+const maxSubjectLength = 90;
 
-const conventionalPattern = new RegExp(
-  `^(?<type>${allowedTypes.join("|")})(?:\\((?<scope>[a-z0-9][a-z0-9._/-]*)\\))?: (?<subject>.+)$`
-);
+const conventionalPattern = new RegExp(`^(?<type>${allowedTypes.join("|")}): (?<subject>.+)$`);
 
 function extractSubject(message) {
   const lines = String(message ?? "")
@@ -27,13 +26,13 @@ function validateCommitMessage(message) {
 
   const match = subject.match(conventionalPattern);
   if (!match) {
-    errors.push(`subject must match <type>(<scope>): <subject>; allowed types: ${allowedTypes.join(", ")}`);
+    errors.push(`subject must match <type>: <subject>; allowed types: ${allowedTypes.join(", ")}`);
     return { ok: false, subject, errors };
   }
 
   const normalizedSubject = match.groups?.subject || "";
-  if (subject.length > 72) {
-    errors.push(`subject must be 72 characters or fewer; got ${subject.length}`);
+  if (subject.length > maxSubjectLength) {
+    errors.push(`subject must be ${maxSubjectLength} characters or fewer; got ${subject.length}`);
   }
 
   if (/[.。]$/.test(normalizedSubject)) {
@@ -49,9 +48,8 @@ function validateCommitMessage(message) {
     subject,
     errors,
     type: match.groups?.type || "",
-    scope: match.groups?.scope || "",
     description: normalizedSubject
   };
 }
 
-export { allowedTypes, extractSubject, validateCommitMessage };
+export { allowedTypes, extractSubject, maxSubjectLength, validateCommitMessage };

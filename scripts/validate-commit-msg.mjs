@@ -19,8 +19,8 @@ function validateSingleMessage(message, label = "commit message") {
   result.errors.forEach((error) => process.stderr.write(`- ${error}\n`));
   process.stderr.write("\nExpected examples:\n");
   process.stderr.write("- feat: add commit policy validation\n");
-  process.stderr.write("- fix(tests): split oversized smoke coverage\n");
-  process.stderr.write("- docs(readme): document hook setup\n");
+  process.stderr.write("- fix: split oversized smoke coverage\n");
+  process.stderr.write("- docs: document hook setup\n");
   process.exit(1);
 }
 
