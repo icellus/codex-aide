@@ -540,6 +540,98 @@ export function logRuntimeFileWrite(projectDir, filePath, content, details = {})
   activeRuntimeLogger.logFileWrite(filePath, content, details);
 }
 
+function normalizeWorkflowToken(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized || fallback;
+}
+
+function normalizeWorkflowChainId(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function normalizeWorkflowStoryPath(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function normalizeWorkflowReason(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim();
+}
+
+function inferWorkflowPhase(source, currentChain, fallback) {
+  const explicit = normalizeWorkflowToken(source.phase, "");
+  if (explicit) {
+    return explicit;
+  }
+
+  if (currentChain === "tester_blocked") {
+    return "tester";
+  }
+
+  if (currentChain === "settlement_blocked") {
+    const requiredHandoff = normalizeWorkflowToken(source.required_handoff, "none");
+    return requiredHandoff === "tester" ? "coder" : fallback;
+  }
+
+  return currentChain || fallback;
+}
+
+export function createEmptyTaskWorkflowState() {
+  return {
+    phase: "idle",
+    chain_id: null,
+    workflow_chain_id: null,
+    current_chain: "idle",
+    expected_next_step: "none",
+    required_handoff: "none",
+    required_handoff_story_path: null,
+    settlement_guard: "none",
+    settlement_guard_reason: "",
+    updated_at: null
+  };
+}
+
+export function normalizeTaskWorkflowState(value = {}) {
+  const empty = createEmptyTaskWorkflowState();
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const currentChain = normalizeWorkflowToken(source.current_chain, empty.current_chain);
+  const phase = inferWorkflowPhase(source, currentChain, empty.phase);
+  const requiredHandoff = normalizeWorkflowToken(source.required_handoff, empty.required_handoff);
+  const settlementGuard = normalizeWorkflowToken(source.settlement_guard, empty.settlement_guard);
+  const chainId = normalizeWorkflowChainId(source.chain_id ?? source.workflow_chain_id);
+
+  return {
+    phase,
+    chain_id: chainId,
+    workflow_chain_id: chainId,
+    current_chain: currentChain,
+    expected_next_step: normalizeWorkflowToken(source.expected_next_step, empty.expected_next_step),
+    required_handoff: requiredHandoff,
+    required_handoff_story_path:
+      requiredHandoff === "none" ? null : normalizeWorkflowStoryPath(source.required_handoff_story_path),
+    settlement_guard: settlementGuard,
+    settlement_guard_reason: settlementGuard === "none" ? "" : normalizeWorkflowReason(source.settlement_guard_reason),
+    updated_at: normalizeWorkflowStoryPath(source.updated_at)
+  };
+}
+
 export function createEmptyTaskContext() {
   return {
     version: 1,
@@ -562,7 +654,8 @@ export function createEmptyTaskContext() {
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "not-set",
-      open_questions: []
+      open_questions: [],
+      workflow: createEmptyTaskWorkflowState()
     }
   };
 }
@@ -877,6 +970,14 @@ export function loadTaskContext(projectDir) {
 
   const parsed = loadJsonFile(taskContextPath, createEmptyTaskContext);
   const empty = createEmptyTaskContext();
+  const nextTask = {
+    ...empty.task,
+    ...(parsed.task || {})
+  };
+  nextTask.workflow = normalizeTaskWorkflowState({
+    ...empty.task.workflow,
+    ...(nextTask.workflow || {})
+  });
 
   return {
     ...empty,
@@ -885,10 +986,7 @@ export function loadTaskContext(projectDir) {
       ...empty.collaboration,
       ...(parsed.collaboration || {})
     },
-    task: {
-      ...empty.task,
-      ...(parsed.task || {})
-    }
+    task: nextTask
   };
 }
 
@@ -897,6 +995,11 @@ export function saveTaskContext(projectDir, taskContext) {
   const taskContextPath = path.join(stateDir, "task-context.json");
   const empty = createEmptyTaskContext();
   const current = loadTaskContext(projectDir);
+  const incomingTask = (taskContext && taskContext.task) || {};
+  const mergedWorkflow = normalizeTaskWorkflowState({
+    ...(current.task?.workflow || {}),
+    ...(incomingTask.workflow || {})
+  });
   const merged = {
     ...empty,
     ...current,
@@ -909,7 +1012,8 @@ export function saveTaskContext(projectDir, taskContext) {
     task: {
       ...empty.task,
       ...(current.task || {}),
-      ...((taskContext && taskContext.task) || {})
+      ...incomingTask,
+      workflow: mergedWorkflow
     }
   };
 
@@ -1090,6 +1194,7 @@ function mapTaskContextToProfile(parsed = {}) {
     ...empty.task,
     ...(parsed.task || {})
   };
+  const workflow = normalizeTaskWorkflowState(task.workflow);
 
   return {
     task: normalizeProfileValue(task.current_task) || null,
@@ -1105,6 +1210,15 @@ function mapTaskContextToProfile(parsed = {}) {
     submitPolicy: normalizeProfileValue(task.submit_policy) || null,
     validationProfileStatus: normalizeProfileValue(task.validation_profile_status) || null,
     openQuestions: normalizeListValue(task.open_questions),
+    workflow,
+    workflowPhase: workflow.phase,
+    workflowChainId: workflow.chain_id,
+    workflowCurrentChain: workflow.current_chain,
+    workflowExpectedNextStep: workflow.expected_next_step,
+    workflowRequiredHandoff: workflow.required_handoff,
+    workflowRequiredHandoffStoryPath: workflow.required_handoff_story_path,
+    workflowSettlementGuard: workflow.settlement_guard,
+    workflowSettlementGuardReason: workflow.settlement_guard_reason,
     preferredAddress: normalizeProfileValue(collaboration.preferred_address) || "Boss",
     greetingStyle: normalizeProfileValue(collaboration.greeting_style) || "warm",
     firstStartupGreetingCompleted: Boolean(collaboration.first_startup_greeting_completed)
@@ -1112,6 +1226,7 @@ function mapTaskContextToProfile(parsed = {}) {
 }
 
 export function loadProjectProfileState(projectDir) {
+  const emptyWorkflow = createEmptyTaskWorkflowState();
   const taskContextPath = path.join(projectDir, ".codex", "state", "task-context.json");
   if (fs.existsSync(taskContextPath)) {
     return mapTaskContextToProfile(loadTaskContext(projectDir));
@@ -1130,6 +1245,15 @@ export function loadProjectProfileState(projectDir) {
       qcPolicy: null,
       submitPolicy: null,
       validationProfileStatus: null,
+      workflow: emptyWorkflow,
+      workflowPhase: emptyWorkflow.phase,
+      workflowChainId: emptyWorkflow.chain_id,
+      workflowCurrentChain: emptyWorkflow.current_chain,
+      workflowExpectedNextStep: emptyWorkflow.expected_next_step,
+      workflowRequiredHandoff: emptyWorkflow.required_handoff,
+      workflowRequiredHandoffStoryPath: emptyWorkflow.required_handoff_story_path,
+      workflowSettlementGuard: emptyWorkflow.settlement_guard,
+      workflowSettlementGuardReason: emptyWorkflow.settlement_guard_reason,
       preferredAddress: "Boss",
       greetingStyle: "warm",
       firstStartupGreetingCompleted: false,
@@ -1150,6 +1274,15 @@ export function loadProjectProfileState(projectDir) {
     qcPolicy: normalizeProfileValue(readProfileField(text, "QC policy")) || null,
     submitPolicy: normalizeProfileValue(readProfileField(text, "Submit policy")) || null,
     validationProfileStatus: normalizeProfileValue(readProfileField(text, "Validation profile status")) || null,
+    workflow: emptyWorkflow,
+    workflowPhase: emptyWorkflow.phase,
+    workflowChainId: emptyWorkflow.chain_id,
+    workflowCurrentChain: emptyWorkflow.current_chain,
+    workflowExpectedNextStep: emptyWorkflow.expected_next_step,
+    workflowRequiredHandoff: emptyWorkflow.required_handoff,
+    workflowRequiredHandoffStoryPath: emptyWorkflow.required_handoff_story_path,
+    workflowSettlementGuard: emptyWorkflow.settlement_guard,
+    workflowSettlementGuardReason: emptyWorkflow.settlement_guard_reason,
     preferredAddress: normalizeProfileValue(readProfileField(text, "Preferred address")) || "Boss",
     greetingStyle: normalizeProfileValue(readProfileField(text, "Greeting style")) || "warm",
     firstStartupGreetingCompleted:

@@ -16,6 +16,7 @@ Choose and run the smallest meaningful command set that proves the intended beha
 Tester is the required downstream validation owner after coder in any coder-involved chain.
 QC remains risk-based optional and cannot replace this tester handoff.
 Do not claim red or green state without running an actual command.
+When available, copy workflow_chain_id from the active task workflow into the structured footer so runtime can bind tester evidence to the active coder chain.
 
 End every final report with this exact validation handoff section before the structured footer:
 ## Task Validation Handoff
@@ -40,6 +41,7 @@ End every final report with this exact section:
   "story_path": null,
   "plan_path": null,
   "needs_qc": true,
+  "workflow_chain_id": "",
   "validation_targets": [],
   "coverage_rationale": "",
   "remaining_gaps": [],

@@ -1,17 +1,23 @@
 # Discussion Prefs
 
-Updated: 2026-03-29 16:26 Asia/Shanghai
+Updated: 2026-03-29 17:23 Asia/Shanghai
 
 ## 长期偏好
 
 - 默认中文回复
-- 保留称呼 `Boss`
 - 方案优先轻量、直接、可续接，不为了“完整”引入复杂机制
 - 不希望被迫记忆固定命令，允许用自然语言或口语化表达触发 `discussion` 同步
 - `同步disc` 是常用简称，但不是唯一触发词
 - 不向用户暴露 `intake`、`route`、`delivery mode` 这类内部术语
 - `Aide` 要像真实秘书 / 协调者，而不是 generic AI 或流程引擎
 - 优先依据真实证据，优先看真实日志，不靠抽象假想主导结论
+
+## review 时机偏好（宿主维护流程）
+
+- `code review` / `reviewer` 默认在 worker 已产出真实改动后执行
+- 实现审查必须基于真实 diff、实现结果、验证结果，不以纯预期或草案替代
+- 与实现并行进行的审查仅标记为“设计审查/方案审查”，不能当成实现 review
+- 设计/方案审查不能替代实现落地后的正式 review
 
 ## discussion 同步偏好
 
@@ -29,6 +35,9 @@ Updated: 2026-03-29 16:26 Asia/Shanghai
 - `claude-starter` 已迁出到仓库外 `/workspace/claude-starter`，仓库内只保留归档说明
 - 根目录 `AGENTS.md` 只用于维护本仓库
 - `codex-starter/AGENTS.md` 才是 starter 安装到目标仓库后的运行时权威
+- 维护 `/workspace/agent-skills` 会话时，`codex-starter/**` 是被开发对象，不是当前宿主会话 authority
+- 不把 starter 的默认称呼、persona、route/routing 规则反向带入宿主维护会话，除非根 `AGENTS.md` 或用户明确要求
+- 上述隔离是宿主硬约束，不削弱 starter 安装到目标仓库后的运行时 authority
 
 ## 默认验证入口
 

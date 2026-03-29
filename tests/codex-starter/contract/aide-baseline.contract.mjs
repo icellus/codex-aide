@@ -15,6 +15,7 @@ export function runAideBaselineContractTests(rootDir) {
   const aideSkill = readText(path.join(rootDir, ".agents", "skills", "aide", "SKILL.md"));
   const routingPolicy = readText(path.join(rootDir, ".codex", "routing-policy.md"));
   const agentsGuide = readText(path.join(rootDir, "AGENTS.md"));
+  const hostAgentsGuide = readText(path.resolve(rootDir, "..", "AGENTS.md"));
   const repoExplorerAgent = readText(path.join(rootDir, ".codex", "agents", "repo_explorer.toml"));
 
   function testDefaultChineseExistsInAuthority() {
@@ -116,13 +117,47 @@ export function runAideBaselineContractTests(rootDir) {
     assertContains(repoExplorerAgent, "sandbox_mode = \"read-only\"", "repo_explorer read-only sandbox");
   }
 
+  function testHostIsolationHardBoundaryAcrossHostAndStarterAuthority() {
+    assertContains(
+      hostAgentsGuide,
+      "- While maintaining `/workspace/agent-skills`, treat `codex-starter/**` as the development target, not the active authority for the current maintenance session.",
+      "root AGENTS host-isolation development-target rule"
+    );
+    assertContains(
+      hostAgentsGuide,
+      "- Do not let `codex-starter` runtime defaults (for example assistant persona, route aliases, or routing rules) leak back into host maintenance sessions unless this root guide or explicit user instruction says so.",
+      "root AGENTS host-isolation anti-leak rule"
+    );
+    assertContains(
+      hostAgentsGuide,
+      "- This isolation rule does not weaken `codex-starter` runtime authority after it is installed into a target repository.",
+      "root AGENTS host-isolation non-weakening rule"
+    );
+    assertContains(
+      agentsGuide,
+      "- Runtime authority scope: this file governs sessions after `codex-starter` is installed in a target repository.",
+      "starter AGENTS runtime scope rule"
+    );
+    assertContains(
+      agentsGuide,
+      "- Source-maintenance boundary: when editing `codex-starter/**` inside a separate host maintenance repository, host-level authority governs that maintenance session; this starter content is the development object under edit.",
+      "starter AGENTS source-maintenance boundary rule"
+    );
+    assertContains(
+      aideSkill,
+      "- source-maintenance isolation: when this skill file is being edited in a host maintenance repository, treat it as an artifact under development and follow host-level authority for that maintenance session",
+      "aide source-maintenance isolation rule"
+    );
+  }
+
   [
     testDefaultChineseExistsInAuthority,
     testDefaultAddressBossExistsInAuthority,
     testColdThreadFirstGreetingConstraintsExist,
     testOnlyMainAgentOrRuntimeScriptsWriteSharedState,
     testDiscussionAnalysisDefaultsToNoDurableStateWrite,
-    testRepoExplorerIsShortLivedReadOnlyHelper
+    testRepoExplorerIsShortLivedReadOnlyHelper,
+    testHostIsolationHardBoundaryAcrossHostAndStarterAuthority
   ].forEach((testFn) => testFn());
 }
 

@@ -18,6 +18,7 @@ export function runAideAuthorityAlignmentTests(rootDir) {
   const conductSkill = readText(path.join(rootDir, ".agents", "skills", "conduct", "SKILL.md"));
   const routingPolicy = readText(path.join(rootDir, ".codex", "routing-policy.md"));
   const agentsGuide = readText(path.join(rootDir, "AGENTS.md"));
+  const hostAgentsGuide = readText(path.resolve(rootDir, "..", "AGENTS.md"));
   const readme = readText(path.join(rootDir, "README.md"));
   const overview = readText(path.join(rootDir, "docs", "overview.md"));
   const usage = readText(path.join(rootDir, "docs", "usage.md"));
@@ -53,12 +54,34 @@ export function runAideAuthorityAlignmentTests(rootDir) {
     assertAll(authority, [/never expose internal workflow terms/i, /Do not expose task class, delivery mode, enabled modules/i], "workflow label hiding");
   }
 
+  function testHostIsolationHardConstraintAndRuntimeAuthorityCoexist() {
+    assertAll(
+      hostAgentsGuide,
+      [
+        /While maintaining `\/workspace\/agent-skills`, treat `codex-starter\/\*\*` as the development target, not the active authority for the current maintenance session/i,
+        /Do not let `codex-starter` runtime defaults.*leak back into host maintenance sessions/i,
+        /does not weaken `codex-starter` runtime authority after it is installed into a target repository/i
+      ],
+      "root AGENTS host-isolation hard constraint"
+    );
+    assertAll(
+      authority,
+      [
+        /Runtime authority scope: this file governs sessions after `codex-starter` is installed in a target repository/i,
+        /Source-maintenance boundary: when editing `codex-starter\/\*\*` inside a separate host maintenance repository, host-level authority governs that maintenance session/i,
+        /source-maintenance isolation: when this skill file is being edited in a host maintenance repository/i
+      ],
+      "starter authority source-maintenance isolation alignment"
+    );
+  }
+
   [
     testSecretaryAndPeopleManagerFramingIsConsistent,
     testAideStaysOutOfDefaultImplementation,
     testMinimalOwnerScanBeatsAutomaticFullScan,
     testFullScanIsReservedForSpecificCases,
-    testUserFacingRepliesHideWorkflowLabels
+    testUserFacingRepliesHideWorkflowLabels,
+    testHostIsolationHardConstraintAndRuntimeAuthorityCoexist
   ].forEach((testFn) => testFn());
 }
 

@@ -171,9 +171,12 @@ function testTesterContractIncludesTaskValidationHandoff() {
   const handoffTemplate = fs.readFileSync(validationHandoffTemplatePath, "utf8");
 
   assert.match(testerAgent, /## Task Validation Handoff/);
+  assert.match(testerAgent, /"workflow_chain_id": ""/);
   assert.match(testerAgent, /"validation_targets": \[\]/);
   assert.match(testerAgent, /"coverage_rationale": ""/);
   assert.match(testerAgent, /"remaining_gaps": \[\]/);
+  assert.match(handoffTemplate, /\*\*Workflow Chain ID\*\*/);
+  assert.match(handoffTemplate, /workflow_chain_id/);
   assert.match(handoffTemplate, /## Validation Targets/);
   assert.match(handoffTemplate, /## Selected Checks/);
   assert.match(handoffTemplate, /## Coverage Rationale/);
@@ -396,6 +399,8 @@ function testTaskContextHelpersWriteNormalizedState() {
   assert.equal(saved.task.current_task, "Review the routing flow");
   assert.deepEqual(saved.task.enabled_roles, ["Aide"]);
   assert.deepEqual(saved.task.open_questions, ["Should conduct run?"]);
+  assert.equal(saved.task.workflow.required_handoff, "none");
+  assert.equal(saved.task.workflow.settlement_guard, "none");
 }
 
 function testRepoContextHelpersWriteNormalizedState() {
@@ -526,6 +531,283 @@ function testCoderCompletionQueuesTesterWithoutStory() {
   assert.equal(state.pendingActions[0].type, "run_tester");
   assert.equal(state.pendingActions[0].phase, "tester");
   assert.equal(state.pendingActions[0].storyPath, null);
+}
+
+function testCoderAndTesterCompletionUpdateWorkflowHotState() {
+  const dir = makeTempDir("codex-starter-workflow-hot-state-");
+
+  saveTaskContext(dir, {
+    task: {
+      current_task: "Tighten runtime flow",
+      status: "active"
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const workflowAfterCoder = readTaskContextFile(dir).task.workflow;
+  assert.equal(workflowAfterCoder.current_chain, "coder");
+  assert.equal(typeof workflowAfterCoder.workflow_chain_id, "string");
+  assert.notEqual(workflowAfterCoder.workflow_chain_id, "");
+  assert.equal(workflowAfterCoder.expected_next_step, "tester_handoff");
+  assert.equal(workflowAfterCoder.required_handoff, "tester");
+  assert.equal(workflowAfterCoder.settlement_guard, "require_required_handoff");
+  const workflowChainId = workflowAfterCoder.workflow_chain_id;
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: [
+        "## Task Validation Handoff",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "tester",
+            status: "complete",
+            needs_qc: true,
+            workflow_chain_id: workflowChainId,
+            validation_targets: ["runtime workflow guard"],
+            coverage_rationale: "smoke",
+            remaining_gaps: [],
+            files_changed: [],
+            validation: [{ command: "npm test -- demo", result: "PASS", purpose: "task validation" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const workflowAfterTester = readTaskContextFile(dir).task.workflow;
+  assert.equal(workflowAfterTester.current_chain, "tester");
+  assert.equal(workflowAfterTester.required_handoff, "none");
+  assert.equal(workflowAfterTester.settlement_guard, "none");
+  assert.equal(workflowAfterTester.expected_next_step, "submit");
+  const stateAfterTester = readRuntimeState(dir);
+  const blocked = stateAfterTester.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  assert.equal(blocked, undefined);
+}
+
+function testTesterCompletionWithMismatchedWorkflowChainIdKeepsGuard() {
+  const dir = makeTempDir("codex-starter-workflow-chain-mismatch-");
+
+  saveTaskContext(dir, {
+    task: {
+      current_task: "Validate workflow chain guard",
+      status: "active"
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const workflowAfterCoder = readTaskContextFile(dir).task.workflow;
+  assert.equal(workflowAfterCoder.current_chain, "coder");
+  assert.equal(typeof workflowAfterCoder.workflow_chain_id, "string");
+  assert.notEqual(workflowAfterCoder.workflow_chain_id, "");
+  const activeChainId = workflowAfterCoder.workflow_chain_id;
+  const mismatchedChainId = `${activeChainId}-mismatch`;
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: [
+        "## Task Validation Handoff",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "tester",
+            status: "complete",
+            needs_qc: true,
+            workflow_chain_id: mismatchedChainId,
+            validation_targets: ["workflow chain mismatch guard"],
+            coverage_rationale: "smoke",
+            remaining_gaps: [],
+            files_changed: [],
+            validation: [{ command: "npm test -- demo", result: "PASS", purpose: "task validation" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const workflowAfterTester = readTaskContextFile(dir).task.workflow;
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "tester");
+  const signalNote = [blocked?.note || "", aideReview?.note || ""].join(" ");
+
+  assert.equal(workflowAfterTester.workflow_chain_id, activeChainId);
+  assert.equal(workflowAfterTester.required_handoff, "tester");
+  assert.equal(workflowAfterTester.settlement_guard, "require_required_handoff");
+  assert.equal(workflowAfterTester.expected_next_step, "tester_handoff");
+  assert.equal(state.pendingActions.some((item) => item.type === "run_submit"), false);
+  assert.ok(blocked || aideReview);
+  assert.match(signalNote, /workflow_chain_id|chain|mismatch/i);
+}
+
+function testTesterCompletionWithoutWorkflowChainIdKeepsGuard() {
+  const dir = makeTempDir("codex-starter-workflow-chain-missing-");
+
+  saveTaskContext(dir, {
+    task: {
+      current_task: "Validate missing workflow chain guard",
+      status: "active"
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const workflowAfterCoder = readTaskContextFile(dir).task.workflow;
+  assert.equal(workflowAfterCoder.current_chain, "coder");
+  assert.equal(typeof workflowAfterCoder.workflow_chain_id, "string");
+  assert.notEqual(workflowAfterCoder.workflow_chain_id, "");
+  const activeChainId = workflowAfterCoder.workflow_chain_id;
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: [
+        "## Task Validation Handoff",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "tester",
+            status: "complete",
+            needs_qc: true,
+            validation_targets: ["workflow chain missing guard"],
+            coverage_rationale: "smoke",
+            remaining_gaps: [],
+            files_changed: [],
+            validation: [{ command: "npm test -- demo", result: "PASS", purpose: "task validation" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const workflowAfterTester = readTaskContextFile(dir).task.workflow;
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "tester");
+  const signalNote = [blocked?.note || "", aideReview?.note || ""].join(" ");
+
+  assert.equal(workflowAfterTester.workflow_chain_id, activeChainId);
+  assert.equal(workflowAfterTester.required_handoff, "tester");
+  assert.equal(workflowAfterTester.settlement_guard, "require_required_handoff");
+  assert.equal(workflowAfterTester.expected_next_step, "tester_handoff");
+  assert.equal(state.pendingActions.some((item) => item.type === "run_submit"), false);
+  assert.ok(blocked || aideReview);
+  assert.match(signalNote, /workflow_chain_id|chain|required|missing/i);
 }
 
 function testCoderCompletionDoesNotQueueSubmitBeforeTester() {
@@ -828,6 +1110,11 @@ function testQcPassQueuesSubmitAfterTesterAudit() {
     { CODEX_PROJECT_DIR: dir }
   );
 
+  const qcAfterCoderWorkflow = readTaskContextFile(dir).task.workflow;
+  assert.equal(typeof qcAfterCoderWorkflow.workflow_chain_id, "string");
+  assert.notEqual(qcAfterCoderWorkflow.workflow_chain_id, "");
+  const qcAfterCoderChainId = qcAfterCoderWorkflow.workflow_chain_id;
+
   runNode(
     runtimeStateScript,
     {
@@ -844,6 +1131,7 @@ function testQcPassQueuesSubmitAfterTesterAudit() {
             role: "tester",
             status: "complete",
             needs_qc: true,
+            workflow_chain_id: qcAfterCoderChainId,
             validation_targets: ["retry behavior"],
             coverage_rationale: "critical path covered",
             remaining_gaps: [],
@@ -928,6 +1216,7 @@ function testLegacyDeliveryPolicyBlocksTesterSubmitTrigger() {
             role: "tester",
             status: "complete",
             needs_qc: true,
+            workflow_chain_id: "chain-legacy-policy-tester",
             validation_targets: ["legacy policy compatibility"],
             coverage_rationale: "smoke",
             remaining_gaps: [],
@@ -994,6 +1283,11 @@ function testLegacyDeliveryPolicyBlocksSubmitAfterQcPass() {
     { CODEX_PROJECT_DIR: dir }
   );
 
+  const legacyAfterCoderWorkflow = readTaskContextFile(dir).task.workflow;
+  assert.equal(typeof legacyAfterCoderWorkflow.workflow_chain_id, "string");
+  assert.notEqual(legacyAfterCoderWorkflow.workflow_chain_id, "");
+  const legacyAfterCoderChainId = legacyAfterCoderWorkflow.workflow_chain_id;
+
   runNode(
     runtimeStateScript,
     {
@@ -1010,6 +1304,7 @@ function testLegacyDeliveryPolicyBlocksSubmitAfterQcPass() {
             role: "tester",
             status: "complete",
             needs_qc: true,
+            workflow_chain_id: legacyAfterCoderChainId,
             validation_targets: ["retry behavior"],
             coverage_rationale: "critical path covered",
             remaining_gaps: [],
@@ -1094,6 +1389,7 @@ function testNewDeliveryPolicyKeyOverridesLegacyFallback() {
             role: "tester",
             status: "complete",
             needs_qc: true,
+            workflow_chain_id: "chain-new-policy-key",
             validation_targets: ["new key precedence"],
             coverage_rationale: "smoke",
             remaining_gaps: [],
@@ -2339,6 +2635,130 @@ function testSessionEndWithStoryScopedTesterHandoffDoesNotQueueSubmit() {
   assert.match(blocked.note, /cannot replace tester/i);
 }
 
+function testTaskSettledWorkflowGuardBlocksCloseoutWithoutPendingTesterAction() {
+  const dir = makeTempDir("codex-starter-task-settled-workflow-guard-");
+
+  saveTaskContext(dir, {
+    task: {
+      current_task: "Guarded task settlement",
+      status: "active",
+      workflow: {
+        current_chain: "coder",
+        expected_next_step: "tester_handoff",
+        required_handoff: "tester",
+        settlement_guard: "require_required_handoff",
+        settlement_guard_reason: "Tester handoff is mandatory."
+      }
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "task_settled",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  const workflow = readTaskContextFile(dir).task.workflow;
+
+  assert.equal(submitAction, undefined);
+  assert.equal(testerAction, undefined);
+  assert.ok(blocked);
+  assert.match(blocked.note, /cannot replace tester/i);
+  assert.equal(workflow.required_handoff, "tester");
+  assert.equal(workflow.expected_next_step, "tester_handoff");
+}
+
+function testSessionEndWorkflowGuardBlocksCloseoutWithoutPendingTesterAction() {
+  const dir = makeTempDir("codex-starter-session-end-workflow-guard-");
+
+  saveTaskContext(dir, {
+    task: {
+      current_task: "Guarded session closeout",
+      status: "active",
+      workflow: {
+        current_chain: "coder",
+        expected_next_step: "tester_handoff",
+        required_handoff: "tester",
+        settlement_guard: "require_required_handoff",
+        settlement_guard_reason: "Tester handoff is mandatory."
+      }
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "session_end",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  const workflow = readTaskContextFile(dir).task.workflow;
+
+  assert.equal(submitAction, undefined);
+  assert.equal(testerAction, undefined);
+  assert.ok(blocked);
+  assert.match(blocked.note, /cannot replace tester/i);
+  assert.equal(workflow.required_handoff, "tester");
+  assert.equal(workflow.expected_next_step, "tester_handoff");
+}
+
+function testSessionEndDoesNotAdvanceSubmitOrSettleWithoutTaskSettledEvent() {
+  const dir = makeTempDir("codex-starter-session-end-best-effort-");
+
+  saveTaskContext(dir, {
+    task: {
+      current_task: "Pause without task_settled",
+      status: "active",
+      workflow: {
+        phase: "tester",
+        chain_id: "chain-session-end-best-effort",
+        workflow_chain_id: "chain-session-end-best-effort",
+        current_chain: "tester",
+        expected_next_step: "submit",
+        required_handoff: "none",
+        required_handoff_story_path: null,
+        settlement_guard: "none",
+        settlement_guard_reason: "",
+        updated_at: "2026-03-29T09:00:00.000Z"
+      }
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "session_end",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const workflow = readTaskContextFile(dir).task.workflow;
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.equal(submitAction, undefined);
+  assert.equal(workflow.phase, "tester");
+  assert.equal(workflow.current_chain, "tester");
+  assert.equal(workflow.expected_next_step, "none");
+}
+
 function testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals() {
   const dir = makeTempDir("codex-starter-evolution-sweep-");
 
@@ -3034,6 +3454,9 @@ testRepoContextHelpersWriteNormalizedState();
 testLegacyDeliveryModeNamesNormalizeToCurrentNames();
 testTrimRuntimeStateDropsOldFailurePatterns();
 testCoderCompletionQueuesTesterWithoutStory();
+testCoderAndTesterCompletionUpdateWorkflowHotState();
+testTesterCompletionWithMismatchedWorkflowChainIdKeepsGuard();
+testTesterCompletionWithoutWorkflowChainIdKeepsGuard();
 testCoderCompletionDoesNotQueueSubmitBeforeTester();
 testRuntimeRejectsCoderCompletionWithoutStructuredFooter();
 testRuntimeRejectsCoderCompletionWithoutNeedsQcTrue();
@@ -3067,6 +3490,9 @@ testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry();
 testTaskSettledDoesNotBypassRequiredTesterHandoff();
 testTaskSettledWithStoryScopedTesterHandoffDoesNotQueueSubmit();
 testSessionEndWithStoryScopedTesterHandoffDoesNotQueueSubmit();
+testTaskSettledWorkflowGuardBlocksCloseoutWithoutPendingTesterAction();
+testSessionEndWorkflowGuardBlocksCloseoutWithoutPendingTesterAction();
+testSessionEndDoesNotAdvanceSubmitOrSettleWithoutTaskSettledEvent();
 testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals();
 testAideEvolutionSweepPromotesSettledTasksWithGovernanceSignals();
 testAideEvolutionAutoAppliesKnownLearningGuidance();

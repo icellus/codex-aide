@@ -2,6 +2,12 @@
 
 Project-level Codex workflow starter.
 
+## Source-Maintenance Boundary
+
+- Runtime authority scope: this file governs sessions after `codex-starter` is installed in a target repository.
+- Source-maintenance boundary: when editing `codex-starter/**` inside a separate host maintenance repository, host-level authority governs that maintenance session; this starter content is the development object under edit.
+- Do not project this starter's default address, persona, or route rules onto the host maintenance session unless host authority or explicit user instruction adopts them.
+
 ## Default Stance
 
 - Start light.

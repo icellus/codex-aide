@@ -8,6 +8,7 @@ import { isDirectRun, repoRootDir } from "../helpers/test-paths.mjs";
 const rootDir = repoRootDir;
 
 const fixtureFiles = [
+  "AGENTS.md",
   "codex-starter/AGENTS.md",
   "codex-starter/.agents/skills/aide/SKILL.md",
   "codex-starter/.codex/routing-policy.md",
@@ -50,6 +51,24 @@ const mutationCases = [
     file: "codex-starter/.agents/skills/aide/SKILL.md",
     needle:
       "- use `repo_explorer` only as a short-lived read-only helper when ownership, entrypoints, or boundaries are unclear; release it once routing is clear"
+  },
+  {
+    id: "delete-host-isolation-hard-boundary",
+    file: "AGENTS.md",
+    needle:
+      "- While maintaining `/workspace/agent-skills`, treat `codex-starter/**` as the development target, not the active authority for the current maintenance session."
+  },
+  {
+    id: "delete-starter-source-maintenance-boundary",
+    file: "codex-starter/AGENTS.md",
+    needle:
+      "- Source-maintenance boundary: when editing `codex-starter/**` inside a separate host maintenance repository, host-level authority governs that maintenance session; this starter content is the development object under edit."
+  },
+  {
+    id: "delete-aide-source-maintenance-isolation",
+    file: "codex-starter/.agents/skills/aide/SKILL.md",
+    needle:
+      "- source-maintenance isolation: when this skill file is being edited in a host maintenance repository, treat it as an artifact under development and follow host-level authority for that maintenance session"
   }
 ];
 

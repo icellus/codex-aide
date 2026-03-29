@@ -3,6 +3,7 @@
 **Owner**: `tester`
 **Scope**: [task, feature, or plan item]
 **Status**: ready-for-qc|ready-for-coder|blocked
+**Workflow Chain ID**: [workflow_chain_id from active workflow, or `none` when not applicable]
 
 ---
 

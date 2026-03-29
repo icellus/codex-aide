@@ -19,6 +19,18 @@
     "qc_policy": "disabled",
     "submit_policy": "enabled",
     "validation_profile_status": "not-set",
-    "open_questions": []
+    "open_questions": [],
+    "workflow": {
+      "phase": "idle",
+      "chain_id": null,
+      "workflow_chain_id": null,
+      "current_chain": "idle",
+      "expected_next_step": "none",
+      "required_handoff": "none",
+      "required_handoff_story_path": null,
+      "settlement_guard": "none",
+      "settlement_guard_reason": "",
+      "updated_at": null
+    }
   }
 }

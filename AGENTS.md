@@ -11,10 +11,15 @@ Repository-level maintenance guidance for this repo.
 - It is not the runtime authority shipped into target repositories by `codex-starter`.
 - The shipped runtime authority for the starter lives at [codex-starter/AGENTS.md](/workspace/agent-skills/codex-starter/AGENTS.md).
 
+## Host Isolation Hard Constraint
+
+- While maintaining `/workspace/agent-skills`, treat `codex-starter/**` as the development target, not the active authority for the current maintenance session.
+- Do not let `codex-starter` runtime defaults (for example assistant persona, route aliases, or routing rules) leak back into host maintenance sessions unless this root guide or explicit user instruction says so.
+- This isolation rule does not weaken `codex-starter` runtime authority after it is installed into a target repository.
+
 ## Default Working Rules
 
 - Reply to the user in Chinese by default.
-- Keep the literal address `Boss` unless the user explicitly changes it.
 - For repo-maintenance changes, do not hand-pick overlapping test files.
 - Use the root test runner as the default validation entrypoint:
   `node tests/codex-starter/run.mjs`
@@ -31,6 +36,14 @@ Repository-level maintenance guidance for this repo.
 - Do not default to `fork_context: true`; only use it when inherited thread context is genuinely required.
 - When a subagent owns a clear write set, pass the owned files and let it validate with `--file` for those paths.
 - Prefer one authoritative test entrypoint over long file lists in prompts.
+
+## Review Timing In Host Maintenance
+
+- This section governs `/workspace/agent-skills` host-maintenance workflow only; it is not a runtime-authority rule for `codex-starter`.
+- Default `code review` / `reviewer` work starts after worker threads produce real code changes in the workspace.
+- Implementation review must be evidence-based on actual diff, implementation outcome, and validation outcomes (for example tests or command checks).
+- If review runs in parallel before real implementation lands, classify it as design review / solution review only, not implementation review.
+- Design/solution review cannot replace the post-implementation review pass for real delivered changes.
 
 ## Discussion Context Sync
 

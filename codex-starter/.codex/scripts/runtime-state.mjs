@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
+import path from "node:path";
+
 import {
   basenameLabel,
   compactText,
@@ -21,11 +24,14 @@ import {
   loadDeliveryPolicy,
   loadProjectProfileState,
   loadRuntimeState,
+  loadTaskContext,
+  normalizeTaskWorkflowState,
   parseActiveStories,
   readJsonStdinEnvelope,
   removePendingActions,
   resolveActiveStory,
   saveRuntimeState,
+  saveTaskContext,
   startRuntimeInvocationLogging,
   suggestedRoutesForCategory,
   syncTaskRegistry,
@@ -86,6 +92,94 @@ function normalizeStatus(input = {}, role, message) {
   }
 
   return detectSubagentStatus(role, message);
+}
+
+function normalizeWorkflowPhase(value, fallback = "idle") {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized || fallback;
+}
+
+function normalizeWorkflowChainId(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function structuredChainId(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return (
+    normalizeWorkflowChainId(value.chain_id) ||
+    normalizeWorkflowChainId(value.chainId) ||
+    normalizeWorkflowChainId(value.workflow_chain_id) ||
+    normalizeWorkflowChainId(value.workflowChainId)
+  );
+}
+
+function resolveWorkflowChainId(input = {}, message = "", preferredStructured = null) {
+  const inputWorkflow =
+    input.workflow && typeof input.workflow === "object" && !Array.isArray(input.workflow) ? input.workflow : {};
+  const inputStructured =
+    input.structured_result && typeof input.structured_result === "object" && !Array.isArray(input.structured_result)
+      ? input.structured_result
+      : {};
+  const structured =
+    preferredStructured && typeof preferredStructured === "object" && !Array.isArray(preferredStructured)
+      ? preferredStructured
+      : extractStructuredResult(message) || {};
+
+  return (
+    normalizeWorkflowChainId(input.chain_id) ||
+    normalizeWorkflowChainId(input.chainId) ||
+    normalizeWorkflowChainId(input.workflow_chain_id) ||
+    normalizeWorkflowChainId(input.workflowChainId) ||
+    normalizeWorkflowChainId(inputWorkflow.chain_id) ||
+    normalizeWorkflowChainId(inputWorkflow.chainId) ||
+    normalizeWorkflowChainId(inputWorkflow.workflow_chain_id) ||
+    normalizeWorkflowChainId(inputWorkflow.workflowChainId) ||
+    structuredChainId(inputStructured) ||
+    structuredChainId(structured)
+  );
+}
+
+function sanitizeChainScopeSegment(value, fallback = "current-task") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized || fallback;
+}
+
+function generateWorkflowChainId(storyPath) {
+  const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, "");
+  const scope = sanitizeChainScopeSegment(storyPath ? basenameLabel(storyPath) : "current-task");
+  const nonce = Math.random().toString(36).slice(2, 8);
+  return `chain-${timestamp}-${scope}-${nonce}`;
+}
+
+function workflowChainMatches(expectedChainId, actualChainId) {
+  const expected = normalizeWorkflowChainId(expectedChainId);
+  if (!expected) {
+    return true;
+  }
+
+  const actual = normalizeWorkflowChainId(actualChainId);
+  if (!actual) {
+    return true;
+  }
+
+  return actual === expected;
 }
 
 function upsertSessionRetrospective(state, storyPath, details = {}) {
@@ -446,6 +540,185 @@ function currentTaskLabel(profile, storyPath) {
   return String(profile.task || "").trim() || (storyPath ? basenameLabel(storyPath) : "current-task");
 }
 
+function buildTaskContextWorkflowPatch(profile, workflow, hasTaskContextFile) {
+  if (hasTaskContextFile) {
+    return {
+      task: {
+        workflow
+      }
+    };
+  }
+
+  return {
+    collaboration: {
+      preferred_address: String(profile.preferredAddress || "Boss"),
+      greeting_style: String(profile.greetingStyle || "warm"),
+      first_startup_greeting_completed: Boolean(profile.firstStartupGreetingCompleted)
+    },
+    task: {
+      current_task: String(profile.task || ""),
+      status: String(profile.taskStatus || "idle"),
+      class: String(profile.taskClass || "unknown"),
+      risk: String(profile.riskLevel || "unknown"),
+      delivery_mode: String(profile.deliveryMode || "lightweight"),
+      route_rationale: String(profile.routeRationale || ""),
+      routing_overrides: Array.isArray(profile.routingOverrides) ? profile.routingOverrides : [],
+      enabled_roles: Array.isArray(profile.enabledRoles) ? profile.enabledRoles : [],
+      enabled_modules: Array.isArray(profile.enabledModules) ? profile.enabledModules : [],
+      qc_policy: String(profile.qcPolicy || "disabled"),
+      submit_policy: String(profile.submitPolicy || "enabled"),
+      validation_profile_status: String(profile.validationProfileStatus || "not-set"),
+      open_questions: Array.isArray(profile.openQuestions) ? profile.openQuestions : [],
+      workflow
+    }
+  };
+}
+
+function normalizeWorkflowStoryPath(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function workflowScopeMatches(requiredStoryPath, storyPath) {
+  const required = normalizeWorkflowStoryPath(requiredStoryPath);
+  if (!required) {
+    return true;
+  }
+
+  if (!storyPath) {
+    return true;
+  }
+
+  return required === storyPath;
+}
+
+function inferWorkflowPhaseFromChain(chain, fallback = "idle") {
+  const normalizedChain = String(chain || "").trim().toLowerCase();
+  if (!normalizedChain) {
+    return normalizeWorkflowPhase(fallback, "idle");
+  }
+
+  if (normalizedChain === "tester_blocked") {
+    return "tester";
+  }
+
+  if (normalizedChain === "settlement_blocked" || normalizedChain === "qc" || normalizedChain === "submit") {
+    return normalizeWorkflowPhase(fallback, "coder");
+  }
+
+  return normalizedChain;
+}
+
+function updateWorkflowState(workflow, patch = {}) {
+  const next = normalizeTaskWorkflowState({
+    ...(workflow || {}),
+    ...(patch || {}),
+    updated_at: new Date().toISOString()
+  });
+  Object.assign(workflow, next);
+}
+
+function markWorkflowRequiresTesterHandoff(workflow, storyPath, chain, reason, options = {}) {
+  const phase = normalizeWorkflowPhase(options.phase, inferWorkflowPhaseFromChain(chain, workflow?.phase || "coder"));
+  const chainId = normalizeWorkflowChainId(options.chainId) || normalizeWorkflowChainId(workflow?.chain_id);
+  updateWorkflowState(workflow, {
+    phase,
+    chain_id: chainId,
+    current_chain: chain,
+    expected_next_step: "tester_handoff",
+    required_handoff: "tester",
+    required_handoff_story_path: storyPath || null,
+    settlement_guard: "require_required_handoff",
+    settlement_guard_reason: reason
+  });
+}
+
+function markWorkflowTesterHandoffCompleted(workflow, profile, deliveryPolicy, options = {}) {
+  const expectedNext = isQcEnabled(profile)
+    ? "qc"
+    : isSubmitEnabled(profile, deliveryPolicy)
+      ? "submit"
+      : "none";
+  const chainId = normalizeWorkflowChainId(options.chainId) || normalizeWorkflowChainId(workflow?.chain_id);
+
+  updateWorkflowState(workflow, {
+    phase: "tester",
+    chain_id: chainId,
+    current_chain: "tester",
+    expected_next_step: expectedNext,
+    required_handoff: "none",
+    required_handoff_story_path: null,
+    settlement_guard: "none",
+    settlement_guard_reason: ""
+  });
+}
+
+function markWorkflowSettled(workflow) {
+  updateWorkflowState(workflow, {
+    phase: "settled",
+    current_chain: "settled",
+    expected_next_step: "none",
+    required_handoff: "none",
+    required_handoff_story_path: null,
+    settlement_guard: "none",
+    settlement_guard_reason: ""
+  });
+}
+
+function workflowRequiresTesterHandoff(workflow, storyPath) {
+  if (workflow?.required_handoff !== "tester") {
+    return false;
+  }
+
+  if (workflow?.settlement_guard !== "require_required_handoff") {
+    return false;
+  }
+
+  return workflowScopeMatches(workflow.required_handoff_story_path, storyPath);
+}
+
+function hasPendingQc(state, storyPath) {
+  return state.pendingActions.some(
+    (item) => item.type === "run_qc" && matchesStoryScope(item.storyPath, storyPath)
+  );
+}
+
+function hasPendingSubmit(state, storyPath) {
+  return state.pendingActions.some(
+    (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+  );
+}
+
+function hasRequiredTesterHandoff(state, storyPath, workflow) {
+  return (
+    hasPendingTesterHandoff(state, storyPath, workflow?.chain_id) ||
+    workflowRequiresTesterHandoff(workflow, storyPath)
+  );
+}
+
+function syncWorkflowExpectedNextStep(state, storyPath, workflow) {
+  if (hasRequiredTesterHandoff(state, storyPath, workflow)) {
+    updateWorkflowState(workflow, { expected_next_step: "tester_handoff" });
+    return;
+  }
+
+  if (hasPendingQc(state, storyPath)) {
+    updateWorkflowState(workflow, { expected_next_step: "qc" });
+    return;
+  }
+
+  if (hasPendingSubmit(state, storyPath)) {
+    updateWorkflowState(workflow, { expected_next_step: "submit" });
+    return;
+  }
+
+  updateWorkflowState(workflow, { expected_next_step: "none" });
+}
+
 function hasHotTaskState(state, storyPath) {
   const hasPending = state.pendingActions.some((item) => {
     if (
@@ -495,7 +768,7 @@ function upsertCompletedTask(state, entry) {
   state.completedTasks.push(entry);
 }
 
-function clearHotTaskState(state, storyPath, profile, message) {
+function clearHotTaskState(state, storyPath, profile, message, workflow) {
   removePendingActions(state, (item) => {
     if (
       item.type !== "run_tester" &&
@@ -515,6 +788,7 @@ function clearHotTaskState(state, storyPath, profile, message) {
   });
 
   state.sessionContext.lastReminderText = "";
+  markWorkflowSettled(workflow);
 
   upsertCompletedTask(state, {
     id: storyPath ? `story:${storyPath}` : `task:${currentTaskLabel(profile, storyPath)}`,
@@ -654,31 +928,48 @@ function queueSubmit(state, storyPath, note, trigger) {
   });
 }
 
-function queueTesterHandoff(state, storyPath, trigger = "coder_complete_requires_tester") {
+function queueTesterHandoff(
+  state,
+  storyPath,
+  trigger = "coder_complete_requires_tester",
+  chainId = null,
+  note = "Coder completed. Route to tester for required validation handoff."
+) {
+  const normalizedChainId = normalizeWorkflowChainId(chainId);
   upsertPendingAction(state, {
     id: `run-tester:${storyPath || "current-task"}`,
     type: "run_tester",
     phase: "tester",
     storyPath,
+    chain_id: normalizedChainId,
+    workflow_chain_id: normalizedChainId,
     trigger,
-    note: "Coder completed. Route to tester for required validation handoff."
+    note
   });
 }
 
-function clearTesterHandoff(state, storyPath) {
+function clearTesterHandoff(state, storyPath, chainId = null) {
   removePendingActions(
     state,
-    (item) => item.type === "run_tester" && matchesStoryScope(item.storyPath, storyPath)
+    (item) =>
+      item.type === "run_tester" &&
+      matchesStoryScope(item.storyPath, storyPath) &&
+      workflowChainMatches(chainId, item.chain_id || item.workflow_chain_id)
   );
 }
 
-function hasPendingTesterHandoff(state, storyPath) {
+function hasPendingTesterHandoff(state, storyPath, chainId = null) {
   if (!storyPath) {
-    return state.pendingActions.some((item) => item.type === "run_tester");
+    return state.pendingActions.some(
+      (item) => item.type === "run_tester" && workflowChainMatches(chainId, item.chain_id || item.workflow_chain_id)
+    );
   }
 
   return state.pendingActions.some(
-    (item) => item.type === "run_tester" && matchesStoryScope(item.storyPath, storyPath)
+    (item) =>
+      item.type === "run_tester" &&
+      matchesStoryScope(item.storyPath, storyPath) &&
+      workflowChainMatches(chainId, item.chain_id || item.workflow_chain_id)
   );
 }
 
@@ -723,12 +1014,12 @@ function shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy
   return submitLooksReady(profile, message) && shouldQueueByPolicy(deliveryPolicy, "task_settled_without_qc");
 }
 
-function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy) {
+function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy, workflow) {
   if (!isSubmitEnabled(profile, deliveryPolicy)) {
     return false;
   }
 
-  if (hasPendingTesterHandoff(state, storyPath)) {
+  if (hasRequiredTesterHandoff(state, storyPath, workflow)) {
     return false;
   }
 
@@ -744,12 +1035,12 @@ function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPo
   return submitLooksReady(profile, message) && shouldQueueByPolicy(deliveryPolicy, "task_settled_after_qc");
 }
 
-function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy) {
+function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy, workflow) {
   if (!isSubmitEnabled(profile, deliveryPolicy)) {
     return;
   }
 
-  if (hasPendingTesterHandoff(state, storyPath)) {
+  if (hasRequiredTesterHandoff(state, storyPath, workflow)) {
     return;
   }
 
@@ -765,18 +1056,24 @@ function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deli
   queueSubmit(state, storyPath, "Task is settled and ready for governed delivery. Run /submit.", trigger);
 }
 
-function shouldBlockSettlementForMissingTester(state, storyPath, message) {
-  if (!hasPendingTesterHandoff(state, storyPath)) {
+function shouldBlockSettlementForMissingTester(state, storyPath, message, workflow) {
+  if (!hasRequiredTesterHandoff(state, storyPath, workflow)) {
     return false;
   }
 
   return detectTaskCompletionMessage(message);
 }
 
-function blockSettlementForMissingTester(state, storyPath, source) {
+function blockSettlementForMissingTester(state, storyPath, source, workflow) {
   removePendingActions(
     state,
     (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+  );
+  markWorkflowRequiresTesterHandoff(
+    workflow,
+    storyPath || workflow.required_handoff_story_path || null,
+    "settlement_blocked",
+    "Settlement is blocked until required tester handoff completes."
   );
   recordMissingTesterWorkflowBreak(
     state,
@@ -786,14 +1083,20 @@ function blockSettlementForMissingTester(state, storyPath, source) {
   );
 }
 
-function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
+function processQcOutcome(state, storyPath, profile, message, deliveryPolicy, workflow) {
   if (detectQcPass(message)) {
     recordQcMetrics(state, storyPath, message, "pass");
 
-    if (hasPendingTesterHandoff(state, storyPath)) {
+    if (hasRequiredTesterHandoff(state, storyPath, workflow)) {
       removePendingActions(
         state,
         (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+      );
+      markWorkflowRequiresTesterHandoff(
+        workflow,
+        storyPath || workflow.required_handoff_story_path || null,
+        "qc",
+        "QC cannot replace required tester handoff after coder completion."
       );
       recordMissingTesterWorkflowBreak(
         state,
@@ -813,7 +1116,7 @@ function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
       (item) => item.type === "blocked_review" && item.scope !== "ambiguous" && matchesStoryScope(item.storyPath, storyPath)
     );
 
-    if (shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy)) {
+    if (shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy, workflow)) {
       const phase = resolveQcPhaseForMetrics(state, message, storyPath);
       queueSubmit(
         state,
@@ -843,7 +1146,13 @@ function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
     const escalatedCategories = [];
     recordQcMetrics(state, storyPath, message, "fail", categories);
 
-    if (hasPendingTesterHandoff(state, storyPath)) {
+    if (hasRequiredTesterHandoff(state, storyPath, workflow)) {
+      markWorkflowRequiresTesterHandoff(
+        workflow,
+        storyPath || workflow.required_handoff_story_path || null,
+        "qc",
+        "QC failed before required tester handoff completed."
+      );
       recordMissingTesterWorkflowBreak(
         state,
         storyPath,
@@ -921,7 +1230,7 @@ function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
   }
 }
 
-function processSubmitOutcome(state, storyPath, profile, message, status) {
+function processSubmitOutcome(state, storyPath, profile, message, status, workflow) {
   if (status === "complete") {
     removePendingActions(
       state,
@@ -933,7 +1242,7 @@ function processSubmitOutcome(state, storyPath, profile, message, status) {
     );
 
     if (shouldCompressCompletedTask(profile, state, storyPath, message)) {
-      clearHotTaskState(state, storyPath, profile, message);
+      clearHotTaskState(state, storyPath, profile, message, workflow);
     }
     return;
   }
@@ -960,10 +1269,11 @@ function processSubmitOutcome(state, storyPath, profile, message, status) {
   }
 }
 
-function recordSubagentResult(input, state, activeStories, projectDir, profile, deliveryPolicy) {
+function recordSubagentResult(input, state, activeStories, projectDir, profile, deliveryPolicy, workflow) {
   const message = normalizeMessage(input);
   const role = normalizeRole(input, message);
   const status = normalizeStatus(input, role, message);
+  let contractStructured = null;
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
   const ambiguousStoryScope = isAmbiguousStoryScope(activeStories, storyPath);
@@ -974,11 +1284,14 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
     (status === "complete" || status === "blocked") &&
     hasAmbiguousBlockedSignals(state, role);
 
+  const activeWorkflowChainId = normalizeWorkflowChainId(workflow?.chain_id);
+
   state.recentSubagentEvents.push({
     timestamp: new Date().toISOString(),
     agentType: role,
     status,
     storyPath,
+    chainId: activeWorkflowChainId,
     summary: compactText(message, 120)
   });
 
@@ -1013,7 +1326,11 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
       });
       return;
     }
+
+    contractStructured = contract.structured;
   }
+
+  const incomingChainId = resolveWorkflowChainId(input, message, contractStructured);
 
   if ((role === "tester" || role === "coder") && ambiguousStoryScope && status !== "blocked") {
     return;
@@ -1031,6 +1348,7 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
   }
 
   if (role === "coder" && status === "complete") {
+    const activeChainId = incomingChainId || generateWorkflowChainId(storyPath);
     removePendingActions(
       state,
       (item) => item.type === "run_qc" && matchesStoryScope(item.storyPath, storyPath)
@@ -1039,11 +1357,85 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
       state,
       (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
     );
-    queueTesterHandoff(state, storyPath);
+    queueTesterHandoff(state, storyPath, "coder_complete_requires_tester", activeChainId);
+    markWorkflowRequiresTesterHandoff(
+      workflow,
+      storyPath,
+      "coder",
+      "Coder completion requires tester handoff before settlement.",
+      {
+        phase: "coder",
+        chainId: activeChainId
+      }
+    );
+    syncWorkflowExpectedNextStep(state, storyPath, workflow);
   }
 
   if (role === "tester" && status === "complete") {
-    clearTesterHandoff(state, storyPath);
+    const enforceWorkflowChain =
+      workflow.required_handoff === "tester" && workflow.settlement_guard === "require_required_handoff";
+    const missingRequiredChainId =
+      enforceWorkflowChain &&
+      Boolean(activeWorkflowChainId) &&
+      !incomingChainId;
+    const hasExplicitChainMismatch =
+      enforceWorkflowChain &&
+      Boolean(activeWorkflowChainId) &&
+      Boolean(incomingChainId) &&
+      incomingChainId !== activeWorkflowChainId;
+
+    if (missingRequiredChainId || hasExplicitChainMismatch) {
+      const scopedStoryPath = storyPath || workflow.required_handoff_story_path || null;
+      const mismatchReason = missingRequiredChainId
+        ? "Tester handoff omitted workflow_chain_id for an active guarded chain. Re-run tester for the current chain."
+        : "Tester handoff chain_id mismatched the active workflow chain. Re-run tester for the current chain.";
+      const mismatchReviewNote = missingRequiredChainId
+        ? "Tester handoff omitted workflow_chain_id while the active chain required it. Required tester handoff remains pending."
+        : "Tester handoff workflow_chain_id mismatched active chain_id. Required tester handoff remains pending.";
+      const mismatchBlockedId = missingRequiredChainId ? "chain-missing" : "chain-mismatch";
+
+      queueTesterHandoff(
+        state,
+        scopedStoryPath,
+        missingRequiredChainId ? "tester_chain_missing" : "tester_chain_mismatch",
+        activeWorkflowChainId,
+        mismatchReason
+      );
+      markWorkflowRequiresTesterHandoff(
+        workflow,
+        scopedStoryPath,
+        "tester_blocked",
+        mismatchReviewNote,
+        {
+          phase: "tester",
+          chainId: activeWorkflowChainId
+        }
+      );
+      upsertPendingAction(state, {
+        id: `blocked-review:tester:${mismatchBlockedId}:${scopedStoryPath || "current-task"}`,
+        type: "blocked_review",
+        phase: "tester",
+        storyPath: scopedStoryPath,
+        note: mismatchReason
+      });
+      upsertAideReview(state, {
+        issueKey: `tester-${mismatchBlockedId}:${scopedStoryPath || "current-task"}`,
+        storyPath: scopedStoryPath,
+        sourceRole: "tester",
+        capability: "investigation",
+        severity: "L3",
+        issueType: "workflow_break",
+        routeTarget: "/Aide investigate",
+        note: mismatchReviewNote
+      });
+      syncWorkflowExpectedNextStep(state, scopedStoryPath, workflow);
+      return;
+    }
+
+    clearTesterHandoff(state, storyPath, incomingChainId || activeWorkflowChainId);
+    markWorkflowTesterHandoffCompleted(workflow, profile, deliveryPolicy, {
+      chainId: incomingChainId || activeWorkflowChainId
+    });
 
     if (isQcEnabled(profile)) {
       upsertPendingAction(state, {
@@ -1067,6 +1459,8 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
         );
       }
     }
+
+    syncWorkflowExpectedNextStep(state, storyPath, workflow);
   }
 
   if ((role === "tester" || role === "coder") && status === "blocked") {
@@ -1105,6 +1499,19 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
       routeTarget: "/Aide investigate",
       note: reviewNote
     });
+
+    if (role === "tester" && workflow.required_handoff === "tester") {
+      markWorkflowRequiresTesterHandoff(
+        workflow,
+        storyPath || workflow.required_handoff_story_path || null,
+        "tester_blocked",
+        "Tester handoff remains required before settlement.",
+        {
+          phase: "tester"
+        }
+      );
+      syncWorkflowExpectedNextStep(state, storyPath, workflow);
+    }
   }
 
   if (role === "product_assistant" && (status === "complete" || status === "blocked")) {
@@ -1116,21 +1523,24 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
   }
 
   if (role === "qc") {
-    processQcOutcome(state, storyPath, profile, message, deliveryPolicy);
+    processQcOutcome(state, storyPath, profile, message, deliveryPolicy, workflow);
+    syncWorkflowExpectedNextStep(state, storyPath, workflow);
   }
 
   if (role === "submit") {
-    processSubmitOutcome(state, storyPath, profile, message, status);
+    processSubmitOutcome(state, storyPath, profile, message, status, workflow);
+    syncWorkflowExpectedNextStep(state, storyPath, workflow);
   }
 }
 
-function recordSessionEnd(input, state, activeStories, projectDir, profile, deliveryPolicy) {
+function recordSessionEnd(input, state, activeStories, projectDir, profile, deliveryPolicy, workflow) {
   const message = normalizeMessage(input);
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
 
-  if (shouldBlockSettlementForMissingTester(state, storyPath, message)) {
-    blockSettlementForMissingTester(state, storyPath, "session_end");
+  if (shouldBlockSettlementForMissingTester(state, storyPath, message, workflow)) {
+    blockSettlementForMissingTester(state, storyPath, "session_end", workflow);
+    syncWorkflowExpectedNextStep(state, storyPath, workflow);
     return;
   }
 
@@ -1141,21 +1551,17 @@ function recordSessionEnd(input, state, activeStories, projectDir, profile, deli
     });
   }
 
-  processQcOutcome(state, storyPath, profile, message, deliveryPolicy);
-  maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy);
-
-  if (shouldCompressCompletedTask(profile, state, storyPath, message)) {
-    clearHotTaskState(state, storyPath, profile, message);
-  }
+  syncWorkflowExpectedNextStep(state, storyPath, workflow);
 }
 
-function recordTaskSettled(input, state, activeStories, projectDir, profile, deliveryPolicy) {
+function recordTaskSettled(input, state, activeStories, projectDir, profile, deliveryPolicy, workflow) {
   const message = normalizeMessage(input) || `Task status: ${String(input.task_status || input.status || "done")}`;
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
 
-  if (hasPendingTesterHandoff(state, storyPath)) {
-    blockSettlementForMissingTester(state, storyPath, "task_settled");
+  if (hasRequiredTesterHandoff(state, storyPath, workflow)) {
+    blockSettlementForMissingTester(state, storyPath, "task_settled", workflow);
+    syncWorkflowExpectedNextStep(state, storyPath, workflow);
     return;
   }
 
@@ -1166,11 +1572,12 @@ function recordTaskSettled(input, state, activeStories, projectDir, profile, del
     });
   }
 
-  processQcOutcome(state, storyPath, profile, message, deliveryPolicy);
-  maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy);
+  processQcOutcome(state, storyPath, profile, message, deliveryPolicy, workflow);
+  maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy, workflow);
+  syncWorkflowExpectedNextStep(state, storyPath, workflow);
 
   if (shouldCompressCompletedTask(profile, state, storyPath, message)) {
-    clearHotTaskState(state, storyPath, profile, message);
+    clearHotTaskState(state, storyPath, profile, message, workflow);
   }
 }
 
@@ -1217,19 +1624,27 @@ async function main() {
     const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
     const activeStories = parseActiveStories(progressPath);
     const state = loadRuntimeState(projectDir);
+    const taskContextPath = path.join(projectDir, ".codex", "state", "task-context.json");
+    const hasTaskContextFile = fs.existsSync(taskContextPath);
+    const taskContext = loadTaskContext(projectDir);
+    const workflow = normalizeTaskWorkflowState(taskContext?.task?.workflow);
+    const workflowBaseline = JSON.stringify(workflow);
     const profile = loadProjectProfileState(projectDir);
     const deliveryPolicy = loadDeliveryPolicy(projectDir);
 
     if (eventName === "subagent_result") {
-      recordSubagentResult(input, state, activeStories, projectDir, profile, deliveryPolicy);
+      recordSubagentResult(input, state, activeStories, projectDir, profile, deliveryPolicy, workflow);
     } else if (eventName === "session_end") {
-      recordSessionEnd(input, state, activeStories, projectDir, profile, deliveryPolicy);
+      recordSessionEnd(input, state, activeStories, projectDir, profile, deliveryPolicy, workflow);
     } else if (eventName === "task_settled") {
-      recordTaskSettled(input, state, activeStories, projectDir, profile, deliveryPolicy);
+      recordTaskSettled(input, state, activeStories, projectDir, profile, deliveryPolicy, workflow);
     }
 
     trimRuntimeState(state);
     saveRuntimeState(projectDir, state);
+    if (JSON.stringify(workflow) !== workflowBaseline) {
+      saveTaskContext(projectDir, buildTaskContextWorkflowPatch(profile, workflow, hasTaskContextFile));
+    }
     syncTaskRegistry(projectDir, {
       profile,
       runtimeState: state,
