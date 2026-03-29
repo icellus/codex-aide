@@ -70,7 +70,7 @@ function testTaskContextHelpersWriteNormalizedState() {
       current_task: "Review the routing flow",
       status: "active",
       enabled_roles: ["Aide"],
-      open_questions: ["Should conduct run?"]
+      open_questions: ["Should technical_manager run?"]
     }
   });
 
@@ -81,7 +81,7 @@ function testTaskContextHelpersWriteNormalizedState() {
   assert.equal(saved.collaboration.first_startup_greeting_completed, true);
   assert.equal(saved.task.current_task, "Review the routing flow");
   assert.deepEqual(saved.task.enabled_roles, ["Aide"]);
-  assert.deepEqual(saved.task.open_questions, ["Should conduct run?"]);
+  assert.deepEqual(saved.task.open_questions, ["Should technical_manager run?"]);
   assert.equal(saved.task.workflow.required_handoff, "none");
   assert.equal(saved.task.workflow.settlement_guard, "none");
 }

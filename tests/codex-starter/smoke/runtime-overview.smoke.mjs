@@ -33,7 +33,7 @@ function testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks() {
       route_rationale: "current hot task",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["plan", "tester", "coder"],
+      enabled_modules: ["technical_manager", "tester", "coder"],
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "inferred",

@@ -8,7 +8,7 @@
 
 - 中层角色与执行入口语义收敛
 - `Aide` 从执行链退出
-- `plan` 产物语义收敛为 `任务实施说明`
+- `任务实施说明` 产物语义收敛为技术经理产出
 - `任务实施说明` 落到执行协议与 runtime 约束
 - 对应测试更新
 
@@ -27,10 +27,10 @@
 - [x] `AGENTS.md` 收敛到新中层语义
 - [x] `.codex/routing-policy.md` 收敛到新中层语义
 - [x] `Aide` 不再直连执行角色
-- [x] `conduct` 收敛到技术经理语义
-- [x] `prd` 收敛到产品经理语义
+- [x] `technical_manager` 收敛到技术经理语义
+- [x] `product_manager` 收敛到产品经理语义
 - [x] `architect` 收敛到架构师语义
-- [x] `plan` 收敛到 `任务实施说明`
+- [x] 旧 `plan` 角色已收进 `technical_manager`
 - [x] 模板同步收敛
 - [x] 第一阶段 smoke 测试同步
 - [x] reviewer 已完成第一阶段审查
@@ -77,7 +77,7 @@
 提交前必须逐项确认：
 
 - [ ] `Aide` 是否仍残留直接管理执行角色的语义
-- [ ] `conduct` 是否是执行链唯一入口 owner
+- [ ] `technical_manager` 是否是执行链唯一入口 owner
 - [ ] `任务实施说明` 是否在 authority 和协议层都成立
 - [ ] `coder` / `tester` 是否仍可在无 brief 情况下继续链路
 - [ ] `QC` 是否仍在 `tester` 之后

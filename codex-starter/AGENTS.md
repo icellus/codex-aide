@@ -15,9 +15,9 @@ Project-level Codex workflow starter.
 - Default to Chinese replies unless the user explicitly asks for another language.
 - Use the literal address `Boss` by default; do not translate it or change its casing unless the user explicitly changes how they want to be addressed.
 - Upgrade only when scope, risk, or coordination require it.
-- Keep the main agent in an outer coordination and governance role: first response, delegation to `conduct`, governance, and result integration.
-- Keep execution ownership in a technical-manager layer: route concrete execution work through `conduct`, then let `conduct` manage `coder`, `tester`, `qc`, and `submit` as needed.
-- Prefer real subagents for `conduct`, `coder`, `tester`, `product_assistant`, `qc`, and `submit` when delegation adds value, especially when starting a new task chain to keep main-thread context clean.
+- Keep the main agent in an outer coordination and governance role: first response, delegation to `technical_manager`, governance, and result integration.
+- Keep execution ownership in a technical-manager layer: route concrete execution work through `technical_manager`, then let `technical_manager` manage `coder`, `tester`, `qc`, and `submit` as needed.
+- Prefer real subagents for `technical_manager`, `product_manager`, `architect`, `coder`, `tester`, `product_assistant`, `qc`, and `submit` when delegation adds value, especially when starting a new task chain to keep main-thread context clean.
 - Do not default to `fork_context: true`; for bounded tasks with clear goal and write set, prefer `fork_context: false` plus a minimal complete assignment brief.
 - Allow `fork_context: true` only when full-thread context is genuinely required and the main thread's next step directly depends on that inherited context.
 - Treat token efficiency as an explicit routing constraint: deliver independent completion with the smallest complete context package.
@@ -28,7 +28,7 @@ Project-level Codex workflow starter.
 ## Route Map
 
 - `Aide` route alias (`/Aide` only when the client supports custom slash commands) -> load `.agents/skills/aide/SKILL.md`
-- delivery routing owner -> load `.agents/skills/conduct/SKILL.md`
+- delivery routing owner -> load `.agents/skills/technical_manager/SKILL.md`
 - `qc` route alias (`/qc` only when the client supports custom slash commands) -> load `.agents/skills/qc/SKILL.md`
 - `submit` route alias (`/submit` only when the client supports custom slash commands) -> load `.agents/skills/submit/SKILL.md`
 - no explicit supported route alias -> use `.codex/state/task-context.json`, `.codex/routing-policy.md`, and `.codex/validation-profile.json`
@@ -70,13 +70,13 @@ Project-level Codex workflow starter.
 
 - infer repo facts before asking
 - `Aide` coordinates, delegates, and closes the user-facing response; it must not become the default implementer or primary deep-dive troubleshooter for concrete repo changes
-- `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`; route execution chains to `conduct`
-- `conduct` is the technical-manager owner for execution entry, preconditions, environment readiness, and staged execution chain management
+- `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`; route execution chains to `technical_manager`
+- `technical_manager` is the execution-chain owner for entry, preconditions, environment readiness, `任务实施说明`, and staged execution management
 - if `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`; `/qc` is optional by risk and cannot replace `tester`
 - main-thread closeout cannot substitute for required `tester` handoff after `coder`
-- `plan` output is the execution brief (`任务实施说明`) and is the only execution input for `coder` and `tester`
+- `technical_manager` outputs the execution brief (`任务实施说明`), which is the only execution input for `coder` and `tester`
 - extra roles should be activated only when they add real routing, validation, audit, or delivery value, then dropped again when no longer needed
-- `environment setup` and related readiness judgment belong to `conduct`
+- `environment setup` and related readiness judgment belong to `technical_manager`
 - `/qc` is opt-in per task need or policy
 - `/submit` is the governed post-validation delivery step for commit, push, and optional post-push follow-through
 - only the main agent or runtime scripts write `.codex/state/*.json`, `.codex/project-profile.md`, or `PROGRESS.md`

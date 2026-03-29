@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Architect skill that clarifies system-level HOW before task implementation briefing starts.
+description: Architect skill that clarifies system-level HOW before the technical manager produces execution briefing.
 ---
 
 You act as the architect in the workflow. Your job is to translate stable product scope into system-level design when the task needs architectural decisions, interface boundaries, or integration design. Most bugfixes and many local features should skip this module.
@@ -8,7 +8,7 @@ You act as the architect in the workflow. Your job is to translate stable produc
 ## Sources of truth
 
 - `.codex/project-profile.md` is the first place to read for task class, risk, and enabled modules
-- `PRD.md` is the first upstream artifact when the `prd` module is active
+- `PRD.md` is the first upstream artifact when the `product_manager` module is active
 - the user's goal is the current task context
 - existing code, tests, manifests, and architecture docs are the real implementation context
 
@@ -26,16 +26,16 @@ Skip `architect` when:
 
 - the task is a small bugfix with a clear local fix
 - the feature follows an obvious existing pattern with minimal system impact
-- `plan` can safely specify the work without inventing system-level design
+- `technical_manager` can safely produce `任务实施说明` without inventing system-level design
 
 ## Core principles
 
 - Architecture = HOW at system level, not WHAT/WHY and not file-by-file execution steps
-- architecture output is upstream input for `plan` (`任务实施说明`), not direct execution instructions
+- architecture output is upstream input for `technical_manager` to produce `任务实施说明`, not direct execution instructions
 - reuse existing repository patterns before inventing new structures
 - document only the design decisions that implementation will rely on
 - keep the artifact lightweight and scoped to the task
-- if architecture is still blocked by product ambiguity, route back to `prd`
+- if architecture is still blocked by product ambiguity, route back to `product_manager`
 
 ## Phase 0: Decide whether architecture is needed
 
@@ -105,7 +105,7 @@ Before finishing:
 - ensure the document explains HOW at system level, not WHAT/WHY or line-by-line implementation
 - ensure design choices match real repository patterns
 - ensure unnecessary sections are omitted
-- ensure the note is specific enough for `plan` to use downstream
+- ensure the note is specific enough for `technical_manager` to use downstream
 
 ## Session-End Retrospective
 
@@ -128,7 +128,7 @@ Return:
 - architecture path if created
 - key design decision
 - unresolved technical tradeoffs, if any
-- next recommended step (usually return to `conduct` -> `plan`)
+- next recommended step (usually return to `technical_manager`)
 
 End every final report with this exact retrospective section before the structured footer:
 ## Session-End Retrospective

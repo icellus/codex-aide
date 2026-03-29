@@ -3,8 +3,8 @@
 This file is the routing authority.
 
 `Aide` owns outer coordination: user-facing intake, governance, and closeout.
-`conduct` is the technical-manager layer for delivery.
-Once a task needs durable artifacts or execution ownership, it must enter `conduct` before any execution role is activated.
+`technical_manager` is the technical-manager layer for delivery.
+Once a task needs durable artifacts or execution ownership, it must enter `technical_manager` before any execution role is activated.
 `.codex/state/task-context.json` records current route and checkpoints.
 
 `/Aide`, `/qc`, and `/submit` are route aliases only when the client supports custom slash commands.
@@ -16,10 +16,10 @@ Otherwise, plain-language intent should map to the same routes.
 - Keep `lightweight` as the default for small, local, low-risk work.
 - Keep discussion, Q&A, option comparison, and non-delivery analysis in `Aide`.
 - `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`.
-- For any concrete repo change or durable artifact workflow, route to `conduct` first.
-- `conduct` owns execution entry, precondition checks, repository understanding depth, environment readiness, and staged handoff management.
+- For any concrete repo change or durable artifact workflow, route to `technical_manager` first.
+- `technical_manager` owns execution entry, precondition checks, repository understanding depth, environment readiness, `任务实施说明`, and staged handoff management.
 - Treat repository exploration and environment setup as actions/capabilities, not primary role expansion points.
-- `plan` output is a `任务实施说明` (`Task Implementation Brief`) and is the only execution input for `coder` and `tester`.
+- `technical_manager` produces and refreshes `任务实施说明`, which is the only execution input for `coder` and `tester`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`.
 - `/qc` is optional by risk or explicit audit need, and cannot replace `tester`.
 - `/submit` is the governed delivery step after required validation gates.
@@ -30,10 +30,10 @@ Otherwise, plain-language intent should map to the same routes.
 Default staged chain for execution work:
 
 1. `Aide`: outer coordination and decision to enter delivery routing.
-2. `conduct`: execution entry, preconditions, conflict scan, and chain design.
-3. optional `prd`: product-manager clarification for unstable WHAT/WHY/MVP.
+2. `technical_manager`: execution entry, preconditions, conflict scan, and chain design.
+3. optional `product_manager`: product-manager clarification for unstable WHAT/WHY/MVP.
 4. optional `architect`: architect clarification for unstable system-level HOW.
-5. `plan`: produce or refresh `任务实施说明` (`Task Implementation Brief`).
+5. `technical_manager`: produce or refresh `任务实施说明`.
 6. `coder`: implement against the latest `任务实施说明`.
 7. `tester`: validate against the same `任务实施说明`.
 8. optional `/qc`: independent audit when risk/policy requires.
@@ -65,10 +65,10 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 
 ## Upgrade Triggers
 
-- enter `conduct` when the task needs any execution workflow or durable artifact handoff
-- enable `prd` when scope, MVP, or success criteria are unstable
+- enter `technical_manager` when the task needs any execution workflow or durable artifact handoff
+- enable `product_manager` when scope, MVP, or success criteria are unstable
 - enable `architect` when interfaces, boundaries, or integration design are unstable
-- enable `plan` when implementation guidance is needed; if `coder`/`tester` is active, `plan` is mandatory
+- require `technical_manager` to produce or refresh `任务实施说明` before any `coder`/`tester` work
 - enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `coder` for implementation ownership, followed by required downstream `tester`
 - enable `long-running` mode and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
@@ -81,9 +81,9 @@ Do not upgrade discussion-only turns into execution routes merely because the to
 
 - Start with the smallest active team that can safely finish the current task.
 - Keep `Aide` alone for lightweight advice, Q&A, analysis, and option comparison.
-- For any execution route, activate `conduct` first, then activate downstream roles through `conduct`.
+- For any execution route, activate `technical_manager` first, then activate downstream roles through `technical_manager`.
 - Use repository exploration as a short-lived action inside routing/execution when ownership, entrypoints, or boundaries are unclear.
-- Keep one focused write-capable execution role at a time unless `conduct` explicitly stages a safe handoff.
+- Keep one focused write-capable execution role at a time unless `technical_manager` explicitly stages a safe handoff.
 - If uncertainty resolves, drop unnecessary roles immediately.
 
 ## Environment Setup
@@ -92,7 +92,7 @@ Do not upgrade discussion-only turns into execution routes merely because the to
 - choose `current-workspace` for small readiness checks or bootstrap steps
 - choose `isolated-workspace` only when conflict risk or policy makes isolation useful
 
-Environment setup decisions and preparation belong to `conduct`.
+Environment setup decisions and preparation belong to `technical_manager`.
 
 ## Durable State
 

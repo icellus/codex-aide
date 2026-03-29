@@ -1,5 +1,5 @@
 ---
-name: prd
+name: product_manager
 description: Product-manager skill for clarifying WHAT, WHY, and MVP scope before technical execution starts.
 ---
 
@@ -14,7 +14,7 @@ You act as the product manager in the workflow. Your job is to clarify the probl
 
 ## When to use this module
 
-Use `prd` when one or more of these are true:
+Use the product-manager role when one or more of these are true:
 
 - the task is a larger feature or a broad user-visible change
 - MVP scope or success criteria are unclear
@@ -22,7 +22,7 @@ Use `prd` when one or more of these are true:
 - external integration requirements need to be validated before implementation
 - a large bugfix is really a scope or behavior decision, not just a local repair
 
-Skip `prd` when:
+Skip product-manager involvement when:
 
 - the task is a small bugfix with a clear expected outcome
 - the task is a local refactor with no intended behavior change
@@ -31,7 +31,7 @@ Skip `prd` when:
 ## Core principles
 
 - PRD = WHAT and WHY, not HOW
-- PRD output is upstream input for `conduct` and `plan`, not a direct execution order to `coder`/`tester`
+- PRD output is upstream input for `technical_manager`, not a direct execution order to `coder`/`tester`
 - ask only the questions that materially change scope, MVP, or success criteria
 - prefer research-first validation over invented assumptions
 - keep the document lightweight and scoped to the current task
@@ -50,7 +50,7 @@ Use when:
 
 Return a short note that PM involvement is not needed.
 
-### Outcome B: `prd`
+### Outcome B: `product`
 
 Use when:
 
@@ -122,8 +122,8 @@ Before finishing:
 
 Return:
 
-- selected outcome: `skip` or `prd`
+- selected outcome: `skip` or `product`
 - PRD path if created
 - key MVP decision
 - unresolved product questions, if any
-- next recommended step (usually back to `conduct` for execution-chain routing)
+- next recommended step (usually back to `technical_manager` for execution-chain routing)

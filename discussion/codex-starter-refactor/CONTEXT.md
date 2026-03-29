@@ -16,7 +16,7 @@
 - 规则反复解释
 - 中层角色定义重叠
 - `Aide` 误入执行链
-- `plan` 语义漂移
+- 旧 `plan` 角色语义漂移
 - 执行输入不唯一
 - authority 已变化，但 runtime 约束还没完全跟上
 
@@ -43,10 +43,10 @@
 
 其中：
 
-- `prd` 对应产品经理语义
+- `product_manager` 对应产品经理语义
 - `architect` 对应架构师语义
-- `conduct` 对应技术经理语义
-- `plan` 不再被理解成泛计划；它的产物语义是 `任务实施说明`
+- `technical_manager` 对应技术经理语义
+- 旧 `plan` 不再作为独立角色存在；`任务实施说明` 是技术经理产物
 
 ### 4. 执行链原则
 
@@ -79,7 +79,7 @@
 
 - `AGENTS.md`
 - `.codex/routing-policy.md`
-- `aide/conduct/plan/prd/architect` 的 skill 文本
+- `aide/technical_manager/product_manager/architect` 的 skill 文本
 - 相关模板
 - 对应 smoke 测试
 
