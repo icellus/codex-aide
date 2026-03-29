@@ -33,11 +33,9 @@ assertFail(
 );
 
 const contributing = fs.readFileSync(path.join(repoRootDir, "CONTRIBUTING.md"), "utf8");
-assert.match(contributing, /<type>\(<scope>\): <subject>/);
-assert.match(contributing, /bash scripts\/install-git-hooks\.sh/);
-assert.match(contributing, /node scripts\/validate-commit-msg\.mjs --range HEAD~5\.\.HEAD/);
-assert.doesNotMatch(contributing, /Conventional Commits 规则/);
+assert.match(contributing, /scripts\/commit-policy\.mjs/);
 
+assert.ok(fs.existsSync(path.join(repoRootDir, "CONTRIBUTING.md")));
 assert.ok(fs.existsSync(path.join(repoRootDir, ".githooks", "commit-msg")));
 assert.ok(fs.existsSync(path.join(repoRootDir, "scripts", "install-git-hooks.sh")));
 assert.ok(fs.existsSync(path.join(repoRootDir, "scripts", "validate-commit-msg.mjs")));

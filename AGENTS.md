@@ -20,7 +20,7 @@ Repository-level maintenance guidance for this repo.
 ## Default Working Rules
 
 - Reply to the user in Chinese by default.
-- Repository commits should use the local commit policy: `<type>(<scope>): <subject>`.
+- Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
 - For repo-maintenance changes, do not hand-pick overlapping test files.
 - Use the root test runner as the default validation entrypoint:
   `node tests/codex-starter/run.mjs`

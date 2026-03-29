@@ -60,7 +60,6 @@ export const selectionRules = [
   {
     id: "commit-policy",
     patterns: [
-      "CONTRIBUTING.md",
       /^scripts\/commit-policy\.mjs$/,
       /^scripts\/validate-commit-msg\.mjs$/,
       /^scripts\/install-git-hooks\.sh$/,
@@ -119,6 +118,7 @@ export const selectionRules = [
     patterns: [
       "AGENTS.md",
       "README.md",
+      "CONTRIBUTING.md",
       "NEXT_SESSION_CONTEXT.md",
       "CLAUDE_STARTER_ARCHIVE.md",
       "tests/codex-starter/README.md",

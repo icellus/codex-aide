@@ -30,19 +30,13 @@ bash /path/to/agent-skills/codex-starter/install.sh
 
 ## 提交流程
 
-仓库内置了简化的 commit 规范校验，格式为：
+提交规则与本地 hook 说明见：[CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
 
-```text
-<type>(<scope>): <subject>
-```
-
-首次拉取后执行：
+首次拉取后可执行：
 
 ```bash
 bash scripts/install-git-hooks.sh
 ```
-
-详细规则见：[CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
 
 ## 测试
 

@@ -12,6 +12,8 @@ Use:
 
 Allowed `type` values: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `ci`, `build`, `perf`, `revert`.
 
+Source of truth: `scripts/commit-policy.mjs`
+
 Keep it simple:
 
 - one-line subject

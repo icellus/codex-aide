@@ -32,3 +32,5 @@
 - `history/` 只做追溯，不堆叠进默认上下文
 - 详细过程交给代码、测试、日志和 Git，`discussion/` 只保留续接必需信息
 - `discussion/*` 默认不属于仓库测试范围，除非以后你明确要求把某部分流程脚本化
+- `prefs.md` 只记录宿主层长期偏好与边界，不回填 `codex-starter` 运行时 prompt / persona / routing 术语
+- `current.md` 和 `history/*.md` 保持精简；重复、过时、只对当时一次会话有意义的长记录应及时删减或清理

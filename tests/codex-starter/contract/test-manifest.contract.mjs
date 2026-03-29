@@ -100,7 +100,7 @@ assert.deepEqual(
 
 assertSelection(["AGENTS.md"], []);
 assertSelection(["README.md"], []);
-assertSelection(["CONTRIBUTING.md"], ["contract"]);
+assertSelection(["CONTRIBUTING.md"], []);
 assertSelection(["codex-starter/AGENTS.md"], ["smoke"]);
 assertSelection(["codex-starter/.codex/scripts/runtime-utils.mjs"], ["smoke"]);
 assertSelection(["codex-starter/install.sh"], ["smoke"]);
