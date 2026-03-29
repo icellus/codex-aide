@@ -89,6 +89,17 @@ const mutationScenarios = [
     }
   },
   {
+    id: "coder-without-mandatory-tester-handoff",
+    mutate(repoDir) {
+      replaceExact(
+        repoDir,
+        ".codex/routing-policy.md",
+        "- Any route that activates `coder` must include a downstream `tester` handoff before the task can settle or submit.",
+        "- Coder can settle directly when change looks small; tester handoff is optional."
+      );
+    }
+  },
+  {
     id: "higher-risk-bugfix-without-tester-qc-gating",
     mutate(repoDir) {
       replaceExact(

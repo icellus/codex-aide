@@ -32,12 +32,17 @@ const ROBOTIC_TONE_PATTERNS = [
 ];
 
 const ROLE_PATTERN = /\b(coder|tester|conduct|product_assistant|repo_explorer)\b|开发同学|测试同学|产品同学/i;
+const CODER_PATTERN = /\bcoder\b|开发同学/i;
+const TESTER_PATTERN = /\btester\b|测试同学/i;
+const QC_PATTERN = /(?:\/qc|\bqc\b|质量审计)/i;
 const HANDOFF_PATTERN = /(交给|交由|请|让|由|安排.*接手|接手)/;
 const NEXT_STEP_PATTERN = /(下一步|接下来|先|会|将).{0,24}(修复|实现|修改|补|验证|排查|起草|梳理|定位|提交|更新|编写|生成)/;
 const REASON_MARKER_PATTERN = /(因为|原因是|这样可以|为了|以便)/;
 const READ_HEAVY_ANALYSIS_TASK_PATTERN = /(read-heavy|深读|通读|逐行|深挖|全量扫描|大范围排查|investigation|调查根因)/i;
 const REPO_EXPLORER_REPLY_PATTERN = /\brepo_explorer\b|repo explorer|仓库探索|只读子代理/i;
 const PRIMARY_DEEP_DIVE_PATTERN = /我(先|会|将|打算|准备|直接).{0,24}(自己|亲自|在主线程)?.{0,24}(深读|通读|逐行|埋头|深挖|全量扫描|深度排查|从头到尾看|把仓库都看一遍|调查根因|定位根因)/;
+const MEMO_STYLE_PATTERN =
+  /(##?\s*(背景|现状|分析|结论|风险|计划|行动项)|\bTL;DR\b|一、|二、|三、|^\s*[-*]\s*(背景|现状|分析|结论|风险))/im;
 
 function normalize(text) {
   return String(text ?? "").replace(/\s+/g, " ").trim();
@@ -102,6 +107,8 @@ export function validateAideVisibleReply({ userMessage, reply }) {
   const readHeavyAnalysisTask = isReadHeavyAnalysisTask(normalizedUserMessage);
   const singleSentenceTask = isSingleSentenceTask(normalizedUserMessage);
   const sentenceCount = splitSentences(normalizedReply).length;
+  const mentionsCoder = CODER_PATTERN.test(normalizedReply);
+  const mentionsTester = TESTER_PATTERN.test(normalizedReply);
 
   if (!mechanismAsked && hasAnyPattern(normalizedReply, INTERNAL_TERM_PATTERNS)) {
     errors.push("internal_terms_not_allowed");
@@ -125,12 +132,24 @@ export function validateAideVisibleReply({ userMessage, reply }) {
     errors.push("aide_should_not_self_implement");
   }
 
+  if (explicitImplementation && mentionsCoder && !mentionsTester) {
+    errors.push("coder_requires_tester_handoff");
+  }
+
+  if (explicitImplementation && QC_PATTERN.test(normalizedReply) && !mentionsTester) {
+    errors.push("qc_cannot_replace_tester");
+  }
+
   if (!mechanismAsked && soundsLikePrimaryDeepDive(normalizedReply)) {
     errors.push("analysis_reply_should_stay_secretary_coordinator");
   }
 
   if (readHeavyAnalysisTask && !REPO_EXPLORER_REPLY_PATTERN.test(normalizedReply)) {
     errors.push("read_heavy_analysis_should_handoff_to_repo_explorer");
+  }
+
+  if (readHeavyAnalysisTask && (sentenceCount > 2 || MEMO_STYLE_PATTERN.test(normalizedReply))) {
+    errors.push("read_heavy_analysis_should_avoid_memo_style");
   }
 
   if (singleSentenceTask && hasAnyPattern(normalizedReply, TEMPLATE_OPENER_PATTERNS)) {
@@ -174,7 +193,7 @@ export function runAideReplyBehaviorTests() {
     {
       id: "pass-default-no-internal-terms",
       userMessage: "把登录超时的 bug 修一下，并补一个回归测试。",
-      reply: "我会请 coder 接手，下一步先修复登录超时并补回归测试，因为这是代码实现任务。",
+      reply: "由 coder 先改、tester 接着验证，下一步先修复登录超时并补回归测试，因为这是代码实现任务。",
       expectPass: true
     },
     {
@@ -187,7 +206,7 @@ export function runAideReplyBehaviorTests() {
     {
       id: "pass-only-owner-next-step-short-reason",
       userMessage: "新增一个导出 CSV 的接口。",
-      reply: "由 coder 接手，下一步实现导出 CSV 接口，因为他负责代码实现。",
+      reply: "由 coder 实现、tester 复核，下一步实现导出 CSV 接口，因为这样交接完整。",
       expectPass: true
     },
     {
@@ -220,7 +239,7 @@ export function runAideReplyBehaviorTests() {
     {
       id: "pass-chinese-assistant-tone",
       userMessage: "补上登录接口的单测。",
-      reply: "我会请 coder 接手，下一步补上登录接口单测，因为这样能先挡住回归。",
+      reply: "由 coder 实现后交 tester 验证，下一步补上登录接口单测，因为这样能先挡住回归。",
       expectPass: true
     },
     {
@@ -245,6 +264,20 @@ export function runAideReplyBehaviorTests() {
         "analysis_reply_should_stay_secretary_coordinator",
         "read_heavy_analysis_should_handoff_to_repo_explorer"
       ]
+    },
+    {
+      id: "fail-coder-mentioned-without-tester-handoff",
+      userMessage: "修一下支付接口重试逻辑并补测试。",
+      reply: "我会请 coder 接手，下一步修复重试逻辑并补测试，因为这块改动很集中。",
+      expectPass: false,
+      expectErrors: ["coder_requires_tester_handoff"]
+    },
+    {
+      id: "fail-read-heavy-analysis-memo-style",
+      userMessage: "先做 read-heavy 调研，定位回调超时根因，不要改代码。",
+      reply: "## 背景\n## 分析\n我会请 repo_explorer 接手并整理多个章节，下一步分三部分输出证据，因为这样更完整。",
+      expectPass: false,
+      expectErrors: ["read_heavy_analysis_should_avoid_memo_style"]
     }
   ];
 

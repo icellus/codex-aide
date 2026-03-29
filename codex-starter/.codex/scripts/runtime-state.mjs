@@ -34,7 +34,8 @@ import {
   trimRuntimeState,
   normalizeGovernanceSeverity,
   upsertLearningQueueItem,
-  upsertPendingAction
+  upsertPendingAction,
+  validateStructuredResultContract
 } from "./runtime-utils.mjs";
 
 function normalizeEventName(input = {}) {
@@ -447,7 +448,13 @@ function currentTaskLabel(profile, storyPath) {
 
 function hasHotTaskState(state, storyPath) {
   const hasPending = state.pendingActions.some((item) => {
-    if (item.type !== "run_qc" && item.type !== "run_submit" && item.type !== "blocked_review" && item.type !== "session_retrospective") {
+    if (
+      item.type !== "run_tester" &&
+      item.type !== "run_qc" &&
+      item.type !== "run_submit" &&
+      item.type !== "blocked_review" &&
+      item.type !== "session_retrospective"
+    ) {
       return false;
     }
 
@@ -463,7 +470,7 @@ function hasHotTaskState(state, storyPath) {
 
 function hasOutstandingCompletionWork(state, storyPath) {
   return state.pendingActions.some((item) => {
-    if (item.type !== "run_qc" && item.type !== "run_submit" && item.type !== "blocked_review") {
+    if (item.type !== "run_tester" && item.type !== "run_qc" && item.type !== "run_submit" && item.type !== "blocked_review") {
       return false;
     }
 
@@ -490,7 +497,13 @@ function upsertCompletedTask(state, entry) {
 
 function clearHotTaskState(state, storyPath, profile, message) {
   removePendingActions(state, (item) => {
-    if (item.type !== "run_qc" && item.type !== "run_submit" && item.type !== "blocked_review" && item.type !== "session_retrospective") {
+    if (
+      item.type !== "run_tester" &&
+      item.type !== "run_qc" &&
+      item.type !== "run_submit" &&
+      item.type !== "blocked_review" &&
+      item.type !== "session_retrospective"
+    ) {
       return false;
     }
 
@@ -641,6 +654,55 @@ function queueSubmit(state, storyPath, note, trigger) {
   });
 }
 
+function queueTesterHandoff(state, storyPath, trigger = "coder_complete_requires_tester") {
+  upsertPendingAction(state, {
+    id: `run-tester:${storyPath || "current-task"}`,
+    type: "run_tester",
+    phase: "tester",
+    storyPath,
+    trigger,
+    note: "Coder completed. Route to tester for required validation handoff."
+  });
+}
+
+function clearTesterHandoff(state, storyPath) {
+  removePendingActions(
+    state,
+    (item) => item.type === "run_tester" && matchesStoryScope(item.storyPath, storyPath)
+  );
+}
+
+function hasPendingTesterHandoff(state, storyPath) {
+  if (!storyPath) {
+    return state.pendingActions.some((item) => item.type === "run_tester");
+  }
+
+  return state.pendingActions.some(
+    (item) => item.type === "run_tester" && matchesStoryScope(item.storyPath, storyPath)
+  );
+}
+
+function recordMissingTesterWorkflowBreak(state, storyPath, source, note) {
+  upsertPendingAction(state, {
+    id: `blocked-review:tester-required:${source}:${storyPath || "current-task"}`,
+    type: "blocked_review",
+    phase: "tester",
+    storyPath,
+    note
+  });
+
+  upsertAideReview(state, {
+    issueKey: `tester-required:${source}:${storyPath || "current-task"}`,
+    storyPath,
+    sourceRole: source,
+    capability: "investigation",
+    severity: "L3",
+    issueType: "workflow_break",
+    routeTarget: "/Aide investigate",
+    note
+  });
+}
+
 function submitLooksReady(profile, message) {
   return isTaskSettled(profile) || detectTaskCompletionMessage(message);
 }
@@ -651,7 +713,11 @@ function shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy
   }
 
   if (role === "coder") {
-    return shouldQueueByPolicy(deliveryPolicy, "coder_complete_without_qc");
+    return false;
+  }
+
+  if (role === "tester") {
+    return shouldQueueByPolicy(deliveryPolicy, "tester_complete_without_qc");
   }
 
   return submitLooksReady(profile, message) && shouldQueueByPolicy(deliveryPolicy, "task_settled_without_qc");
@@ -662,9 +728,17 @@ function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPo
     return false;
   }
 
+  if (hasPendingTesterHandoff(state, storyPath)) {
+    return false;
+  }
+
   const phase = resolveQcPhaseForMetrics(state, message, storyPath);
   if (phase === "coder") {
-    return shouldQueueByPolicy(deliveryPolicy, "qc_pass_after_coder");
+    return false;
+  }
+
+  if (phase === "tester") {
+    return shouldQueueByPolicy(deliveryPolicy, "qc_pass_after_tester");
   }
 
   return submitLooksReady(profile, message) && shouldQueueByPolicy(deliveryPolicy, "task_settled_after_qc");
@@ -672,6 +746,10 @@ function shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPo
 
 function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deliveryPolicy) {
   if (!isSubmitEnabled(profile, deliveryPolicy)) {
+    return;
+  }
+
+  if (hasPendingTesterHandoff(state, storyPath)) {
     return;
   }
 
@@ -687,9 +765,44 @@ function maybeQueueSubmitForSettledTask(state, storyPath, profile, message, deli
   queueSubmit(state, storyPath, "Task is settled and ready for governed delivery. Run /submit.", trigger);
 }
 
+function shouldBlockSettlementForMissingTester(state, storyPath, message) {
+  if (!hasPendingTesterHandoff(state, storyPath)) {
+    return false;
+  }
+
+  return detectTaskCompletionMessage(message);
+}
+
+function blockSettlementForMissingTester(state, storyPath, source) {
+  removePendingActions(
+    state,
+    (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+  );
+  recordMissingTesterWorkflowBreak(
+    state,
+    storyPath,
+    source,
+    "Coder already ran, but task settlement was attempted before tester handoff. Main thread cannot replace tester."
+  );
+}
+
 function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
   if (detectQcPass(message)) {
     recordQcMetrics(state, storyPath, message, "pass");
+
+    if (hasPendingTesterHandoff(state, storyPath)) {
+      removePendingActions(
+        state,
+        (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+      );
+      recordMissingTesterWorkflowBreak(
+        state,
+        storyPath,
+        "qc",
+        "QC completed before required tester handoff. QC is optional and cannot replace tester after coder."
+      );
+      return;
+    }
 
     removePendingActions(
       state,
@@ -701,11 +814,12 @@ function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
     );
 
     if (shouldQueueSubmitAfterQc(state, storyPath, profile, message, deliveryPolicy)) {
+      const phase = resolveQcPhaseForMetrics(state, message, storyPath);
       queueSubmit(
         state,
         storyPath,
         "QC passed for a deliverable handoff. Run /submit.",
-        "qc_pass_after_coder"
+        phase === "tester" ? "qc_pass_after_tester" : "task_settled_after_qc"
       );
     }
 
@@ -728,6 +842,15 @@ function processQcOutcome(state, storyPath, profile, message, deliveryPolicy) {
     const categories = detectFailureCategories(message);
     const escalatedCategories = [];
     recordQcMetrics(state, storyPath, message, "fail", categories);
+
+    if (hasPendingTesterHandoff(state, storyPath)) {
+      recordMissingTesterWorkflowBreak(
+        state,
+        storyPath,
+        "qc",
+        "QC failed before required tester handoff. QC cannot replace tester after coder."
+      );
+    }
 
     removePendingActions(
       state,
@@ -863,18 +986,37 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
     clearAmbiguousBlockedSignals(state, role);
   }
 
-  if ((role === "tester" || role === "coder") && ambiguousStoryScope && status !== "blocked") {
-    return;
+  if (role === "tester" || role === "coder") {
+    const contract = validateStructuredResultContract(role, message);
+    if (!contract.ok) {
+      removePendingActions(
+        state,
+        (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+      );
+      upsertPendingAction(state, {
+        id: `blocked-review:${role}:structured:${storyPath || "current-task"}`,
+        type: "blocked_review",
+        phase: role,
+        storyPath,
+        note: `${contract.reason} Do not continue this handoff until the role returns a valid structured footer.`
+      });
+
+      upsertAideReview(state, {
+        issueKey: `invalid-structured:${role}:${storyPath || "current-task"}`,
+        storyPath,
+        sourceRole: role,
+        capability: "investigation",
+        severity: "L3",
+        issueType: "workflow_break",
+        routeTarget: "/Aide investigate",
+        note: `${contract.reason} Runtime rejected the handoff to prevent silent workflow break.`
+      });
+      return;
+    }
   }
 
-  if ((role === "tester" || role === "coder") && status === "complete" && isQcEnabled(profile)) {
-    upsertPendingAction(state, {
-      id: `run-qc:${role}:${storyPath || "current-task"}`,
-      type: "run_qc",
-      phase: role,
-      storyPath,
-      note: `Recent ${role} completion detected. Run /qc --phase=${role}.`
-    });
+  if ((role === "tester" || role === "coder") && ambiguousStoryScope && status !== "blocked") {
+    return;
   }
 
   if ((role === "tester" || role === "coder") && status === "complete") {
@@ -888,18 +1030,42 @@ function recordSubagentResult(input, state, activeStories, projectDir, profile, 
     );
   }
 
-  if ((role === "tester" || role === "coder") && status === "complete" && !isQcEnabled(profile)) {
+  if (role === "coder" && status === "complete") {
     removePendingActions(
       state,
-      (item) => item.type === "run_qc" && item.phase === role && matchesStoryScope(item.storyPath, storyPath)
+      (item) => item.type === "run_qc" && matchesStoryScope(item.storyPath, storyPath)
     );
-    if (shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy)) {
-      queueSubmit(
-        state,
+    removePendingActions(
+      state,
+      (item) => item.type === "run_submit" && matchesStoryScope(item.storyPath, storyPath)
+    );
+    queueTesterHandoff(state, storyPath);
+  }
+
+  if (role === "tester" && status === "complete") {
+    clearTesterHandoff(state, storyPath);
+
+    if (isQcEnabled(profile)) {
+      upsertPendingAction(state, {
+        id: `run-qc:${role}:${storyPath || "current-task"}`,
+        type: "run_qc",
+        phase: role,
         storyPath,
-        `Recent ${role} completion detected. Run /submit.`,
-        role === "coder" ? "coder_complete_without_qc" : "task_settled_without_qc"
+        note: `Recent ${role} completion detected. Run /qc --phase=${role}.`
+      });
+    } else {
+      removePendingActions(
+        state,
+        (item) => item.type === "run_qc" && item.phase === role && matchesStoryScope(item.storyPath, storyPath)
       );
+      if (shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy)) {
+        queueSubmit(
+          state,
+          storyPath,
+          `Recent ${role} completion detected. Run /submit.`,
+          "tester_complete_without_qc"
+        );
+      }
     }
   }
 
@@ -963,6 +1129,11 @@ function recordSessionEnd(input, state, activeStories, projectDir, profile, deli
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
 
+  if (shouldBlockSettlementForMissingTester(state, storyPath, message)) {
+    blockSettlementForMissingTester(state, storyPath, "session_end");
+    return;
+  }
+
   if (storyPath && isLongRunningProfile(profile)) {
     upsertSessionRetrospective(state, storyPath, {
       trigger: "session_close",
@@ -982,6 +1153,11 @@ function recordTaskSettled(input, state, activeStories, projectDir, profile, del
   const message = normalizeMessage(input) || `Task status: ${String(input.task_status || input.status || "done")}`;
   const activeStory = resolveActiveStory(activeStories, input, projectDir);
   const storyPath = activeStory?.storyPath || null;
+
+  if (hasPendingTesterHandoff(state, storyPath)) {
+    blockSettlementForMissingTester(state, storyPath, "task_settled");
+    return;
+  }
 
   if (storyPath && isLongRunningProfile(profile)) {
     upsertSessionRetrospective(state, storyPath, {

@@ -12,8 +12,8 @@
   "submit": {
     "enabled": true,
     "queue_after": {
-      "coder_complete_without_qc": true,
-      "qc_pass_after_coder": true,
+      "tester_complete_without_qc": true,
+      "qc_pass_after_tester": true,
       "task_settled_without_qc": true,
       "task_settled_after_qc": true
     }

@@ -90,9 +90,9 @@ The checked-in `.codex/*.json`, `.codex/project-profile.md`, and `.product/*.jso
 
 | Task | Typical route |
 | --- | --- |
-| small bugfix | `Aide -> coder -> sanity checks -> submit` |
-| higher-risk bugfix | `Aide -> tester -> coder -> tester or qc -> submit` |
-| feature | `Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> optional qc -> submit` |
+| small bugfix | `Aide -> coder -> tester -> optional qc -> submit` |
+| higher-risk bugfix | `Aide -> tester -> coder -> tester -> optional qc -> submit` |
+| feature | `Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester -> optional qc -> submit` |
 | discussion / Q&A | `Aide` direct |
 | product | `Aide -> product_assistant` |
 | release | `Aide -> conduct -> optional qc -> submit` |
@@ -130,6 +130,8 @@ Use the coding line when the primary deliverable is:
 - task-level validation
 - governed delivery
 
+If `coder` is involved, downstream `tester` handoff is mandatory before settlement or submit.
+`qc` remains risk-based optional and cannot replace `tester`.
 For non-trivial behavior changes, `tester` owns task-level validation handoff.
 
 ## Runtime Helpers

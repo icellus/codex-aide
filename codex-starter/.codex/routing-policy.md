@@ -27,8 +27,20 @@ Otherwise, plain-language intent should map to the same routes.
 - When a new task chain starts and read-heavy analysis or multi-step delegation has clear value, prefer subagent-first execution to keep the main thread context clean.
 - Route directly to `product_assistant` when the primary deliverable is a non-code artifact.
 - `environment setup` belongs to `conduct`, including dependency installation, toolchain bootstrap, and runtime preparation.
+- Any route that activates `coder` must include a downstream `tester` handoff before the task can settle or submit.
+- `/qc` is decided by task risk and audit need only, and `/qc` cannot replace the required `tester` handoff after `coder`.
 - `/qc` is optional unless the task or policy explicitly enables it.
 - `/submit` is the governed delivery step after local completion or QC pass when commit, push, or post-push follow-through matters.
+- Main-thread completion, diff review, or direct closeout cannot substitute for a missing `tester` handoff once `coder` has participated.
+
+## Delegation Context And Fork Policy
+
+- Subagent delegation should default to token-efficient execution: complete the task independently without wasting context or token budget.
+- Do not default to `fork_context: true`.
+- For bounded tasks with clear goal and write set, prefer `fork_context: false` plus a minimal but complete assignment brief.
+- Use `fork_context: true` only when the subagent genuinely needs full conversation state and the main thread's immediate next step depends on that inherited context.
+- Delegation reliability is mandatory: the main thread must provide the smallest context package that is still complete enough for independent execution.
+- Avoid both extremes: no blind full-thread fork, and no underspecified handoff that forces retries.
 
 ## Default Modes
 
@@ -51,7 +63,7 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 - enable `architect` when interfaces, boundaries, or integration design are unstable
 - enable `plan` when implementation guidance needs a durable artifact
 - enable `product_assistant` when the primary deliverable is a non-code artifact
-- enable `tester` and `coder` when explicit red/green separation or handoff value is real
+- enable `coder` for implementation ownership, and always enable downstream `tester` when `coder` is active
 - enable `long-running` mode and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
 - enable `/qc` when risk is high, the user asks for an audit, or release confidence needs it
 - enable `/submit` when the task should finish with governed commit, push, or optional post-push delivery follow-through
@@ -65,11 +77,11 @@ Upgrade only when the expected output changes from advice to a concrete delivera
 - For lightweight advice, Q&A, analysis, and option comparison, keep only `Aide` active unless the task later turns into delivery.
 - For read-heavy analysis with repository fact-finding value, keep `Aide` user-facing and add a short-lived `repo_explorer` pass.
 - For a clear small repo change, activate one clear execution role first instead of waking multiple roles.
-- Add `tester` only when task-level validation ownership, red/green separation, or non-trivial behavior risk is real.
+- If `coder` is active, keep `tester` active in the same delivery chain as a required downstream handoff.
+- Activate `/qc` only when risk is high or explicit audit confidence is needed; `/qc` does not replace `tester`.
 - Use `repo_explorer` only as a short-lived read-only helper when ownership, entrypoints, or boundaries are unclear.
 - Activate `conduct` when environment setup decisions/preparation, conflict checks, or multi-role delivery routing actually matter.
 - Activate `prd`, `architect`, or `plan` only for genuine scope, HOW, or implementation-structure uncertainty.
-- Activate `/qc` only for explicit audit need or higher-risk delivery.
 - Activate `/submit` only when governed delivery or commit/push follow-through matters.
 - When the task narrows or uncertainty is resolved, drop roles that are no longer needed instead of keeping the whole team active.
 - Avoid multiple write-capable execution roles at the same time unless `conduct` coordinates a staged handoff.
@@ -95,7 +107,7 @@ Upgrade only when the expected output changes from advice to a concrete delivera
 
 Queue or remind `/qc` only when:
 
-1. a `tester` or `coder` handoff completed
+1. a required `tester` handoff completed
 2. the current task enables QC through `qc_policy` or enabled modules
 3. the handoff is not blocked and not just a progress ping
 
@@ -103,8 +115,8 @@ Queue or remind `/qc` only when:
 
 Queue or remind `/submit` when:
 
-1. a `coder` handoff completed and QC is disabled
-2. QC passed after a `coder` handoff, or the task settled with QC already satisfied
+1. a required `tester` handoff completed and QC is disabled
+2. QC passed after a required `tester` handoff, or the task settled with QC already satisfied
 3. the delivery policy enables governed submit for the current task
 
 ## Route Output

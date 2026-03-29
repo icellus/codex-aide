@@ -74,9 +74,43 @@ export function runAideDialogueRegressionTests(rootDir) {
   }
 
   function testHighRiskBugfixCanEnableTesterWithoutTurningAideIntoImplementer() {
-    assertAll(routingPolicy, [/enable `tester` and `coder` when explicit red\/green separation or handoff value is real/i, /enable `\/qc` when risk is high/i], "high risk bugfix");
+    assertAll(
+      routingPolicy,
+      [
+        /enable `coder` for implementation ownership, and always enable downstream `tester` when `coder` is active/i,
+        /enable `\/qc` when risk is high/i,
+        /`\/qc` cannot replace the required `tester` handoff after `coder`/i
+      ],
+      "high risk bugfix"
+    );
     assertAll(authorityGuidance, [/must not execute concrete repo changes itself/i], "high risk bugfix non-implementer");
     assertAll(testerAgent, [/You own task-level validation strategy and evidence/i], "tester role exists");
+  }
+
+  function testDelegationForkDecisionRuleIsExplicit() {
+    assertAll(
+      routingPolicy,
+      [
+        /Do not default to `fork_context: true`\./i,
+        /For bounded tasks with clear goal and write set, prefer `fork_context: false` plus a minimal but complete assignment brief\./i,
+        /Use `fork_context: true` only when the subagent genuinely needs full conversation state/i
+      ],
+      "fork decision rule policy"
+    );
+    assertAll(
+      aideSkill,
+      [
+        /do not default to `fork_context: true`/i,
+        /for bounded tasks with clear goal\/write set, prefer concise assignment briefs with `fork_context: false`/i,
+        /allow `fork_context: true` only when full conversation state is genuinely required/i
+      ],
+      "fork decision rule aide"
+    );
+    assertAll(
+      agentsGuide,
+      [/Do not default to `fork_context: true`/i, /Allow `fork_context: true` only when full-thread context is genuinely required/i],
+      "fork decision rule agents"
+    );
   }
 
   function testReleaseStyleTaskUsesConductSubmitPath() {
@@ -158,6 +192,7 @@ export function runAideDialogueRegressionTests(rootDir) {
     testCodeBackgroundAnalysisAllowsAnswerWithoutDelegation,
     testReadHeavyInvestigationUsesRepoExplorerBeforeAideDeepRead,
     testEnvironmentJudgementAndPrepBelongToConduct,
+    testDelegationForkDecisionRuleIsExplicit,
     testExecutionTaskChainPrefersRealSubagents,
     testAnalysisReplyStaysSecretaryCoordinator,
     testUserFacingRepliesHideInternalLabelsByDefault

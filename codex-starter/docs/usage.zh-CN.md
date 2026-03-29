@@ -93,9 +93,9 @@ bash /path/to/codex-starter/install.sh
 
 | 任务 | 常见路径 |
 | --- | --- |
-| 小 bugfix | `Aide -> coder -> sanity checks -> submit` |
-| 较高风险 bugfix | `Aide -> tester -> coder -> tester 或 qc -> submit` |
-| feature | `Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> optional qc -> submit` |
+| 小 bugfix | `Aide -> coder -> tester -> optional qc -> submit` |
+| 较高风险 bugfix | `Aide -> tester -> coder -> tester -> optional qc -> submit` |
+| feature | `Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester -> optional qc -> submit` |
 | discussion / Q&A | `Aide` 直接处理 |
 | product | `Aide -> product_assistant` |
 | release | `Aide -> conduct -> optional qc -> submit` |
@@ -133,6 +133,8 @@ bash /path/to/codex-starter/install.sh
 - 任务级验证
 - 受控交付
 
+只要 `coder` 参与，后续就必须有 `tester` handoff，才能进入 settle/submit。
+`qc` 仍然是按风险启用的可选环节，不能替代 `tester`。
 对非平凡行为改动，`tester` 负责任务级验证 handoff。
 
 ## Runtime Helpers

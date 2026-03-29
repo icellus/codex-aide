@@ -7,6 +7,8 @@ const ISSUE_CODES = {
   FULL_SCAN_BEFORE_DELEGATION: "full-scan-before-delegation",
   KEEPS_ALL_ROLES_AFTER_NARROWING: "keeps-all-roles-after-narrowing",
   READ_HEAVY_MAIN_THREAD_DEEP_DIVE: "read-heavy-main-thread-deep-dive",
+  READ_HEAVY_MEMO_STYLE_DUMP: "read-heavy-memo-style-dump",
+  FORK_CONTEXT_DEFAULT_TRUE: "fork-context-default-true",
   ENVIRONMENT_SETUP_NOT_CONDUCT: "environment-setup-not-conduct",
   NEW_CHAIN_WITHOUT_REAL_SUBAGENT: "new-chain-without-real-subagent"
 };
@@ -56,9 +58,12 @@ const MAIN_THREAD_DEEP_DIVE_PATTERNS = [
   /(?:先|会|将).{0,20}(?:把仓库|整个仓库|关键目录).{0,20}(?:看一遍|通读|深挖|逐行排查)/i
 ];
 const REPO_EXPLORER_OR_SUBAGENT_PATTERN = /\brepo_explorer\b|repo explorer|real subagent|子代理|subagent|只读子代理/i;
+const MEMO_STYLE_SECTION_PATTERN = /(?:^|\n)\s*(?:##?\s*(背景|现状|分析|结论|风险|计划)|[一二三四五六七八九十]+[、.]\s*(背景|分析|结论|风险))/i;
 const ENVIRONMENT_STEP_PATTERN = /环境(判断|准备|检查|预检)|environment setup|environment judgement|preflight|依赖安装/i;
 const CONDUCT_OWNER_PATTERN = /\bconduct\b|由\s*conduct|交给\s*conduct|让\s*conduct|请\s*conduct/i;
 const ENVIRONMENT_NON_CONDUCT_OWNER_PATTERN = /(?:\bcoder\b|\btester\b|我).{0,24}(?:负责|处理|先做|来做).{0,24}(?:环境|environment|preflight|依赖)/i;
+const FORK_CONTEXT_TRUE_PATTERN =
+  /fork_context\s*[:=]\s*true|full[\s-]*context|全量上下文|完整对话上下文|full thread/i;
 
 function countMatches(text, pattern) {
   const matches = text.match(pattern);
@@ -104,6 +109,10 @@ function routesEnvironmentSetupOutsideConduct(reply) {
     !CONDUCT_OWNER_PATTERN.test(reply) &&
     ENVIRONMENT_NON_CONDUCT_OWNER_PATTERN.test(reply)
   );
+}
+
+function looksLikeReadHeavyMemoDump(reply) {
+  return MEMO_STYLE_SECTION_PATTERN.test(reply);
 }
 
 function validateAideResponse({ reply, context = {} }) {
@@ -153,6 +162,20 @@ function validateAideResponse({ reply, context = {} }) {
     issues.push({
       code: ISSUE_CODES.READ_HEAVY_MAIN_THREAD_DEEP_DIVE,
       message: "read-heavy investigation should not keep Aide as primary deep-dive worker"
+    });
+  }
+
+  if (context.readHeavyInvestigation && looksLikeReadHeavyMemoDump(reply)) {
+    issues.push({
+      code: ISSUE_CODES.READ_HEAVY_MEMO_STYLE_DUMP,
+      message: "read-heavy analysis should avoid memo-style long dump by default"
+    });
+  }
+
+  if (context.boundedTask && FORK_CONTEXT_TRUE_PATTERN.test(reply)) {
+    issues.push({
+      code: ISSUE_CODES.FORK_CONTEXT_DEFAULT_TRUE,
+      message: "bounded clear tasks should not default to full-context fork"
     });
   }
 
@@ -252,6 +275,18 @@ const negativeCases = [
     reply: "这是 read-heavy 调研，我先在主线程自己通读仓库并逐行排查，再给你结论。"
   },
   {
+    id: "read-heavy-analysis-memo-style-dump",
+    context: { readHeavyInvestigation: true },
+    expectedCode: ISSUE_CODES.READ_HEAVY_MEMO_STYLE_DUMP,
+    reply: "## 背景\n## 现状\n## 分析\n## 风险\n我会请 repo_explorer 做调研，但先输出一份长篇 memo 分章展开全部细节后再决定下一步。"
+  },
+  {
+    id: "bounded-task-defaults-to-full-context-fork",
+    context: { boundedTask: true },
+    expectedCode: ISSUE_CODES.FORK_CONTEXT_DEFAULT_TRUE,
+    reply: "这个任务边界很清晰，但我还是默认 fork_context: true，把完整对话上下文全量传给子代理。"
+  },
+  {
     id: "environment-setup-routed-to-coder",
     context: { environmentSetupNeeded: true },
     expectedCode: ISSUE_CODES.ENVIRONMENT_SETUP_NOT_CONDUCT,
@@ -299,6 +334,11 @@ const positiveCases = [
     id: "read-heavy-analysis-prefers-repo-explorer-pass",
     context: { readHeavyInvestigation: true },
     reply: "这是 read-heavy 调研，我先让 repo_explorer 子代理做一轮只读扫描，然后由我汇总关键结论给你。"
+  },
+  {
+    id: "bounded-task-prefers-minimal-brief-no-fork",
+    context: { boundedTask: true },
+    reply: "任务边界清晰，我会给子代理最小必要摘要和明确任务书，不默认 fork 完整上下文。"
   },
   {
     id: "environment-setup-owned-by-conduct",

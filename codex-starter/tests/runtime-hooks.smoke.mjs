@@ -489,7 +489,7 @@ function testTrimRuntimeStateDropsOldFailurePatterns() {
   assert.equal(Object.keys(state.failurePatterns).length, 24);
 }
 
-function testSubagentStopQueuesQcWithoutStory() {
+function testCoderCompletionQueuesTesterWithoutStory() {
   const dir = makeTempDir("codex-starter-qc-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
     ["- QC policy: `disabled`", "- QC policy: `enabled`"],
@@ -534,12 +534,12 @@ function testSubagentStopQueuesQcWithoutStory() {
 
   const state = readRuntimeState(dir);
   assert.equal(state.pendingActions.length, 1);
-  assert.equal(state.pendingActions[0].type, "run_qc");
-  assert.equal(state.pendingActions[0].phase, "coder");
+  assert.equal(state.pendingActions[0].type, "run_tester");
+  assert.equal(state.pendingActions[0].phase, "tester");
   assert.equal(state.pendingActions[0].storyPath, null);
 }
 
-function testCoderCompletionQueuesSubmitWithoutQc() {
+function testCoderCompletionDoesNotQueueSubmitBeforeTester() {
   const dir = makeTempDir("codex-starter-submit-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
 
@@ -558,6 +558,7 @@ function testCoderCompletionQueuesSubmitWithoutQc() {
           {
             role: "coder",
             status: "complete",
+            needs_qc: true,
             files_changed: ["src/demo.ts"],
             validation: [
               {
@@ -578,14 +579,158 @@ function testCoderCompletionQueuesSubmitWithoutQc() {
 
   const state = readRuntimeState(dir);
   const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
 
-  assert.ok(submitAction);
-  assert.equal(submitAction.trigger, "coder_complete_without_qc");
-  assert.equal(submitAction.storyPath, null);
+  assert.equal(submitAction, undefined);
+  assert.ok(testerAction);
+  assert.equal(testerAction.storyPath, null);
 }
 
-function testQcPassQueuesSubmitAfterCoderAudit() {
-  const dir = makeTempDir("codex-starter-submit-after-qc-");
+function testRuntimeRejectsCoderCompletionWithoutStructuredFooter() {
+  const dir = makeTempDir("codex-starter-structured-missing-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: "## Implementation Complete\nDone."
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "coder");
+  const aideReview = state.pendingActions.find(
+    (item) => item.type === "aide_review" && item.sourceRole === "coder"
+  );
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
+
+  assert.ok(blocked);
+  assert.match(blocked.note, /missing required "## Structured Result" section/i);
+  assert.ok(aideReview);
+  assert.equal(testerAction, undefined);
+}
+
+function testRuntimeRejectsCoderCompletionWithoutNeedsQcTrue() {
+  const dir = makeTempDir("codex-starter-needs-qc-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: false,
+            files_changed: ["src/demo.ts"],
+            validation: [],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "coder");
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
+
+  assert.ok(blocked);
+  assert.match(blocked.note, /must set needs_qc: true/i);
+  assert.equal(testerAction, undefined);
+}
+
+function testRuntimeRejectsStructuredResultBypassWithPostSectionJson() {
+  const dir = makeTempDir("codex-starter-structured-bypass-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        '{"role":"coder","status":"complete","needs_qc":true,}',
+        "```",
+        "",
+        "## Notes",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "coder");
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
+
+  assert.ok(blocked);
+  assert.match(blocked.note, /no valid JSON object in the structured result section/i);
+  assert.equal(testerAction, undefined);
+}
+
+function testRuntimeRejectsTesterCompletionWithoutStructuredFooter() {
+  const dir = makeTempDir("codex-starter-tester-structured-missing-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [["- QC policy: `disabled`", "- QC policy: `enabled`"]]);
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: "## Task Validation Handoff\nDone."
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  const qcAction = state.pendingActions.find((item) => item.type === "run_qc");
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.ok(blocked);
+  assert.match(blocked.note, /missing required "## Structured Result" section/i);
+  assert.equal(qcAction, undefined);
+  assert.equal(submitAction, undefined);
+}
+
+function testQcBeforeTesterCannotQueueSubmit() {
+  const dir = makeTempDir("codex-starter-qc-before-tester-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [["- QC policy: `disabled`", "- QC policy: `enabled`"]]);
 
   runNode(
@@ -603,13 +748,9 @@ function testQcPassQueuesSubmitAfterCoderAudit() {
           {
             role: "coder",
             status: "complete",
+            needs_qc: true,
             files_changed: ["src/demo.ts"],
-            validation: [
-              {
-                command: "npm test -- demo",
-                result: "PASS"
-              }
-            ],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
             blockers: []
           },
           null,
@@ -653,9 +794,338 @@ function testQcPassQueuesSubmitAfterCoderAudit() {
 
   const state = readRuntimeState(dir);
   const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+
+  assert.equal(submitAction, undefined);
+  assert.ok(blocked);
+  assert.match(blocked.note, /cannot replace tester/i);
+}
+
+function testQcPassQueuesSubmitAfterTesterAudit() {
+  const dir = makeTempDir("codex-starter-submit-after-qc-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [["- QC policy: `disabled`", "- QC policy: `enabled`"]]);
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [
+              {
+                command: "npm test -- demo",
+                result: "PASS"
+              }
+            ],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: [
+        "## Task Validation Handoff",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "tester",
+            status: "complete",
+            needs_qc: true,
+            validation_targets: ["retry behavior"],
+            coverage_rationale: "critical path covered",
+            remaining_gaps: [],
+            files_changed: [],
+            validation: [{ command: "npm test -- demo", result: "PASS", purpose: "task validation" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "qc",
+      message: [
+        "## QC Report",
+        "Overall Verdict: PASS",
+        "Phase: coder",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "qc",
+            status: "complete",
+            phase: "tester",
+            verdict: "PASS",
+            categories: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
 
   assert.ok(submitAction);
-  assert.equal(submitAction.trigger, "qc_pass_after_coder");
+  assert.equal(submitAction.trigger, "qc_pass_after_tester");
+}
+
+function testLegacyDeliveryPolicyBlocksTesterSubmitTrigger() {
+  const dir = makeTempDir("codex-starter-legacy-policy-tester-submit-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  writeJson(path.join(dir, ".codex", "delivery-policy.json"), {
+    version: 1,
+    status: "legacy-policy",
+    submit: {
+      enabled: true,
+      queue_after: {
+        coder_complete_without_qc: false
+      }
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: [
+        "## Task Validation Handoff",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "tester",
+            status: "complete",
+            needs_qc: true,
+            validation_targets: ["legacy policy compatibility"],
+            coverage_rationale: "smoke",
+            remaining_gaps: [],
+            files_changed: [],
+            validation: [{ command: "npm test -- demo", result: "PASS", purpose: "smoke" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.equal(submitAction, undefined);
+}
+
+function testLegacyDeliveryPolicyBlocksSubmitAfterQcPass() {
+  const dir = makeTempDir("codex-starter-legacy-policy-qc-submit-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [["- QC policy: `disabled`", "- QC policy: `enabled`"]]);
+
+  writeJson(path.join(dir, ".codex", "delivery-policy.json"), {
+    version: 1,
+    status: "legacy-policy",
+    submit: {
+      enabled: true,
+      queue_after: {
+        qc_pass_after_coder: false
+      }
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: [
+        "## Task Validation Handoff",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "tester",
+            status: "complete",
+            needs_qc: true,
+            validation_targets: ["retry behavior"],
+            coverage_rationale: "critical path covered",
+            remaining_gaps: [],
+            files_changed: [],
+            validation: [{ command: "npm test -- demo", result: "PASS", purpose: "task validation" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "qc",
+      message: [
+        "## QC Report",
+        "Overall Verdict: PASS",
+        "Phase: tester",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "qc",
+            status: "complete",
+            phase: "tester",
+            verdict: "PASS",
+            categories: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.equal(submitAction, undefined);
+}
+
+function testNewDeliveryPolicyKeyOverridesLegacyFallback() {
+  const dir = makeTempDir("codex-starter-new-policy-precedence-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  writeJson(path.join(dir, ".codex", "delivery-policy.json"), {
+    version: 1,
+    status: "compat-precedence",
+    submit: {
+      enabled: true,
+      queue_after: {
+        coder_complete_without_qc: false,
+        tester_complete_without_qc: true
+      }
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "tester",
+      message: [
+        "## Task Validation Handoff",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "tester",
+            status: "complete",
+            needs_qc: true,
+            validation_targets: ["new key precedence"],
+            coverage_rationale: "smoke",
+            remaining_gaps: [],
+            files_changed: [],
+            validation: [{ command: "npm test -- demo", result: "PASS", purpose: "smoke" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.ok(submitAction);
+  assert.equal(submitAction.trigger, "tester_complete_without_qc");
 }
 
 function testSessionContextShowsPendingSubmitReminder() {
@@ -695,7 +1165,7 @@ function testSessionContextShowsPendingSubmitReminder() {
         id: "run-submit:current-task",
         type: "run_submit",
         storyPath: null,
-        trigger: "coder_complete_without_qc",
+        trigger: "tester_complete_without_qc",
         note: "Run /submit."
       }
     ],
@@ -721,6 +1191,75 @@ function testSessionContextShowsPendingSubmitReminder() {
 
   const stdout = runNode(sessionContextScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
   assert.match(stdout, /Pending submit: run \/submit/);
+}
+
+function testSessionContextShowsPendingTesterReminder() {
+  const dir = makeTempDir("codex-starter-tester-reminder-");
+
+  writeJson(path.join(dir, ".codex", "state", "task-context.json"), {
+    version: 1,
+    updated_at: null,
+    collaboration: {
+      preferred_address: "Boss",
+      greeting_style: "warm",
+      first_startup_greeting_completed: true
+    },
+    task: {
+      current_task: "Validate coder handoff",
+      status: "active",
+      class: "bugfix",
+      risk: "medium",
+      delivery_mode: "lightweight",
+      route_rationale: "tester handoff is pending",
+      routing_overrides: [],
+      enabled_roles: ["Aide", "main agent"],
+      enabled_modules: ["lightweight execution"],
+      qc_policy: "disabled",
+      submit_policy: "enabled",
+      validation_profile_status: "inferred",
+      open_questions: []
+    }
+  });
+
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "run-tester:current-task",
+        type: "run_tester",
+        phase: "tester",
+        storyPath: null,
+        trigger: "coder_complete_requires_tester",
+        note: "Coder completed. Route to tester for required validation handoff."
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  const stdout = runNode(sessionContextScript, { cwd: dir }, { CODEX_PROJECT_DIR: dir });
+  const state = readRuntimeState(dir);
+
+  assert.match(stdout, /Pending tester handoff/);
+  assert.match(state.sessionContext.lastReminderText, /Pending tester handoff/);
 }
 
 function testSessionContextKeepsRetrospectiveReminderForDoneTask() {
@@ -798,7 +1337,7 @@ function testSessionContextWritesFullInvocationLogs() {
         id: "run-submit:current-task",
         type: "run_submit",
         storyPath: null,
-        trigger: "coder_complete_without_qc",
+        trigger: "tester_complete_without_qc",
         note: "Run /submit."
       }
     ],
@@ -881,7 +1420,7 @@ function testStartupContextRunsStartupChainAndWritesInvocationLogs() {
         id: "run-submit:current-task",
         type: "run_submit",
         storyPath: null,
-        trigger: "coder_complete_without_qc",
+        trigger: "tester_complete_without_qc",
         note: "Run /submit."
       }
     ],
@@ -1009,7 +1548,7 @@ function testRuntimeLogWriteMigratesLegacyTopLevelFile() {
 
   assert.equal(result.status, 2);
   assert.ok(!fs.existsSync(path.join(dir, ".codex", "logs", "runtime-hooks.jsonl")));
-  assert.deepEqual(logFiles, ["2026-03-28.jsonl"]);
+  assert.ok(logFiles.includes("2026-03-28.jsonl"));
   assert.ok(logs.find((entry) => entry.invocationId === "legacy-invocation-1" && entry.type === "invocation_start"));
   assert.ok(
     logs.find(
@@ -1641,6 +2180,174 @@ function testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry() {
 
   assert.equal(task.status, "active");
   assert.equal(registry.currentTaskId, task.id);
+}
+
+function testTaskSettledDoesNotBypassRequiredTesterHandoff() {
+  const dir = makeTempDir("codex-starter-task-settled-missing-tester-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "task_settled",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+
+  assert.ok(testerAction);
+  assert.ok(blocked);
+  assert.match(blocked.note, /cannot replace tester/i);
+  assert.equal(submitAction, undefined);
+}
+
+function testTaskSettledWithStoryScopedTesterHandoffDoesNotQueueSubmit() {
+  const dir = makeTempDir("codex-starter-task-settled-story-scoped-tester-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "run-tester:plans/a.md",
+        type: "run_tester",
+        phase: "tester",
+        storyPath: "plans/a.md",
+        trigger: "coder_complete_requires_tester",
+        note: "Coder completed. Route to tester for required validation handoff."
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "task_settled",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+
+  assert.equal(submitAction, undefined);
+  assert.ok(blocked);
+  assert.match(blocked.note, /cannot replace tester/i);
+}
+
+function testSessionEndWithStoryScopedTesterHandoffDoesNotQueueSubmit() {
+  const dir = makeTempDir("codex-starter-session-end-story-scoped-tester-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  writeJson(path.join(dir, ".codex", "state", "runtime-state.json"), {
+    version: 1,
+    updatedAt: null,
+    recentSubagentEvents: [],
+    pendingActions: [
+      {
+        id: "run-tester:plans/a.md",
+        type: "run_tester",
+        phase: "tester",
+        storyPath: "plans/a.md",
+        trigger: "coder_complete_requires_tester",
+        note: "Coder completed. Route to tester for required validation handoff."
+      }
+    ],
+    failurePatterns: {},
+    learningQueue: [],
+    completedTasks: [],
+    qualityMetrics: {
+      qcRuns: 0,
+      qcPasses: 0,
+      qcFails: 0,
+      qcByPhase: {
+        tester: { runs: 0, passes: 0, fails: 0 },
+        coder: { runs: 0, passes: 0, fails: 0 },
+        manual: { runs: 0, passes: 0, fails: 0 }
+      },
+      failureCategoryCounts: {},
+      recentQcRuns: []
+    },
+    sessionContext: {
+      lastReminderText: ""
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "session_end",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const submitAction = state.pendingActions.find((item) => item.type === "run_submit");
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+
+  assert.equal(submitAction, undefined);
+  assert.ok(blocked);
+  assert.match(blocked.note, /cannot replace tester/i);
 }
 
 function testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals() {
@@ -2337,9 +3044,18 @@ testTaskContextHelpersWriteNormalizedState();
 testRepoContextHelpersWriteNormalizedState();
 testLegacyDeliveryModeNamesNormalizeToCurrentNames();
 testTrimRuntimeStateDropsOldFailurePatterns();
-testSubagentStopQueuesQcWithoutStory();
-testCoderCompletionQueuesSubmitWithoutQc();
-testQcPassQueuesSubmitAfterCoderAudit();
+testCoderCompletionQueuesTesterWithoutStory();
+testCoderCompletionDoesNotQueueSubmitBeforeTester();
+testRuntimeRejectsCoderCompletionWithoutStructuredFooter();
+testRuntimeRejectsCoderCompletionWithoutNeedsQcTrue();
+testRuntimeRejectsStructuredResultBypassWithPostSectionJson();
+testRuntimeRejectsTesterCompletionWithoutStructuredFooter();
+testQcBeforeTesterCannotQueueSubmit();
+testQcPassQueuesSubmitAfterTesterAudit();
+testLegacyDeliveryPolicyBlocksTesterSubmitTrigger();
+testLegacyDeliveryPolicyBlocksSubmitAfterQcPass();
+testNewDeliveryPolicyKeyOverridesLegacyFallback();
+testSessionContextShowsPendingTesterReminder();
 testSessionContextShowsPendingSubmitReminder();
 testSessionContextKeepsRetrospectiveReminderForDoneTask();
 testSessionContextWritesFullInvocationLogs();
@@ -2359,6 +3075,9 @@ testTaskOverviewCanQueryCompletedTasksOnDemand();
 testTaskOverviewDoesNotWriteTaskRegistryForReadOnlyQuery();
 testRuntimeStateSyncsCompletedTasksIntoTaskRegistry();
 testTaskSettledEventSyncsCompletedTasksIntoTaskRegistry();
+testTaskSettledDoesNotBypassRequiredTesterHandoff();
+testTaskSettledWithStoryScopedTesterHandoffDoesNotQueueSubmit();
+testSessionEndWithStoryScopedTesterHandoffDoesNotQueueSubmit();
 testAideEvolutionSweepReviewsSettledTasksWithoutBlockingSignals();
 testAideEvolutionSweepPromotesSettledTasksWithGovernanceSignals();
 testAideEvolutionAutoAppliesKnownLearningGuidance();

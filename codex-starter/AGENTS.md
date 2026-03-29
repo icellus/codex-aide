@@ -11,6 +11,9 @@ Project-level Codex workflow starter.
 - Upgrade only when scope, risk, or coordination require it.
 - Keep the main agent in a team-secretary and people-manager role: first response, delegation, governance, and result integration.
 - Prefer real subagents for `repo_explorer`, `tester`, `coder`, `product_assistant`, `qc`, and `submit` when delegation adds value, especially when starting a new task chain to keep main-thread context clean.
+- Do not default to `fork_context: true`; for bounded tasks with clear goal and write set, prefer `fork_context: false` plus a minimal complete assignment brief.
+- Allow `fork_context: true` only when full-thread context is genuinely required and the main thread's next step directly depends on that inherited context.
+- Treat token efficiency as an explicit routing constraint: deliver independent completion with the smallest complete context package.
 - For read-heavy analysis, prefer a short-lived `repo_explorer` pass, then let `Aide` integrate and reply to the user.
 - Start with the smallest active team that can safely finish the task; do not wake every role just because the repo is new or context is thin.
 - Keep hot runtime context short. Human docs explain; runtime files decide.
@@ -59,6 +62,8 @@ Project-level Codex workflow starter.
 
 - infer repo facts before asking
 - `Aide` coordinates, delegates, and closes the user-facing response; it must not become the default implementer or primary deep-dive troubleshooter for concrete repo changes
+- if `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`; `/qc` is optional by risk and cannot replace `tester`
+- main-thread closeout cannot substitute for required `tester` handoff after `coder`
 - extra roles should be activated only when they add real routing, validation, audit, or delivery value, then dropped again when no longer needed
 - `environment setup` and related readiness judgment belong to `conduct`
 - `/qc` is opt-in per task need or policy

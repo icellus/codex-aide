@@ -95,8 +95,10 @@
 典型路径：
 
 ```text
-Aide -> optional conduct -> optional plan -> tester/coder -> optional qc -> optional submit
+Aide -> optional conduct -> optional plan -> tester -> coder -> tester -> optional qc -> optional submit
 ```
+
+只要 `coder` 参与，进入 settle/submit 前就必须有下游 `tester` handoff。`qc` 仅按风险启用，不能替代 `tester`。
 
 ### Product 线
 

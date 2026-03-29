@@ -599,8 +599,8 @@ export function createEmptyDeliveryPolicy() {
     submit: {
       enabled: true,
       queue_after: {
-        coder_complete_without_qc: true,
-        qc_pass_after_coder: true,
+        tester_complete_without_qc: true,
+        qc_pass_after_tester: true,
         task_settled_without_qc: true,
         task_settled_after_qc: true
       }
@@ -712,6 +712,22 @@ function loadJsonFile(filePath, fallbackFactory) {
   }
 }
 
+function normalizeSubmitQueueAfter(queueAfter) {
+  const source = queueAfter && typeof queueAfter === "object" && !Array.isArray(queueAfter) ? queueAfter : {};
+  const normalized = { ...source };
+  const hasOwn = (key) => Object.prototype.hasOwnProperty.call(source, key);
+
+  if (!hasOwn("tester_complete_without_qc") && hasOwn("coder_complete_without_qc")) {
+    normalized.tester_complete_without_qc = source.coder_complete_without_qc;
+  }
+
+  if (!hasOwn("qc_pass_after_tester") && hasOwn("qc_pass_after_coder")) {
+    normalized.qc_pass_after_tester = source.qc_pass_after_coder;
+  }
+
+  return normalized;
+}
+
 export function loadRuntimeState(projectDir) {
   const stateDir = path.join(projectDir, ".codex", "state");
   const statePath = path.join(stateDir, "runtime-state.json");
@@ -773,6 +789,7 @@ export function loadDeliveryPolicy(projectDir) {
   const policyPath = path.join(projectDir, ".codex", "delivery-policy.json");
   const parsed = loadJsonFile(policyPath, createEmptyDeliveryPolicy);
   const emptyPolicy = createEmptyDeliveryPolicy();
+  const parsedSubmitQueueAfter = normalizeSubmitQueueAfter(parsed.submit?.queue_after);
 
   return {
     ...emptyPolicy,
@@ -786,7 +803,7 @@ export function loadDeliveryPolicy(projectDir) {
       ...(parsed.submit || {}),
       queue_after: {
         ...emptyPolicy.submit.queue_after,
-        ...(parsed.submit?.queue_after || {})
+        ...parsedSubmitQueueAfter
       }
     },
     commit: {
@@ -1953,6 +1970,135 @@ export function extractStructuredResult(message) {
     };
   });
   return parseCandidates(fallbackCandidates);
+}
+
+function extractStructuredResultFromRequiredSection(message) {
+  const text = String(message || "");
+  const sectionMatch = text.match(/(^|\n)\s*##\s*Structured Result\b([\s\S]*?)(?=\n\s*##\s+[^\n]+|\s*$)/i);
+
+  if (!sectionMatch) {
+    return {
+      hasSection: false,
+      structured: null
+    };
+  }
+
+  const sectionBody = String(sectionMatch[2] || "");
+  const candidates = [...sectionBody.matchAll(/```json\s*([\s\S]*?)```/gi)].map((match) => match[1]);
+
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    try {
+      const parsed = JSON.parse(candidates[index]);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return {
+          hasSection: true,
+          structured: parsed
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return {
+    hasSection: true,
+    structured: null
+  };
+}
+
+function normalizeStructuredRole(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) {
+    return "";
+  }
+
+  if (raw === "qc_reviewer") {
+    return "qc";
+  }
+
+  if (raw === "submit_worker") {
+    return "submit";
+  }
+
+  return raw;
+}
+
+export function validateStructuredResultContract(role, message) {
+  const normalizedRole = normalizeStructuredRole(role);
+  if (normalizedRole !== "coder" && normalizedRole !== "tester") {
+    return {
+      ok: true,
+      code: "",
+      reason: "",
+      structured: null
+    };
+  }
+
+  const strictStructured = extractStructuredResultFromRequiredSection(message);
+
+  if (!strictStructured.hasSection) {
+    return {
+      ok: false,
+      code: "missing_structured_result_section",
+      reason: `${normalizedRole} handoff missing required "## Structured Result" section.`,
+      structured: null
+    };
+  }
+
+  const structured = strictStructured.structured;
+  if (!structured || typeof structured !== "object" || Array.isArray(structured)) {
+    return {
+      ok: false,
+      code: "invalid_structured_result_json",
+      reason: `${normalizedRole} handoff has no valid JSON object in the structured result section.`,
+      structured: null
+    };
+  }
+
+  const structuredRole = normalizeStructuredRole(structured.role);
+  if (!structuredRole) {
+    return {
+      ok: false,
+      code: "missing_structured_result_role",
+      reason: `${normalizedRole} structured result must include role.`,
+      structured
+    };
+  }
+
+  if (structuredRole !== normalizedRole) {
+    return {
+      ok: false,
+      code: "structured_result_role_mismatch",
+      reason: `${normalizedRole} structured result role mismatch: got "${structuredRole}".`,
+      structured
+    };
+  }
+
+  const status = String(structured.status || "").trim().toLowerCase();
+  if (status !== "complete" && status !== "blocked") {
+    return {
+      ok: false,
+      code: "invalid_structured_result_status",
+      reason: `${normalizedRole} structured result status must be "complete" or "blocked".`,
+      structured
+    };
+  }
+
+  if (structured.needs_qc !== true) {
+    return {
+      ok: false,
+      code: "structured_result_needs_qc_not_true",
+      reason: `${normalizedRole} structured result must set needs_qc: true.`,
+      structured
+    };
+  }
+
+  return {
+    ok: true,
+    code: "",
+    reason: "",
+    structured
+  };
 }
 
 export function detectSubagentStatus(agentType, message) {

@@ -18,6 +18,10 @@ function summarizePendingQCActions(state) {
   return state.pendingActions.filter((item) => item.type === "run_qc");
 }
 
+function summarizePendingTesterActions(state) {
+  return state.pendingActions.filter((item) => item.type === "run_tester");
+}
+
 function summarizePendingSubmitActions(state) {
   return state.pendingActions.filter((item) => item.type === "run_submit");
 }
@@ -85,6 +89,10 @@ async function main() {
     const blockedForCurrent = currentStory
       ? blockedActions.filter((item) => item.storyPath === currentStory.storyPath)
       : [];
+    const pendingTester = summarizePendingTesterActions(state);
+    const pendingTesterForCurrent = currentStory
+      ? pendingTester.filter((item) => item.storyPath === currentStory.storyPath)
+      : [];
     const pendingQC = summarizePendingQCActions(state);
     const pendingQcForCurrent = currentStory
       ? pendingQC.filter((item) => item.storyPath === currentStory.storyPath)
@@ -94,6 +102,7 @@ async function main() {
       ? pendingSubmit.filter((item) => item.storyPath === currentStory.storyPath)
       : [];
     const blockedPool = currentStory ? blockedForCurrent : blockedActions;
+    const pendingTesterPool = currentStory ? pendingTesterForCurrent : pendingTester;
     const pendingQcPool = currentStory ? pendingQcForCurrent : pendingQC;
     const pendingSubmitPool = currentStory ? pendingSubmitForCurrent : pendingSubmit;
     const retrospectiveActions = summarizeRetrospectiveActions(state, currentStory);
@@ -103,6 +112,7 @@ async function main() {
     if (
       isTaskSettled(profile) &&
       blockedPool.length === 0 &&
+      pendingTesterPool.length === 0 &&
       pendingQcPool.length === 0 &&
       pendingSubmitPool.length === 0 &&
       retrospectiveActions.length === 0 &&
@@ -155,6 +165,13 @@ async function main() {
       pushReminder(
         90,
         `- Pending QC: run /qc --phase=${item.phase}${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}`
+      );
+    }
+
+    for (const item of pendingTesterPool.slice(-1)) {
+      pushReminder(
+        95,
+        `- Pending tester handoff${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: route to tester before QC/submit/settlement`
       );
     }
 

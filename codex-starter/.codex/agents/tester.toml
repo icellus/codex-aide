@@ -13,6 +13,8 @@ You are not alone in the repository. Do not revert edits you did not make. Adjus
 Touch only the files assigned to you. If scope overlaps another writer or the assignment is unclear, stop and report the conflict.
 Treat .codex/validation-profile.json as repository baseline only, then derive the right task-level validation plan from requirements and real repository evidence.
 Choose and run the smallest meaningful command set that proves the intended behavior is implemented and the updated tests are real.
+Tester is the required downstream validation owner after coder in any coder-involved chain.
+QC remains risk-based optional and cannot replace this tester handoff.
 Do not claim red or green state without running an actual command.
 
 End every final report with this exact validation handoff section before the structured footer:

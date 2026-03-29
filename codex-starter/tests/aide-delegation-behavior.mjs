@@ -23,6 +23,8 @@ const NEXT_TYPES = new Set(["answer", "delegate", "triage_then_delegate"]);
 const TRIAGE_LEVELS = new Set(["none", "minimal", "full"]);
 const GATE_LEVELS = new Set(["off", "optional", "required"]);
 const REPO_CONTEXTS = new Set(["fresh", "new", "stale"]);
+const CONTEXT_PACKAGES = new Set(["minimal_complete", "full_thread"]);
+const TOKEN_POLICIES = new Set(["efficient"]);
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -155,6 +157,27 @@ function validateDecisionShape(fixture) {
       assert.equal(step.owner, "aide", `${fixture.id}: route must start with aide`);
     }
   });
+  const routeOwners = decision.route.map((step) => step.owner);
+
+  assert.ok(decision.delegation && typeof decision.delegation === "object", `${fixture.id}: decision.delegation must be object`);
+  assert.equal(
+    typeof decision.delegation.forkContext,
+    "boolean",
+    `${fixture.id}: decision.delegation.forkContext must be boolean`
+  );
+  assert.ok(
+    CONTEXT_PACKAGES.has(decision.delegation.contextPackage),
+    `${fixture.id}: invalid decision.delegation.contextPackage`
+  );
+  assert.ok(
+    TOKEN_POLICIES.has(decision.delegation.tokenPolicy),
+    `${fixture.id}: invalid decision.delegation.tokenPolicy`
+  );
+  assert.equal(
+    decision.delegation.reliability,
+    "minimal_complete_brief",
+    `${fixture.id}: delegation reliability must require minimal complete brief`
+  );
 
   assert.ok(REPO_CONTEXTS.has(context.repoContext), `${fixture.id}: invalid context.repoContext`);
   assert.equal(
@@ -169,6 +192,59 @@ function validateDecisionShape(fixture) {
       decision.triage.level,
       "full",
       `${fixture.id}: concrete change in new/stale repo should not force a full scan`
+    );
+  }
+
+  if (decision.activeRoles.includes("coder")) {
+    assert.ok(decision.activeRoles.includes("tester"), `${fixture.id}: coder requires tester as downstream role`);
+    const coderIndex = routeOwners.indexOf("coder");
+    const testerIndex = routeOwners.findIndex((owner, index) => owner === "tester" && index > coderIndex);
+    assert.ok(coderIndex >= 0, `${fixture.id}: route should include coder when coder is active`);
+    assert.ok(testerIndex > coderIndex, `${fixture.id}: route must include tester after coder`);
+    const qcIndex = routeOwners.findIndex((owner, index) => owner === "qc" && index > coderIndex);
+    if (qcIndex > -1) {
+      assert.ok(
+        testerIndex > -1 && testerIndex < qcIndex,
+        `${fixture.id}: qc cannot replace tester; tester must run before qc when coder is active`
+      );
+    }
+  }
+
+  const boundedTask = context.goalClear === true && context.taskBounded === true && context.writeSetClear === true;
+  if (boundedTask) {
+    assert.equal(
+      decision.delegation.forkContext,
+      false,
+      `${fixture.id}: bounded clear task should avoid fork_context`
+    );
+    assert.equal(
+      decision.delegation.contextPackage,
+      "minimal_complete",
+      `${fixture.id}: bounded clear task should use minimal complete context package`
+    );
+  }
+
+  if (context.requiresFullConversationContext === true) {
+    assert.equal(
+      context.nextStepDependsOnFullContext,
+      true,
+      `${fixture.id}: full-context fork requires immediate dependency on inherited context`
+    );
+    assert.equal(
+      decision.delegation.forkContext,
+      true,
+      `${fixture.id}: full-context requirement should enable fork_context`
+    );
+    assert.equal(
+      decision.delegation.contextPackage,
+      "full_thread",
+      `${fixture.id}: full-context requirement should mark full_thread package`
+    );
+  } else {
+    assert.equal(
+      decision.delegation.forkContext,
+      false,
+      `${fixture.id}: do not default to fork_context true`
     );
   }
 
@@ -249,12 +325,12 @@ function verifySmallChangeSingleDelegate(fixture) {
   const { id, decision } = fixture;
   assertSameMembers(
     executionRoles(decision),
-    ["coder"],
-    `${id}: small clear change should use one clear execution role`
+    ["coder", "tester"],
+    `${id}: small clear change should use coder plus mandatory tester handoff`
   );
   assert.equal(decision.next.type, "delegate", `${id}: small clear change should delegate`);
   assert.equal(decision.next.owner, "coder", `${id}: small clear change should delegate to coder`);
-  ["tester", "qc", "submit", "conduct"].forEach((role) => {
+  ["qc", "submit", "conduct"].forEach((role) => {
     assert.ok(!decision.activeRoles.includes(role), `${id}: ${role} should stay inactive`);
   });
 }
@@ -315,7 +391,9 @@ function verifyNewRepoConcreteMinimalTriage(fixture) {
     `${id}: minimal triage should not block delegation`
   );
   assert.ok(routeOwners.includes("coder"), `${id}: route should still delegate to coder`);
+  assert.ok(routeOwners.includes("tester"), `${id}: route should include tester after coder`);
   assert.ok(routeOwners.indexOf("coder") > routeOwners.indexOf("repo_explorer"), `${id}: delegate after triage`);
+  assert.ok(routeOwners.indexOf("tester") > routeOwners.indexOf("coder"), `${id}: tester should follow coder`);
   assert.ok(
     routeUsesRealSubagentDelegation(decision.route),
     `${id}: new task chain should prefer real subagent delegation`
@@ -326,12 +404,12 @@ function verifyNarrowedTaskDropsRoles(fixture) {
   const { id, decision } = fixture;
   assertSameMembers(
     decision.activeRoles,
-    ["aide", "coder"],
-    `${id}: narrowed task should retain only aide + coder`
+    ["aide", "coder", "tester"],
+    `${id}: narrowed task should retain aide + coder + mandatory tester`
   );
-  assertIncludesAll(decision.droppedRoles, ["tester", "qc"], `${id}: narrowed task should drop extra roles`);
+  assertIncludesAll(decision.droppedRoles, ["qc"], `${id}: narrowed task should drop extra roles`);
   assert.equal(decision.next.owner, "coder", `${id}: narrowed task should continue with coder`);
-  ["tester", "qc", "repo_explorer", "conduct", "submit"].forEach((role) => {
+  ["qc", "repo_explorer", "conduct", "submit"].forEach((role) => {
     assert.ok(!decision.activeRoles.includes(role), `${id}: ${role} should be dropped/inactive`);
   });
 }
@@ -359,14 +437,23 @@ function verifyReadHeavyInvestigationDelegatesToRepoExplorer(fixture) {
 function verifyEnvironmentSetupOwnedByConductBeforeWriters(fixture) {
   const { id, decision } = fixture;
   const routeOwners = decision.route.map((step) => step.owner);
-  assertIncludesAll(decision.activeRoles, ["conduct", "coder"], `${id}: environment setup ownership roles`);
+  assertIncludesAll(decision.activeRoles, ["conduct", "coder", "tester"], `${id}: environment setup ownership roles`);
   assert.equal(decision.next.owner, "conduct", `${id}: environment setup should be routed to conduct first`);
   assert.ok(routeOwners.includes("conduct"), `${id}: route should include conduct`);
   assert.ok(routeOwners.includes("coder"), `${id}: route should include coder for later implementation`);
+  assert.ok(routeOwners.includes("tester"), `${id}: route should include tester after coder`);
   assert.ok(
     routeOwners.indexOf("conduct") < routeOwners.indexOf("coder"),
     `${id}: conduct must run environment judgement/prep before coder`
   );
+  assert.ok(routeOwners.indexOf("tester") > routeOwners.indexOf("coder"), `${id}: tester must follow coder`);
+}
+
+function verifyFullContextForkOnlyWhenRequired(fixture) {
+  const { id, decision } = fixture;
+  assert.equal(decision.delegation.forkContext, true, `${id}: should enable fork_context only when explicitly required`);
+  assert.equal(decision.delegation.contextPackage, "full_thread", `${id}: should mark full_thread package`);
+  assert.equal(decision.next.owner, "repo_explorer", `${id}: should delegate to repo_explorer`);
 }
 
 const behaviorFixtures = [
@@ -377,7 +464,10 @@ const behaviorFixtures = [
       context: {
         repoContext: "fresh",
         concreteChange: false,
-        risk: "low"
+        risk: "low",
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
@@ -397,6 +487,12 @@ const behaviorFixtures = [
         qc: "off",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "direct_qna_reply" }
       ]
@@ -410,12 +506,15 @@ const behaviorFixtures = [
       context: {
         repoContext: "fresh",
         concreteChange: true,
-        risk: "low"
+        risk: "low",
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
       mode: "delivery",
-      activeRoles: ["aide", "coder"],
+      activeRoles: ["aide", "coder", "tester"],
       droppedRoles: [],
       next: {
         type: "delegate",
@@ -430,9 +529,16 @@ const behaviorFixtures = [
         qc: "off",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "classify_small_clear_change" },
-        { owner: "coder", action: "implement_fix_and_unit_test" }
+        { owner: "coder", action: "implement_fix_and_unit_test_via_real_subagent" },
+        { owner: "tester", action: "task_validation_handoff_after_coder" }
       ]
     },
     verify: verifySmallChangeSingleDelegate
@@ -445,7 +551,10 @@ const behaviorFixtures = [
         repoContext: "fresh",
         concreteChange: true,
         risk: "high",
-        auditRequested: true
+        auditRequested: true,
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
@@ -465,6 +574,12 @@ const behaviorFixtures = [
         qc: "required",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "set_high_risk_bugfix_route" },
         { owner: "tester", action: "reproduce_and_capture_failure" },
@@ -482,7 +597,10 @@ const behaviorFixtures = [
       context: {
         repoContext: "fresh",
         concreteChange: false,
-        risk: "medium"
+        risk: "medium",
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
@@ -502,6 +620,12 @@ const behaviorFixtures = [
         qc: "off",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "classify_non_code_artifact_task" },
         { owner: "product_assistant", action: "draft_product_artifact" }
@@ -517,7 +641,10 @@ const behaviorFixtures = [
         repoContext: "fresh",
         concreteChange: false,
         risk: "medium",
-        readHeavyInvestigation: true
+        readHeavyInvestigation: true,
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
@@ -537,6 +664,12 @@ const behaviorFixtures = [
         qc: "off",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "classify_read_heavy_investigation" },
         { owner: "repo_explorer", action: "delegate_real_subagent_read_heavy_scan" }
@@ -552,12 +685,15 @@ const behaviorFixtures = [
         repoContext: "fresh",
         concreteChange: true,
         risk: "medium",
-        needsEnvironmentSetup: true
+        needsEnvironmentSetup: true,
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
       mode: "delivery",
-      activeRoles: ["aide", "conduct", "coder"],
+      activeRoles: ["aide", "conduct", "coder", "tester"],
       droppedRoles: [],
       next: {
         type: "delegate",
@@ -572,10 +708,17 @@ const behaviorFixtures = [
         qc: "off",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "classify_environment_setup_needs" },
         { owner: "conduct", action: "decide_environment_setup_and_preflight" },
-        { owner: "coder", action: "implement_fix_after_conduct_preflight" }
+        { owner: "coder", action: "implement_fix_after_conduct_preflight" },
+        { owner: "tester", action: "validate_after_coder_handoff" }
       ]
     },
     verify: verifyEnvironmentSetupOwnedByConductBeforeWriters
@@ -590,7 +733,10 @@ const behaviorFixtures = [
         risk: "medium",
         governedDelivery: true,
         needsEnvironmentSetup: true,
-        requiresCommitPush: true
+        requiresCommitPush: true,
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
@@ -610,6 +756,12 @@ const behaviorFixtures = [
         qc: "off",
         submit: "required"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "classify_release_governed_delivery" },
         { owner: "conduct", action: "run_env_and_delivery_preflight" },
@@ -626,12 +778,15 @@ const behaviorFixtures = [
         repoContext: "new",
         concreteChange: true,
         risk: "medium",
-        newTaskChain: true
+        newTaskChain: true,
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
       mode: "delivery",
-      activeRoles: ["aide", "repo_explorer", "coder"],
+      activeRoles: ["aide", "repo_explorer", "coder", "tester"],
       droppedRoles: [],
       next: {
         type: "triage_then_delegate",
@@ -646,10 +801,17 @@ const behaviorFixtures = [
         qc: "off",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "classify_concrete_change_on_new_repo" },
         { owner: "repo_explorer", action: "minimal_owner_scan_via_real_subagent" },
-        { owner: "coder", action: "delegate_real_subagent_apply_targeted_change" }
+        { owner: "coder", action: "delegate_real_subagent_apply_targeted_change" },
+        { owner: "tester", action: "delegate_real_subagent_task_validation_handoff" }
       ]
     },
     verify: verifyNewRepoConcreteMinimalTriage
@@ -662,13 +824,16 @@ const behaviorFixtures = [
         repoContext: "fresh",
         concreteChange: true,
         risk: "low",
-        previouslyActiveRoles: ["aide", "tester", "coder", "qc"]
+        previouslyActiveRoles: ["aide", "tester", "coder", "qc"],
+        goalClear: true,
+        taskBounded: true,
+        writeSetClear: true
       }
     },
     decision: {
       mode: "delivery",
-      activeRoles: ["aide", "coder"],
-      droppedRoles: ["tester", "qc"],
+      activeRoles: ["aide", "coder", "tester"],
+      droppedRoles: ["qc"],
       next: {
         type: "delegate",
         owner: "coder",
@@ -682,12 +847,66 @@ const behaviorFixtures = [
         qc: "off",
         submit: "off"
       },
+      delegation: {
+        forkContext: false,
+        contextPackage: "minimal_complete",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
       route: [
         { owner: "aide", action: "shrink_scope_and_drop_extra_roles" },
-        { owner: "coder", action: "finish_narrowed_change" }
+        { owner: "coder", action: "finish_narrowed_change" },
+        { owner: "tester", action: "required_validation_handoff_after_scope_shrink" }
       ]
     },
     verify: verifyNarrowedTaskDropsRoles
+  },
+  {
+    id: "full-context-fork-allowed-only-when-required",
+    input: {
+      userTask: "基于这次长对话里多轮冲突决策做一次跨文件一致性核对，先别改代码。",
+      context: {
+        repoContext: "fresh",
+        concreteChange: false,
+        risk: "medium",
+        readHeavyInvestigation: true,
+        newTaskChain: true,
+        requiresFullConversationContext: true,
+        nextStepDependsOnFullContext: true,
+        goalClear: false,
+        taskBounded: false,
+        writeSetClear: false
+      }
+    },
+    decision: {
+      mode: "delivery",
+      activeRoles: ["aide", "repo_explorer"],
+      droppedRoles: [],
+      next: {
+        type: "delegate",
+        owner: "repo_explorer",
+        reason: "需要继承完整对话上下文来核对跨轮冲突决策。"
+      },
+      triage: {
+        level: "minimal",
+        blocksDelegation: false
+      },
+      gates: {
+        qc: "off",
+        submit: "off"
+      },
+      delegation: {
+        forkContext: true,
+        contextPackage: "full_thread",
+        tokenPolicy: "efficient",
+        reliability: "minimal_complete_brief"
+      },
+      route: [
+        { owner: "aide", action: "classify_cross_session_context_dependent_analysis" },
+        { owner: "repo_explorer", action: "delegate_real_subagent_with_full_context_fork" }
+      ]
+    },
+    verify: verifyFullContextForkOnlyWhenRequired
   }
 ];
 
@@ -724,15 +943,19 @@ function runNegativeGuardrailScenarios() {
         };
         fixture.decision.route.push({ owner: "coder", action: "implement_code_change" });
       },
-      expected: /discussion should keep only aide active|discussion should answer directly/i
+      expected: /discussion should keep only aide active|discussion should answer directly|coder requires tester as downstream role/i
     },
     {
-      id: "small-change-extra-role",
+      id: "small-change-missing-required-tester",
       baseId: "small-clear-repo-change-single-delegate",
       mutate(fixture) {
-        fixture.decision.activeRoles = ["aide", "coder", "tester"];
+        fixture.decision.activeRoles = ["aide", "coder"];
+        fixture.decision.route = [
+          { owner: "aide", action: "classify_small_clear_change" },
+          { owner: "coder", action: "implement_fix_and_unit_test_via_real_subagent" }
+        ];
       },
-      expected: /small clear change should use one clear execution role/i
+      expected: /coder requires tester as downstream role|route must include tester after coder/i
     },
     {
       id: "high-risk-without-qc-gate",
@@ -743,6 +966,19 @@ function runNegativeGuardrailScenarios() {
         fixture.decision.route = fixture.decision.route.filter((step) => step.owner !== "qc");
       },
       expected: /high-risk bugfix should require qc gate|high-risk bugfix should include qc|missing qc/i
+    },
+    {
+      id: "high-risk-qc-tries-to-replace-tester",
+      baseId: "higher-risk-bugfix-tester-coder-qc-gating",
+      mutate(fixture) {
+        fixture.decision.route = [
+          { owner: "aide", action: "set_high_risk_bugfix_route" },
+          { owner: "tester", action: "reproduce_and_capture_failure" },
+          { owner: "coder", action: "implement_fix_for_failing_case" },
+          { owner: "qc", action: "independent_quality_gate" }
+        ];
+      },
+      expected: /qc cannot replace tester|tester must run before qc|route must include tester after coder/i
     },
     {
       id: "product-artifact-routed-to-coder",
@@ -759,7 +995,7 @@ function runNegativeGuardrailScenarios() {
           { owner: "coder", action: "wrong_owner" }
         ];
       },
-      expected: /product artifact should route to product_assistant|wrong product route owner/i
+      expected: /product artifact should route to product_assistant|wrong product route owner|coder requires tester as downstream role/i
     },
     {
       id: "read-heavy-investigation-stays-in-aide",
@@ -800,7 +1036,7 @@ function runNegativeGuardrailScenarios() {
           { owner: "coder", action: "do_environment_setup_and_fix" }
         ];
       },
-      expected: /environment setup should activate conduct|environment setup should start with conduct|conduct should own environment judgement\/prep before writers/i
+      expected: /environment setup should activate conduct|environment setup should start with conduct|conduct should own environment judgement\/prep before writers|coder requires tester as downstream role/i
     },
     {
       id: "new-repo-full-scan-block",
@@ -818,10 +1054,20 @@ function runNegativeGuardrailScenarios() {
         fixture.decision.route = [
           { owner: "aide", action: "classify_concrete_change_on_new_repo" },
           { owner: "repo_explorer", action: "minimal_owner_scan_only" },
-          { owner: "coder", action: "apply_targeted_change" }
+          { owner: "coder", action: "apply_targeted_change" },
+          { owner: "tester", action: "task_validation_handoff" }
         ];
       },
       expected: /new chain\/read-heavy work should prefer real subagent delegation markers|new task chain should prefer real subagent delegation/i
+    },
+    {
+      id: "bounded-task-uses-full-context-fork",
+      baseId: "small-clear-repo-change-single-delegate",
+      mutate(fixture) {
+        fixture.decision.delegation.forkContext = true;
+        fixture.decision.delegation.contextPackage = "full_thread";
+      },
+      expected: /bounded clear task should avoid fork_context|do not default to fork_context true/i
     },
     {
       id: "narrowed-task-keeps-extra-roles",
@@ -830,7 +1076,15 @@ function runNegativeGuardrailScenarios() {
         fixture.decision.activeRoles = ["aide", "coder", "tester"];
         fixture.decision.droppedRoles = [];
       },
-      expected: /narrowed task should retain only aide \+ coder|narrowed task should drop extra roles/i
+      expected: /narrowed task should drop extra roles/i
+    },
+    {
+      id: "full-context-fork-without-real-dependency",
+      baseId: "full-context-fork-allowed-only-when-required",
+      mutate(fixture) {
+        fixture.input.context.nextStepDependsOnFullContext = false;
+      },
+      expected: /full-context fork requires immediate dependency on inherited context/i
     }
   ];
 

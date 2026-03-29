@@ -46,26 +46,38 @@ export function runAideRoutingMatrixContractTests(rootDir) {
       authorityPatterns: [
         /for a clear small repo change, activate one clear execution role first; usually `coder` for code, config, script, or test work, or `product_assistant` for non-code artifacts/i,
         /For a clear small repo change, activate one clear execution role first instead of waking multiple roles\./i,
-        /if ownership is obvious, assign directly to `coder`, `tester`, or `product_assistant` instead of doing another round of local implementation analysis yourself/i
+        /if ownership is obvious, assign directly to `coder`, `tester`, or `product_assistant` instead of doing another round of local implementation analysis yourself/i,
+        /Any route that activates `coder` must include a downstream `tester` handoff before the task can settle or submit\./i
       ],
       docsPatterns: [
-        /\|\s*small bugfix\s*\|\s*`Aide -> coder -> sanity checks -> submit`\s*\|/i,
-        /\|\s*小 bugfix\s*\|\s*`Aide -> coder -> sanity checks -> submit`\s*\|/i,
+        /\|\s*small bugfix\s*\|\s*`Aide -> coder -> tester -> (?:optional qc -> )?submit`\s*\|/i,
+        /\|\s*小 bugfix\s*\|\s*`Aide -> coder -> tester -> (?:optional qc -> )?submit`\s*\|/i,
         /`Aide` should activate one clear execution role first when the task is already concrete|如果任务已经很具体，`Aide` 应先激活一个明确的执行角色/i
       ]
     },
     {
       id: "higher-risk-bugfix-tester-coder-qc-gating",
       authorityPatterns: [
-        /enable `tester` and `coder` when explicit red\/green separation or handoff value is real/i,
+        /enable `coder` for implementation ownership, and always enable downstream `tester` when `coder` is active/i,
         /enable `\/qc` when risk is high, the user asks for an audit, or release confidence needs it/i,
-        /add `tester` only when task-level validation ownership, red\/green separation, or non-trivial behavior risk is real/i,
-        /activate `\/qc` only for explicit audit need or higher-risk delivery/i
+        /If `coder` is active, keep `tester` active in the same delivery chain as a required downstream handoff\./i,
+        /Activate `\/qc` only when risk is high or explicit audit confidence is needed; `\/qc` does not replace `tester`\./i
       ],
       docsPatterns: [
-        /\|\s*higher-risk bugfix\s*\|\s*`Aide -> tester -> coder -> tester or qc -> submit`\s*\|/i,
-        /\|\s*较高风险 bugfix\s*\|\s*`Aide -> tester -> coder -> tester 或 qc -> submit`\s*\|/i,
+        /\|\s*higher-risk bugfix\s*\|\s*`Aide -> tester -> coder -> tester -> optional qc -> submit`\s*\|/i,
+        /\|\s*较高风险 bugfix\s*\|\s*`Aide -> tester -> coder -> tester -> optional qc -> submit`\s*\|/i,
         /For non-trivial behavior changes, `tester` owns task-level validation handoff|对非平凡行为改动，`tester` 负责任务级验证 handoff/i
+      ]
+    },
+    {
+      id: "feature-route-keeps-coder-to-tester-handoff",
+      authorityPatterns: [
+        /Any route that activates `coder` must include a downstream `tester` handoff before the task can settle or submit\./i,
+        /`\/qc` is decided by task risk and audit need only, and `\/qc` cannot replace the required `tester` handoff after `coder`\./i
+      ],
+      docsPatterns: [
+        /\|\s*feature\s*\|\s*`Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester -> optional qc -> submit`\s*\|/i,
+        /\|\s*feature\s*\|\s*`Aide -> optional prd -> optional architect -> conduct -> optional plan -> tester -> coder -> tester -> optional qc -> submit`\s*\|/i
       ]
     },
     {

@@ -95,8 +95,10 @@ Use the coding line when the primary deliverable is:
 Typical route:
 
 ```text
-Aide -> optional conduct -> optional plan -> tester/coder -> optional qc -> optional submit
+Aide -> optional conduct -> optional plan -> tester -> coder -> tester -> optional qc -> optional submit
 ```
+
+If `coder` participates, downstream `tester` handoff is mandatory before settlement or submit. `qc` is optional by risk and cannot replace `tester`.
 
 ### Product line
 

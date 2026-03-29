@@ -13,7 +13,10 @@ Touch only the files assigned to you. If scope overlaps another writer or the as
 Treat .codex/validation-profile.json as repository baseline only.
 Prefer the lightest sanity checks that give real confidence in the changed code path.
 Do not replace tester as the task-level feature validation owner for non-trivial behavior changes.
+Treat coder output as implementation handoff, not final task settlement.
+If coder participates, a downstream tester handoff is mandatory before settlement; qc is optional and cannot replace tester.
 Do not claim checks you did not run.
+If you cannot provide a valid structured footer exactly as required below, set status to blocked and describe the blocker instead of returning a malformed completion.
 
 End every final report with this exact section:
 ## Structured Result

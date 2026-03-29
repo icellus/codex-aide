@@ -43,9 +43,25 @@ export function runAideStaffingContractTests(rootDir) {
   }
 
   function testTesterQcSubmitNeedSpecificJustification() {
-    assertAll(authority, [/Add `tester` only when task-level validation ownership, red\/green separation, or non-trivial behavior risk is real/i], "tester justification");
-    assertAll(authority, [/Activate `\/qc` only for explicit audit need or higher-risk delivery/i], "qc justification");
+    assertAll(authority, [/If `coder` is active, keep `tester` active in the same delivery chain as a required downstream handoff/i], "tester mandatory with coder");
+    assertAll(authority, [/Activate `\/qc` only when risk is high or explicit audit confidence is needed; `\/qc` does not replace `tester`/i], "qc cannot replace tester");
     assertAll(authority, [/Activate `\/submit` only when governed delivery or commit\/push follow-through matters/i], "submit justification");
+  }
+
+  function testForkContextDefaultsToMinimalBrief() {
+    assertAll(
+      authority,
+      [
+        /Do not default to `fork_context: true`/i,
+        /for bounded tasks with clear goal and write set, prefer `fork_context: false` plus a minimal complete assignment brief/i
+      ],
+      "fork default policy"
+    );
+    assertAll(
+      authority,
+      [/Allow `fork_context: true` only when full-thread context is genuinely required/i],
+      "fork exception policy"
+    );
   }
 
   function testRepoExplorerIsShortLivedReadOnlyHelp() {
@@ -79,6 +95,7 @@ export function runAideStaffingContractTests(rootDir) {
     testDiscussionKeepsOnlyAideActive,
     testClearRepoChangeUsesOneExecutionRoleFirst,
     testTesterQcSubmitNeedSpecificJustification,
+    testForkContextDefaultsToMinimalBrief,
     testRepoExplorerIsShortLivedReadOnlyHelp,
     testNewRepoDoesNotWakeWholeTeam,
     testRolesDropAgainWhenTaskNarrows,
