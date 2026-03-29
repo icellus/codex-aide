@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+node "$repo_root/scripts/validate-commit-msg.mjs" "$1"

@@ -46,6 +46,7 @@ function countLines(relativePath) {
 
 function assertFileBudgets() {
   const expectedBudgets = new Map([
+    ["contract/commit-policy.contract.mjs", 120],
     ["contract/test-manifest.contract.mjs", 180],
     ["helpers/runtime-smoke-helpers.mjs", 220],
     ["helpers/test-paths.mjs", 80],
@@ -89,6 +90,7 @@ assert.deepEqual(
   getSuiteFiles("full"),
   [
     "contract/test-manifest.contract.mjs",
+    "contract/commit-policy.contract.mjs",
     "smoke/log-analysis.smoke.mjs",
     "smoke/runtime-workflow.smoke.mjs",
     "smoke/runtime-ops.smoke.mjs",
@@ -98,10 +100,12 @@ assert.deepEqual(
 
 assertSelection(["AGENTS.md"], []);
 assertSelection(["README.md"], []);
+assertSelection(["CONTRIBUTING.md"], ["contract"]);
 assertSelection(["codex-starter/AGENTS.md"], ["smoke"]);
 assertSelection(["codex-starter/.codex/scripts/runtime-utils.mjs"], ["smoke"]);
 assertSelection(["codex-starter/install.sh"], ["smoke"]);
 assertSelection(["tests/codex-starter/helpers/test-paths.mjs"], ["full"]);
+assertSelection(["scripts/validate-commit-msg.mjs"], ["contract"]);
 assertSelection(["tests/codex-starter/contract/test-manifest.contract.mjs"], ["contract"]);
 assertSelection(["tests/codex-starter/smoke/runtime-workflow.smoke.mjs"], ["smoke"]);
 assertSelection(["tests/codex-starter/README.md"], []);

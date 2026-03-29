@@ -20,6 +20,7 @@ Repository-level maintenance guidance for this repo.
 ## Default Working Rules
 
 - Reply to the user in Chinese by default.
+- Repository commits should use the local commit policy: `<type>(<scope>): <subject>`.
 - For repo-maintenance changes, do not hand-pick overlapping test files.
 - Use the root test runner as the default validation entrypoint:
   `node tests/codex-starter/run.mjs`
@@ -69,3 +70,5 @@ Repository-level maintenance guidance for this repo.
 - Keep the test inventory intentionally small and executable.
 - New test files or larger test bodies require an explicit budget update in the contract gate; do not let `tests/` grow by drift.
 - For feature work, keep only the highest-signal checks. If a test file is getting large, split it by domain or delete lower-value coverage instead of piling on.
+- Do not keep temporary, debug-only, migration-only, or incident-oneoff tests in the long-term tree once the core behavior is covered.
+- Prefer updating an existing core test over adding a new test file. If a new test is only useful during local diagnosis, do not merge it.

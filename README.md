@@ -25,7 +25,24 @@ bash /path/to/agent-skills/codex-starter/install.sh
 ## 文档
 
 - Codex: [codex-starter/README.md](/workspace/agent-skills/codex-starter/README.md)
+- 贡献规范: [CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
 - Claude 归档说明: [CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md)
+
+## 提交流程
+
+仓库内置了简化的 commit 规范校验，格式为：
+
+```text
+<type>(<scope>): <subject>
+```
+
+首次拉取后执行：
+
+```bash
+bash scripts/install-git-hooks.sh
+```
+
+详细规则见：[CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
 
 ## 测试
 

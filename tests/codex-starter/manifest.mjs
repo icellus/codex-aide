@@ -5,7 +5,7 @@ const manifestPath = fileURLToPath(import.meta.url);
 const testRootDir = path.dirname(manifestPath);
 const repoRootDir = path.resolve(testRootDir, "..", "..");
 
-const contractFiles = ["contract/test-manifest.contract.mjs"];
+const contractFiles = ["contract/test-manifest.contract.mjs", "contract/commit-policy.contract.mjs"];
 
 const smokeFiles = [
   "smoke/log-analysis.smoke.mjs",
@@ -56,6 +56,19 @@ export const selectionRules = [
     patterns: [/^tests\/codex-starter\/contract\//],
     suites: ["contract"],
     reason: "suite-definition or selection-contract change"
+  },
+  {
+    id: "commit-policy",
+    patterns: [
+      "CONTRIBUTING.md",
+      /^scripts\/commit-policy\.mjs$/,
+      /^scripts\/validate-commit-msg\.mjs$/,
+      /^scripts\/install-git-hooks\.sh$/,
+      /^\.githooks\//,
+      /^\.github\/workflows\/commit-policy\.yml$/
+    ],
+    suites: ["contract"],
+    reason: "commit policy tooling and contribution contract changed"
   },
   {
     id: "smoke-tests",

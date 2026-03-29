@@ -1,10 +1,10 @@
 # codex-starter tests
 
-Repository-level development tests for `codex-starter`.
+Repository-level development tests for `codex-starter` and the repository maintenance contract around it.
 
 Layout:
 
-- `contract/`: runner and suite-selection contract checks
+- `contract/`: runner, suite-selection, and repo-maintenance contract checks
 - `smoke/`: runtime and log-analysis smoke checks, split by domain to keep files small
 - `helpers/`: shared path helpers
 
@@ -31,3 +31,5 @@ Notes:
 - test inventory is intentionally frozen small; adding a new `*.mjs` file requires updating the contract budget gate on purpose
 - keep feature tests core-only; if a file approaches its budget, split or delete lower-value coverage before adding more
 - runtime smoke is intentionally split into focused files; do not merge it back into a catch-all smoke entry
+- do not keep temporary, debug-only, migration-only, or one-off incident tests after the core behavior is covered
+- if a test is only useful for local diagnosis, keep it out of git or delete it before merge
