@@ -121,9 +121,7 @@ export const selectionRules = [
       "CONTRIBUTING.md",
       "NEXT_SESSION_CONTEXT.md",
       "CLAUDE_STARTER_ARCHIVE.md",
-      "tests/codex-starter/README.md",
-      "codex-starter/README.md",
-      /^codex-starter\/docs\//
+      "tests/codex-starter/README.md"
     ],
     suites: [],
     reason: "documentation and maintenance guidance changes have no direct executable suite mapping"

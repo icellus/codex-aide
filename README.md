@@ -1,17 +1,8 @@
 # agent-skills
 
-这个仓库当前只维护：
+这个仓库当前只维护 `codex-starter`。
 
-- `codex-starter`
-
-注意：
-
-- 根目录 [AGENTS.md](/workspace/agent-skills/AGENTS.md) 只用于本仓库维护
-- [codex-starter/AGENTS.md](/workspace/agent-skills/codex-starter/AGENTS.md) 才是 starter 安装到目标仓库后的运行时权威
-
-## 安装说明
-
-### `codex-starter`
+## 安装
 
 在目标项目根目录执行：
 
@@ -19,41 +10,20 @@
 bash /path/to/agent-skills/codex-starter/install.sh
 ```
 
-`claude-starter` 已从本仓库迁出，不再在这里维护。
-归档说明见：[CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md)
+安装后的运行时权威以目标仓库中的以下文件为准：
 
-## 文档
+- `AGENTS.md`
+- `.agents/skills/*/SKILL.md`
+- `.codex/routing-policy.md`
 
-- Codex: [codex-starter/README.md](/workspace/agent-skills/codex-starter/README.md)
-- 贡献规范: [CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
-- Claude 归档说明: [CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md)
+源码入口：
 
-## 提交流程
+- [install.sh](/workspace/agent-skills/codex-starter/install.sh)
+- [codex-starter/AGENTS.md](/workspace/agent-skills/codex-starter/AGENTS.md)
 
-提交规则与本地 hook 说明见：[CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
+维护与测试：
 
-首次拉取后可执行：
-
-```bash
-bash scripts/install-git-hooks.sh
-```
-
-## 测试
-
-仓库级测试统一放在根目录：
-
+- [CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
 - [tests/codex-starter/README.md](/workspace/agent-skills/tests/codex-starter/README.md)
 
-常用入口：
-
-```bash
-node tests/codex-starter/run.mjs
-node tests/codex-starter/run.mjs --file codex-starter/AGENTS.md
-node tests/codex-starter/run.mjs --suite smoke
-node tests/codex-starter/run.mjs --suite full
-```
-
-默认建议：
-
-- 主线程直接跑 `node tests/codex-starter/run.mjs`，按当前 worktree 自动选最小 suite
-- 子线程有明确 write set 时，跑 `node tests/codex-starter/run.mjs --file <path> ...`
+`claude-starter` 已从本仓库迁出，归档说明见：[CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md)
