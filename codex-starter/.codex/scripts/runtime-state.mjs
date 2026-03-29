@@ -956,6 +956,15 @@ function queueTesterHandoff(
   });
 }
 
+function clearExecutionContinuation(state, taskId) {
+  removePendingActions(
+    state,
+    (item) =>
+      (item.type === "run_tester" || item.type === "run_qc" || item.type === "run_submit") &&
+      matchesTaskScope(item.taskId, taskId)
+  );
+}
+
 function clearTesterHandoff(state, taskId, chainId = null) {
   removePendingActions(
     state,
@@ -979,6 +988,35 @@ function hasPendingTesterHandoff(state, taskId, chainId = null) {
       matchesTaskScope(item.taskId, taskId) &&
       workflowChainMatches(chainId, item.chain_id || item.workflow_chain_id)
   );
+}
+
+function detectMissingTaskImplementationBrief(role, message, structured = null) {
+  if (role !== "coder" && role !== "tester") {
+    return false;
+  }
+
+  const textParts = [String(message || "")];
+
+  if (structured && typeof structured === "object" && !Array.isArray(structured)) {
+    if (Array.isArray(structured.blockers)) {
+      textParts.push(
+        structured.blockers
+          .map((item) => String(item || "").trim())
+          .filter(Boolean)
+          .join("\n")
+      );
+    }
+    textParts.push(String(structured.plan_path || structured.planPath || structured.plan || ""));
+  }
+
+  const text = textParts.join("\n");
+  const mentionsBrief = /task implementation brief|任务实施说明|execution brief|execution input|plan_path/i.test(text);
+  const missingSignal =
+    /missing|not found|unreadable|cannot read|unable to read|not provided|empty|缺失|缺少|不存在|未提供|无法读取|不可读|为空|没给/i.test(
+      text
+    );
+
+  return mentionsBrief && missingSignal;
 }
 
 function recordMissingTesterWorkflowBreak(state, taskId, source, note) {
@@ -1313,28 +1351,51 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
   if (role === "tester" || role === "coder") {
     const contract = validateStructuredResultContract(role, message);
     if (!contract.ok) {
-      removePendingActions(
-        state,
-        (item) => item.type === "run_submit" && matchesTaskScope(item.taskId, taskId)
-      );
+      const scopedTaskId = resolveWorkflowScopedTaskId(taskId, workflow);
+      const missingBriefByContract = contract.code === "missing_structured_result_plan_path";
+      clearExecutionContinuation(state, scopedTaskId);
+      updateWorkflowState(workflow, {
+        phase: role,
+        current_chain: `${role}_blocked`,
+        expected_next_step: "technical_manager"
+      });
+      if (role === "tester" && workflow.required_handoff === "tester") {
+        markWorkflowRequiresTesterHandoff(
+          workflow,
+          scopedTaskId,
+          "tester_blocked",
+          "Tester handoff remains required before settlement.",
+          {
+            phase: "tester",
+            chainId: activeWorkflowChainId
+          }
+        );
+        updateWorkflowState(workflow, {
+          expected_next_step: "technical_manager"
+        });
+      }
       upsertPendingAction(state, {
-        id: `blocked-review:${role}:structured:${taskId || "current-task"}`,
+        id: `blocked-review:${role}:structured:${scopedTaskId || "current-task"}`,
         type: "blocked_review",
         phase: role,
-        taskId,
-        note: `${contract.reason} Route back through technical_manager before retrying this handoff.`
+        taskId: scopedTaskId,
+        note: missingBriefByContract
+          ? `${contract.reason} Stop downstream tester/qc/submit and route back through technical_manager. If user clarification is required, technical_manager should collect it via Aide -> user.`
+          : `${contract.reason} Route back through technical_manager before retrying this handoff.`
       });
 
-      upsertAideReview(state, {
-        issueKey: `invalid-structured:${role}:${taskId || "current-task"}`,
-        taskId,
-        sourceRole: role,
-        capability: "investigation",
-        severity: "L3",
-        issueType: "workflow_break",
-        routeTarget: "/Aide investigate",
-        note: `${contract.reason} Runtime rejected the handoff to prevent silent workflow break in the technical_manager-owned chain.`
-      });
+      if (!missingBriefByContract) {
+        upsertAideReview(state, {
+          issueKey: `invalid-structured:${role}:${scopedTaskId || "current-task"}`,
+          taskId: scopedTaskId,
+          sourceRole: role,
+          capability: "investigation",
+          severity: "L3",
+          issueType: "workflow_break",
+          routeTarget: "/Aide investigate",
+          note: `${contract.reason} Runtime rejected the handoff to prevent silent workflow break in the technical_manager-owned chain.`
+        });
+      }
       return;
     }
 
@@ -1455,7 +1516,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         type: "run_qc",
         phase: role,
         taskId: scopedTaskId,
-        note: `Recent ${role} completion detected. Run /qc --phase=${role}.`
+        note: `Recent ${role} completion detected. Route through technical_manager to decide QC, then run /qc --phase=${role} if approved.`
       });
     } else {
       removePendingActions(
@@ -1477,12 +1538,18 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
 
   if ((role === "tester" || role === "coder") && status === "blocked") {
     const scopedTaskId = resolveWorkflowScopedTaskId(taskId, workflow);
+    const missingImplementationBrief = detectMissingTaskImplementationBrief(role, message, contractStructured);
+    clearExecutionContinuation(state, scopedTaskId);
     const blockedScopeLabel = isAmbiguousBlockedScope ? "ambiguous-plan-scope" : scopedTaskId || "current-task";
     const blockedNote = isAmbiguousBlockedScope
       ? `Recent ${role} blockage detected, but active task ownership is ambiguous. Resolve ownership (currentTaskId/cwd/worktree/branch) before resuming.`
+      : missingImplementationBrief
+        ? `Recent ${role} blockage detected: Task Implementation Brief is missing or unreadable. Stop downstream tester/qc/submit and route back through technical_manager. If user clarification is needed, technical_manager should collect it via Aide -> user.`
       : `Recent ${role} blockage detected. Route back through technical_manager and review the structured handoff before continuing.`;
     const reviewNote = isAmbiguousBlockedScope
       ? `A ${role} handoff blocked while multiple active plans were unresolved. Investigate task ownership first, then route fixes to the correct task chain.`
+      : missingImplementationBrief
+        ? `A ${role} handoff was blocked because Task Implementation Brief was missing or unreadable. Resume only after technical_manager refreshes the brief; if user clarification is required, route via technical_manager -> Aide -> user.`
       : `A ${role} handoff blocked the workflow. Investigate whether execution entry, technical_manager brief ownership, role boundaries, or shared guidance caused the break.`;
 
     upsertPendingAction(state, {
@@ -1501,17 +1568,19 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
       });
     }
 
-    upsertAideReview(state, {
-      issueKey: `blocked:${role}:${blockedScopeLabel}`,
-      taskId: scopedTaskId,
-      scope: isAmbiguousBlockedScope ? "ambiguous" : undefined,
-      sourceRole: role,
-      capability: "investigation",
-      severity: "L3",
-      issueType: "workflow_break",
-      routeTarget: "/Aide investigate",
-      note: reviewNote
-    });
+    if (!missingImplementationBrief) {
+      upsertAideReview(state, {
+        issueKey: `blocked:${role}:${blockedScopeLabel}`,
+        taskId: scopedTaskId,
+        scope: isAmbiguousBlockedScope ? "ambiguous" : undefined,
+        sourceRole: role,
+        capability: "investigation",
+        severity: "L3",
+        issueType: "workflow_break",
+        routeTarget: "/Aide investigate",
+        note: reviewNote
+      });
+    }
 
     if (role === "tester" && workflow.required_handoff === "tester") {
       markWorkflowRequiresTesterHandoff(
@@ -1524,6 +1593,17 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         }
       );
       syncWorkflowExpectedNextStep(state, scopedTaskId, workflow);
+      if (missingImplementationBrief) {
+        updateWorkflowState(workflow, {
+          expected_next_step: "technical_manager"
+        });
+      }
+    } else {
+      updateWorkflowState(workflow, {
+        phase: role,
+        current_chain: `${role}_blocked`,
+        expected_next_step: "technical_manager"
+      });
     }
   }
 

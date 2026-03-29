@@ -22,7 +22,7 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
   - [intended outcome]
   - [key files, modules, or surfaces]
 - Current Checkpoint: `[align|implement|validate|handoff]`
-- Active Roles / Modules: `conduct`, main agent
+- Active Roles / Modules: `technical_manager`, main agent
 - Validation Plan:
   - `[command or manual check]`
 - Next Step: [single next action]
@@ -40,7 +40,7 @@ If the work is mainly about promotion, deployment, release readiness, or post-pu
   - make API errors user-readable
   - update auth handler and related tests
 - Current Checkpoint: `validate`
-- Active Roles / Modules: `conduct`, `tester`, `coder`
+- Active Roles / Modules: `technical_manager`, `tester`, `coder`
 - Validation Plan:
   - `pnpm test -- login`
 - Next Step: rerun focused auth tests after final copy update

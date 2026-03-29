@@ -20,10 +20,15 @@ Otherwise, plain-language intent should map to the same routes.
 - `technical_manager` owns execution entry, precondition checks, repository understanding depth, environment readiness, `任务实施说明`, and staged handoff management.
 - Treat repository exploration and environment setup as actions/capabilities, not primary role expansion points.
 - `technical_manager` produces and refreshes `任务实施说明`, which is the only execution input for `coder` and `tester`.
+- if `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`.
+- `coder` / `tester` / `qc` report only to `technical_manager` in the execution chain.
+- After required `tester` handoff in coder-involved work, `technical_manager` decides whether `/qc` is needed.
 - `/qc` is optional by risk or explicit audit need, and cannot replace `tester`.
 - `/submit` is the governed delivery step after required validation gates.
 - Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
+- blocked handoff from missing `任务实施说明` must stop tester/qc/submit continuation until `technical_manager` resolves it.
+- if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
 
 ## Delivery Chain
 
@@ -111,7 +116,8 @@ Queue or remind `/qc` only when:
 
 1. required `tester` handoff in the active execution chain is complete
 2. the current task enables QC through `qc_policy` or enabled modules
-3. the handoff is not blocked and not just a progress ping
+3. `technical_manager` keeps QC active for the current task chain
+4. the handoff is not blocked and not just a progress ping
 
 ## Submit Gate
 

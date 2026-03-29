@@ -13,7 +13,7 @@ Use this template when release work needs explicit checkpoints, promotion notes,
 
 - Scope: [what is being released]
 - Target: [environment, channel, or audience]
-- Active Roles / Modules: `conduct`, main agent
+- Active Roles / Modules: `technical_manager`, main agent
 - Related Plans:
   - `[path or N/A]`
 - Validation Baseline:

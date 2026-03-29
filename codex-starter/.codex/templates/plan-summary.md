@@ -22,7 +22,7 @@
 
 ## Execution Chain Notes
 
-- Chain owner: `conduct`
-- Active handoff: [conduct|coder|tester|qc|submit|follow or N/A]
+- Chain owner: `technical_manager`
+- Active handoff: [technical_manager|coder|tester|qc|submit|follow or N/A]
 - Major risks: [short bullets]
 - Regenerate this summary if the main brief changes materially

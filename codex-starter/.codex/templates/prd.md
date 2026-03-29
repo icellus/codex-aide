@@ -3,7 +3,7 @@
 **Status**: Draft
 **Date**: [YYYY-MM-DD]
 **Scope Type**: [feature|large-bugfix|user-visible change]
-**Next Routing Owner**: `conduct`
+**Next Routing Owner**: `technical_manager`
 
 ---
 

@@ -26,12 +26,15 @@ If QC is not justified and the user did not explicitly ask for it, return `NOT N
 ## Validation Rules
 
 - treat `.codex/validation-profile.json` as repository validation baseline only
+- in coder-involved chains, QC is considered only after required tester handoff, and that routing decision belongs to `technical_manager`
+- for `Phase: tester`, read the latest `任务实施说明` path from `technical_manager`; if missing/unreadable, return `FAIL` and route back through `technical_manager`
 - when tester evidence exists, audit whether tester chose an appropriate task-level validation plan
 - when a tester handoff exists, verify it names validation targets, selected checks, coverage rationale, and remaining gaps
 - choose the nearest useful command from the baseline first
 - fall back to repo signals only when the validation profile is incomplete
 - do not pretend validation happened
 - use targeted checks, not repository-wide ritual
+- return QC findings to `technical_manager`; do not treat QC as a direct handoff to `Aide`, `coder`, or `tester`
 
 ## Report Shape
 
@@ -40,7 +43,7 @@ Use this exact skeleton:
 ````markdown
 ## QC Report
 Overall Verdict: PASS|PASS WITH WARNINGS|FAIL|NOT NEEDED
-Phase: tester|coder|n/a
+Phase: tester|n/a
 
 Findings:
 - [finding or `none`]
@@ -63,7 +66,7 @@ Then append:
 {
   "role": "qc",
   "status": "complete",
-  "phase": "tester|coder|n/a",
+  "phase": "tester|n/a",
   "verdict": "PASS|PASS WITH WARNINGS|FAIL|NOT NEEDED",
   "categories": ["category-or-none"]
 }

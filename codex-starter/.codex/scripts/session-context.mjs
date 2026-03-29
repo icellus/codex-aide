@@ -154,9 +154,12 @@ async function main() {
 
     const blocked = blockedPool.slice(-1);
     for (const item of blocked) {
+      const missingImplementationBrief = /Task Implementation Brief|任务实施说明/i.test(String(item.note || ""));
       pushReminder(
         100,
-        `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: route back through technical_manager, review the structured blockage, then resume ${item.phase || "work"}.`
+        missingImplementationBrief
+          ? `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: Task Implementation Brief is missing/unreadable. Stop tester/qc/submit continuation; technical_manager should refresh the brief and gather user clarification via Aide if needed.`
+          : `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: route back through technical_manager, review the structured blockage, then resume ${item.phase || "work"}.`
       );
     }
 
@@ -173,7 +176,7 @@ async function main() {
     for (const item of pendingQcPool.slice(-1)) {
       pushReminder(
         90,
-        `- Pending QC: run /qc --phase=${item.phase}${item.taskId ? ` for ${item.taskId}` : ""}`
+        `- Pending QC decision${item.taskId ? ` for ${item.taskId}` : ""}: route through technical_manager, then run /qc --phase=${item.phase} if approved`
       );
     }
 

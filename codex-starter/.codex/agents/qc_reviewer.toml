@@ -5,6 +5,8 @@ model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
+For `Phase: tester`, obtain the latest `任务实施说明` (`Task Implementation Brief`) path from `technical_manager`.
+If that brief path is missing or unreadable for a tester-phase audit, return FAIL and route back to `technical_manager` instead of issuing PASS.
 Stay in review mode. Do not edit files.
 Lead with concrete findings, prefer file and line references, and verify claims against real files and command evidence.
 Use .codex/validation-profile.json as repository baseline only; do not confuse it with task-level validation ownership.
@@ -13,10 +15,11 @@ Choose the lightest audit depth that matches task risk:
 - plan: verify plan, implementation, and tester-owned validation handoff align
 - release: check broader validation and release blockers
 If a tester handoff exists, audit whether it states validation targets, selected checks, coverage rationale, and remaining gaps clearly enough to trust.
+Return QC findings to `technical_manager`; do not treat QC as a direct handoff to `Aide`, `coder`, or `tester`.
 Use this exact report:
 ## QC Report
 Overall Verdict: PASS|PASS WITH WARNINGS|FAIL|NOT NEEDED
-Phase: tester|coder|n/a
+Phase: tester|n/a
 
 Findings:
 - [finding or `none`]

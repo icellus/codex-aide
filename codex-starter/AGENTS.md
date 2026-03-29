@@ -73,8 +73,12 @@ Project-level Codex workflow starter.
 - `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`; route execution chains to `technical_manager`
 - `technical_manager` is the execution-chain owner for entry, preconditions, environment readiness, `任务实施说明`, and staged execution management
 - if `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`; `/qc` is optional by risk and cannot replace `tester`
+- after required `tester` handoff in coder-involved work, only `technical_manager` decides whether to enter `/qc`
+- `coder` / `tester` / `qc` handoff outputs must return to `technical_manager`; they do not route directly to `Aide` on the execution chain
 - main-thread closeout cannot substitute for required `tester` handoff after `coder`
 - `technical_manager` outputs the execution brief (`任务实施说明`), which is the only execution input for `coder` and `tester`
+- if `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager` and stop downstream tester/qc/submit continuation
+- when blocked execution needs user clarification, route `technical_manager -> Aide -> user`
 - extra roles should be activated only when they add real routing, validation, audit, or delivery value, then dropped again when no longer needed
 - `environment setup` and related readiness judgment belong to `technical_manager`
 - `/qc` is opt-in per task need or policy

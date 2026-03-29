@@ -3,7 +3,7 @@
 **Owner**: `tester`
 **Execution Input**: `plans/[slug].md` (`任务实施说明`)
 **Scope**: [task, feature, or brief item]
-**Status**: ready-for-qc|ready-for-conduct|blocked
+**Status**: ready-for-qc|ready-for-technical-manager|blocked
 **Workflow Chain ID**: [workflow_chain_id from active workflow, or `none` when not applicable]
 
 ---
@@ -34,6 +34,6 @@
 
 ---
 
-## Notes for Conduct
+## Notes for Technical Manager
 
 - [handoff note, dependency, follow-up, or rollback hint]
