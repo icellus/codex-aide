@@ -17,12 +17,12 @@ Updated: 2026-03-29 22:13 Asia/Shanghai
 - 与实现并行进行的审查仅标记为“设计审查/方案审查”，不能当成实现 review
 - 设计/方案审查不能替代实现落地后的正式 review
 
-## 子线程与测试流程偏好（宿主维护流程）
+## 子线程与验证流程偏好（宿主维护流程）
 
-- 涉及明确编码交付时，若需要并行子线程，优先拆成“一个改代码、一个改测试”的两个 worker
+- 涉及明确编码交付时，若需要并行子线程，优先按明确边界拆分，不默认再拆“代码线程 + 旧测试线程”
 - 默认使用清晰、可完成的子线程 prompt，明确 write set、设计边界、完成标准、验证方式；不要把含糊任务直接丢给子线程
 - 除非特别必要，不默认 `fork_context: true`
-- 代码与测试产出后，由主线程统一执行测试；若发现问题，先修复并复测，再进入 reviewer
+- 代码产出后，由主线程统一做验证与 review；验证不再默认依赖旧 `tests/codex-starter` 脚本
 - 最终 reviewer 无 blocking findings 后，再向用户汇报结果
 
 ## discussion 同步偏好
@@ -49,6 +49,6 @@ Updated: 2026-03-29 22:13 Asia/Shanghai
 
 ## 默认验证入口
 
-- 仓库级默认验证：`node tests/codex-starter/run.mjs`
-- 明确 write set 的定向验证：`node tests/codex-starter/run.mjs --file <path> --file <path>`
-- 涉及 runner / manifest / shared helpers / 多层测试结构时：`node tests/codex-starter/run.mjs --suite full`
+- 旧 `tests/codex-starter` 测试脚本已移除，不再默认依赖固定 runner
+- 默认选择与当前任务最相关、最小且真实可执行的验证命令
+- 若当前任务没有可靠自动化验证，应明确记录“未验证”、原因与风险

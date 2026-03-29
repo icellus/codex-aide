@@ -3,7 +3,7 @@
 **Status**: Draft
 **Date**: [YYYY-MM-DD]
 **Scope Type**: [feature|large-bugfix|user-visible change]
-**Next Routing Owner**: `technical_manager`
+**Next Routing Owner**: `architect`
 
 ---
 
@@ -45,10 +45,10 @@
 - [Observable success signal]
 - [Observable success signal]
 
-## 7. Handoff Notes for Technical Manager
+## 7. Handoff Notes for Architect
 
-- [Unstable areas requiring architecture or planning attention]
-- [Decisions that must be preserved in 任务实施说明]
+- [Unstable areas requiring architecture clarification]
+- [Decisions that must be preserved downstream in `Implementation Brief` (`任务实施说明`)]
 
 ## 8. Open Questions (Optional)
 

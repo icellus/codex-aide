@@ -1,170 +1,107 @@
-# codex-starter 重构计划清单
+# codex-starter 重构计划（双层）
 
-本文件只做一件事：
+本文件分两层：
 
-- 把“规则已确认”
-- “代码已完成”
-- “工作区待复核”
-- “未完成施工”
+- 第一层给用户判断方向、优先级和阶段进度。
+- 第二层给执行者追踪施工项、依赖、验证与留痕。
 
-严格分开记录。
+---
 
-不要再把“讨论定了”写成“代码做完了”。
+## 第一层：用户判断清单
 
-## 已确认规则
+### 1) 目标
 
-下面这些是已经讨论确认、后续按此实现的规则。
+- 把中层链路稳定为：`product_manager -> architect -> technical_manager -> coder -> tester -> (optional qc)`
+- 把 `Implementation Brief` 固定为执行层唯一输入
+- 让 authority、skills、templates、runtime 对同一套规则表达一致
 
-### 角色关系
+### 2) 当前主要问题
 
-- [x] `Aide` 只负责外层协调、治理、收口
-- [x] `Aide` 不直接管理 `coder` / `tester` / `qc` / `submit`
-- [x] `product_manager` 直接对接 `Aide`
-- [x] `architect` 依赖 `product_manager` 产出的 `PRD`
-- [x] `architect` 的结果直接给 `technical_manager`
-- [x] 一旦进入 `product_manager` 路径，就自动启用 `architect`
-- [x] `technical_manager` 是职责范围与权能中心，不是单独一条任务线
-- [x] `coder` / `tester` / `qc` 都只回复给 `technical_manager`
+- 规则已定稿，但工程侧仍有过渡残留需要收口
+- authority/skills/templates/runtime 还需最后一轮一致性复核
+- 进度记录目前只完成了 authority/skill/template 层规则落地，runtime 级强制写尚未接入
+- 旧测试脚本已移除；本轮不再补验证，后续单独重建测试体系
 
-### 产物边界
+### 3) 确认规则（完成判定）
 
-- [x] `PRD` 负责 WHAT / WHY / MVP
-- [x] 架构方案负责系统级 HOW
-- [x] `任务实施说明` 负责执行层单一输入
-- [x] 验证交接只负责 `tester -> technical_manager`
-- [x] 进度记录只负责 `technical_manager` 做了什么
+- 规则判定和施工判定分开写，不能混写
+- “已完成施工”必须有分支内提交证据，不能以口头描述替代
+- `coder` / `tester` 在缺少可读 `Implementation Brief` 时必须稳定 `blocked`
+- 交付收口前不新增并行实现线程，先做一致性复核
+- 进度记录主源固定为 `codex-starter/.codex/progress/active/<task-id>/current.md` 与同级 `history/*.md`
+- 任务完成后，记录目录移入 `codex-starter/.codex/progress/archive/<task-id>/`
+- 进度记录由 `technical_manager` 负责维护
+- 单一 `PROGRESS.md` 不再作为主记录源
 
-### `任务实施说明`
+### 3.1) 进度记录执行层级
 
-- [x] `任务实施说明` 英文名定为 `Implementation Brief`
-- [x] `Implementation Brief` 取代旧 `plan` 文档
-- [x] 不保留旧 `plan` 兼容层
-- [x] 旧 `plan` 中服务执行的内容保留进 `Implementation Brief`
-- [x] 旧 `plan` 中流程控制和历史兼容内容直接删除
-- [x] `plan-summary` 不改名保留，直接删除
-- [x] `Implementation Brief` 要补入：输入来源、`out of scope`、验收/验证目标、交接说明
-- [x] `Implementation Brief` 的“输入来源”是必有栏目，但 `PRD` / 架构方案不是必备来源
+- 当前已落地的是“规则执行”：
+  - authority / skill / template 已要求 `technical_manager` 在关键事件下写 `.codex/progress/**`
+  - 这表示“应该写”，但仍依赖执行角色按规则完成
+- 当前尚未落地的是“runtime 强制写”：
+  - 还没有在 runtime scripts / hooks 中对这些事件做自动落盘
+  - 这表示“发生了就写”的机械执行器还不存在
+- 因此当前状态是：
+  - 规则与模板已定
+  - 运行时自动写入尚未实现
 
-### 执行规则
+### 4) 阶段状态
 
-- [x] `technical_manager` 先产出 `Implementation Brief`，再进入 `coder` / `tester`
-- [x] 非编码任务不产出 `Implementation Brief`
-- [x] `technical_manager` 只要做了事，就要留记录
-- [x] 产出 `Implementation Brief` 这件事本身也要记
-- [x] 这份记录先作为给 `Aide` 看的资料存在
-- [x] 编码任务中，`coder` 完成后必须接 `tester`
-- [x] `tester` 之后是否进入 `qc`，由 `technical_manager` 决定
-- [x] 没有 `Implementation Brief` 时，`coder` / `tester` 不执行，直接 `blocked` 回给 `technical_manager`
-- [x] 这类 `blocked` 后，由 `technical_manager` 决定补说明、改线，或回 `Aide` 补用户信息
+#### 已确认规则
 
-### 兼容策略
+- 角色职责与链路边界已确认
+- `Implementation Brief` 取代旧 `plan` 作为执行输入已确认
+- 旧语义默认不做兼容保留已确认
+- 进度记录落点、目录结构、责任人已确认
+- 单一 `PROGRESS.md` 退场已确认
 
-- [x] 旧命名、旧字段、旧语义不做兼容保留
+#### 已完成施工（已提交）
 
-## 已完成施工（已提交）
+- 中层角色重命名与核心链路语义已提交
+- `Implementation Brief` 模板与 `product_manager -> architect -> technical_manager` 交接已提交
+- brief 缺失时的 `blocked` 语义已落地到 agents/skills/runtime（提交已存在）
+- 本轮跟踪文件 `CONTEXT.md` / `PLAN.md` 已并入分支持续维护
 
-下面这些才算已经做完并至少提交到当前分支的内容：
+#### 当前工作区收口（未提交）
 
-- [x] 第一阶段 authority / 中层语义收敛已经在当前分支上
-- [x] 中层角色命名已经切到 `product_manager / architect / technical_manager`
-- [x] `discussion/codex-starter-refactor/CONTEXT.md` 已提交同步到当前分支
-- [x] `discussion/codex-starter-refactor/PLAN.md` 已提交同步到当前分支
+- `plan_path` 已开始被 `brief_path` 取代，执行 contract 正在切到 `Implementation Brief`
+- central authority 已明确：一旦进入 `product_manager` 路径，下一步必须进入 `architect`
+- `plan-summary` 模板已删除，相关 progress/template 文案已同步收口
+- 旧 `tests/codex-starter` 测试脚本已整体移除，仓库说明已改为“不再依赖旧 runner”
+- authority/skills/templates/runtime 正在做全链路一致性复核
+- 本次已把进度记录规则同步到 `CONTEXT.md` / `PLAN.md`
+- `.codex/progress/` 目录制已落到 authority/skill/template，但 runtime 强制写尚未接入
 
-## 工作区待复核施工（已做但未并入主线）
+#### 暂不处理范围
 
-### 子线程 1
+- `Aide` 能力边界细化
+- `product_manager` 触发条件细化
+- 更完整的路由扩展策略
+- 新测试体系重建
 
-状态：已完成，未复核
+---
 
-它做了：
+## 第二层：执行者施工清单
 
-- 缺少 `Implementation Brief` 时的 `blocked` 规则收口
-- `technical_manager` / `coder` / `tester` / `qc` 之间的交接与提醒语义收口
+状态值：`已完成（已提交）` / `已完成（当前工作区，未提交）` / `正在收口` / `待主线程确认` / `暂不处理`
 
-涉及文件：
+| ID | 施工项 | 对应范围 | 依赖 | 状态 | 验证/记录要求 |
+|---|---|---|---|---|---|
+| E1 | 中层角色重命名与职责收敛 | `codex-starter/AGENTS.md`、`codex-starter/.codex/routing-policy.md`、`codex-starter/.agents/skills/{aide,product_manager,architect,technical_manager}` | 无 | 已完成（已提交） | 以分支提交记录为准；收口时再做一次命名残留扫描（`rg`） |
+| E2 | 执行门禁：缺 brief 即 `blocked` | `codex-starter/.codex/agents/{coder,tester,qc_reviewer}.toml`、`codex-starter/.codex/scripts/{runtime-state,runtime-utils,session-context}.mjs`、`codex-starter/.agents/skills/{technical_manager,qc,auto_qc}` | E1 | 已完成（已提交） | 保留“blocked 触发条件+回退路径”证据；收口复核时确认无绕过链路 |
+| E3 | `Implementation Brief` 模板与上游交接 | `codex-starter/.codex/templates/{implementation-brief,architecture,prd,validation-handoff}.md`、`codex-starter/.agents/skills/product_manager/SKILL.md`、`codex-starter/.agents/skills/architect/SKILL.md` | E1 | 已完成（已提交） | 模板字段完整性复核；确认 `product_manager -> architect -> technical_manager` 文案一致 |
+| E4 | 执行 contract 从 `plan_path` 切到 `brief_path` | `codex-starter/.codex/agents/{coder,tester,qc_reviewer}.toml`、`codex-starter/.codex/scripts/{runtime-state,runtime-utils,session-context}.mjs`、相关 authority/skill 文案 | E2,E3 | 已完成（当前工作区，未提交） | 主线程确认无旧字段残留后才能算真正收口 |
+| E5 | 收紧 `product_manager -> architect` authority | `codex-starter/AGENTS.md`、`codex-starter/.codex/routing-policy.md`、`codex-starter/.agents/skills/technical_manager/SKILL.md` | E1,E3 | 已完成（当前工作区，未提交） | 确认 central authority 与 skill 文案不再冲突 |
+| E6 | 清理 `plan-summary` 与旧 progress 主记录残留 | `codex-starter/.codex/templates/plan-summary.md`、`codex-starter/.codex/templates/{progress,progress.release}.md`、相关 authority/template 文案 | E2,E3 | 已完成（当前工作区，未提交） | 记录删除结果；确认不再把单一 `PROGRESS.md` 作为主记录口径 |
+| E7 | 全链路一致性复核（含进度记录新口径） | authority + skills + templates + runtime 全面比对 | E4,E5,E6 | 正在收口 | 形成差异清单（已一致/待改/待确认）；确认统一指向 `progress/active|history|archive` 结构 |
+| E8 | 旧测试脚本退场与验证口径重定 | `tests/codex-starter/**`、根目录说明文档、`discussion/codex-starter-refactor/*` 记录 | E7 | 已完成（当前工作区，未提交） | 删除旧测试脚本；不再依赖旧 runner；明确本轮实际验证方式或未验证记录 |
+| E9 | 进度记录规则定稿并同步到重构文档 | `discussion/codex-starter-refactor/{CONTEXT,PLAN}.md` | 无 | 已完成（当前工作区，未提交） | 明确落点、目录结构、责任人与“弃用单一 `PROGRESS.md` 主源” |
+| E10 | 进度记录 runtime 强制写接入 | runtime scripts / hooks / task-id 绑定 / archive 时机 | E7,E9 | 暂不处理 | 当前只完成规则执行，尚未实现自动落盘；后续单独设计事件触发、task-id 绑定、归档策略 |
 
-- `codex-starter/AGENTS.md`
-- `codex-starter/.codex/routing-policy.md`
-- `codex-starter/.codex/scripts/runtime-state.mjs`
-- `codex-starter/.codex/scripts/session-context.mjs`
-- `codex-starter/.agents/skills/technical_manager/SKILL.md`
-- `codex-starter/.codex/agents/coder.toml`
-- `codex-starter/.codex/agents/tester.toml`
-- `codex-starter/.codex/agents/qc_reviewer.toml`
-- `codex-starter/.agents/skills/qc/SKILL.md`
-- `codex-starter/.agents/skills/auto_qc/SKILL.md`
-- `codex-starter/.codex/templates/prd.md`
-- `codex-starter/.codex/templates/plan-summary.md`
-- `codex-starter/.codex/templates/progress.md`
-- `codex-starter/.codex/templates/progress.release.md`
-- `codex-starter/.codex/templates/validation-handoff.md`
+## 本阶段执行顺序
 
-验证：
-
-- 子线程自报已跑一组定向 `smoke`
-- 结果：通过
-
-### 子线程 2
-
-状态：已完成，未复核
-
-它做了：
-
-- `product_manager -> architect -> technical_manager` 关系文案调整
-- `architecture.md` 模板调整
-- 新建 `Implementation Brief` 主模板
-
-涉及文件：
-
-- `codex-starter/.agents/skills/product_manager/SKILL.md`
-- `codex-starter/.agents/skills/architect/SKILL.md`
-- `codex-starter/.codex/templates/architecture.md`
-- `codex-starter/.codex/templates/implementation-brief.md`
-
-验证：
-
-- 未跑测试
-- 仅做本地一致性检查
-
-## 未完成施工清单
-
-下面这些才是接下来真正要做的施工项。
-
-- [ ] 主线程复核子线程 1 改动，决定哪些并入主线、哪些继续修改
-- [ ] 主线程复核子线程 2 改动，决定哪些并入主线、哪些继续修改
-- [ ] 补齐最终版 `Implementation Brief` 主模板，并与现有产物边界对齐
-- [ ] 真正删除 `plan-summary` 及其残留引用
-- [ ] 让 authority、skills、templates、runtime 都体现同一套新权能关系
-- [ ] 把 `coder -> tester -> 可选 qc` 的运行期交接、提醒、收口语义完全收齐
-- [ ] 按“不兼容旧语义”策略清理旧命名、旧字段、旧文案残留
-- [ ] 做统一 review
-- [ ] 做统一验证
-- [ ] 最终收口
-
-## 串行子线程安排
-
-当前规则：
-
-- [x] 现有两个子线程都已完成
-- [x] 现阶段不再开新子线程
-- [x] 必须先由主线程复核这两组改动
-- [ ] 只有复核完并确定主线方向后，才允许再开下一个子线程
-
-后续串行顺序：
-
-1. 主线程复核子线程 1
-2. 主线程复核子线程 2
-3. 如仍需拆分实施，再开新的单一目标子线程
-4. 最后统一 review / 验证 / 收口
-
-## 后置独立议题
-
-- [ ] `Aide` 的能力范围放到后面单独讨论
-- [ ] 什么时候启用 `product_manager`，归到路由策略，当前不展开
-- [ ] 记录放在哪里、格式怎么定，当前不展开
-
-## 当前最优先
-
-- 先复核子线程 1 和子线程 2 的结果
-- 不继续新增实现线程
-- 不再把“规则已定”写成“代码已完成”
+1. E9 已完成，本轮文档口径已与新规则对齐。
+2. 继续完成 E4/E5/E6/E8 的主线程复核。
+3. 再执行 E7 做一次全链路一致性复核。
+4. E10 明确保留为后续独立施工，不在本轮展开。
+5. 最后把未提交内容、未验证项和后置事项写清。

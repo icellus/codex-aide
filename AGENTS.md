@@ -21,22 +21,16 @@ Repository-level maintenance guidance for this repo.
 
 - Reply to the user in Chinese by default.
 - Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
-- For repo-maintenance changes, do not hand-pick overlapping test files.
-- Use the root test runner as the default validation entrypoint:
-  `node tests/codex-starter/run.mjs`
-- For bounded subagent-owned work, prefer targeted validation with explicit files instead of whole-worktree guessing:
-  `node tests/codex-starter/run.mjs --file <path> --file <path>`
-- Use explicit suites only when you deliberately need them:
-  `--suite contract`, `--suite smoke`, `--suite full`
-- If the runner, manifest, shared test helpers, or multiple runtime/test layers changed together, run:
-  `node tests/codex-starter/run.mjs --suite full`
+- Legacy repo-level test scripts under `tests/codex-starter/` have been removed; do not assume a fixed runner exists.
+- Validation should use the smallest task-relevant command or script available in the current repo state.
+- If no reliable automated validation exists for the current task, record that explicitly instead of inventing coverage.
 
 ## Context And Token Discipline
 
 - Prefer minimal complete task briefs for subagents.
 - Do not default to `fork_context: true`; only use it when inherited thread context is genuinely required.
-- When a subagent owns a clear write set, pass the owned files and let it validate with `--file` for those paths.
-- Prefer one authoritative test entrypoint over long file lists in prompts.
+- When a subagent owns a clear write set, pass the owned files and state the intended validation boundary explicitly.
+- Do not assume one repository-wide validation entrypoint exists after the legacy test-script cleanup.
 
 ## Review Timing In Host Maintenance
 
@@ -61,14 +55,9 @@ Repository-level maintenance guidance for this repo.
 - If the user provides extra points to remember, next-step guidance, or risks to watch, merge them into the new history record and the refreshed current state.
 - Prefer intent recognition over literal command matching. If the user's wording is clearly about syncing the session context, just do it.
 
-## Testing
+## Validation
 
-- Repository-level tests live under `tests/codex-starter/`.
-- `node tests/codex-starter/run.mjs` auto-selects the minimal mapped suites from the current git worktree.
-- `node tests/codex-starter/run.mjs --file ...` does the same for an explicit file set.
-- Docs-only changes may legitimately map to no test suite; do not invent fake coverage.
-- Keep the test inventory intentionally small and executable.
-- New test files or larger test bodies require an explicit budget update in the contract gate; do not let `tests/` grow by drift.
-- For feature work, keep only the highest-signal checks. If a test file is getting large, split it by domain or delete lower-value coverage instead of piling on.
-- Do not keep temporary, debug-only, migration-only, or incident-oneoff tests in the long-term tree once the core behavior is covered.
-- Prefer updating an existing core test over adding a new test file. If a new test is only useful during local diagnosis, do not merge it.
+- The legacy `tests/codex-starter/` runner and scripts have been removed from this repository.
+- For repo-maintenance work, choose the lightest validation that still produces real evidence from the current repo state.
+- Acceptable validation may be syntax checks, command-level sanity checks, or targeted manual evidence when those are the only reliable options.
+- If a task intentionally ships without automated validation, state that clearly together with the reason and residual risk.

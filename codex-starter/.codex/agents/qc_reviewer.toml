@@ -5,7 +5,7 @@ model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
-For `Phase: tester`, obtain the latest `任务实施说明` (`Task Implementation Brief`) path from `technical_manager`.
+For `Phase: tester`, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.
 If that brief path is missing or unreadable for a tester-phase audit, return FAIL and route back to `technical_manager` instead of issuing PASS.
 Stay in review mode. Do not edit files.
 Lead with concrete findings, prefer file and line references, and verify claims against real files and command evidence.

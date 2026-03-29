@@ -1533,18 +1533,18 @@ export function resolveActivePlan(activePlans, input = {}, projectDir) {
     return null;
   }
 
-  const explicitPlan = [input.plan_path, input.planPath, input.plan]
+  const explicitBrief = [input.brief_path, input.briefPath, input.brief]
     .map((value) => String(value || "").trim())
     .find(Boolean);
 
-  if (explicitPlan) {
-    const exact = activePlans.filter((item) => item.planPath === explicitPlan);
+  if (explicitBrief) {
+    const exact = activePlans.filter((item) => item.planPath === explicitBrief);
     if (exact.length === 1) {
       return exact[0];
     }
 
     const byBase = activePlans.filter(
-      (item) => item.planPath && basenameLabel(item.planPath) === basenameLabel(explicitPlan)
+      (item) => item.planPath && basenameLabel(item.planPath) === basenameLabel(explicitBrief)
     );
     if (byBase.length === 1) {
       return byBase[0];
@@ -2203,12 +2203,12 @@ function normalizeStructuredRole(value) {
   return raw;
 }
 
-function normalizeStructuredPlanPath(structured) {
+function normalizeStructuredBriefPath(structured) {
   if (!structured || typeof structured !== "object" || Array.isArray(structured)) {
     return "";
   }
 
-  for (const candidate of [structured.plan_path, structured.planPath, structured.plan]) {
+  for (const candidate of [structured.brief_path, structured.briefPath, structured.brief]) {
     if (typeof candidate === "string" && candidate.trim()) {
       return candidate.trim();
     }
@@ -2298,11 +2298,11 @@ export function validateStructuredResultContract(role, message) {
     };
   }
 
-  if (status === "complete" && !normalizeStructuredPlanPath(structured)) {
+  if (status === "complete" && !normalizeStructuredBriefPath(structured)) {
     return {
       ok: false,
-      code: "missing_structured_result_plan_path",
-      reason: `${normalizedRole} structured result must include a non-empty plan_path to the active Task Implementation Brief.`,
+      code: "missing_structured_result_brief_path",
+      reason: `${normalizedRole} structured result must include a non-empty brief_path to the active Implementation Brief (任务实施说明).`,
       structured
     };
   }

@@ -5,7 +5,7 @@ model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
-Before validation, obtain the latest `任务实施说明` (`Task Implementation Brief`) path from `technical_manager`.
+Before validation, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.
 Treat that brief as the only execution input artifact for validation scope and acceptance.
 If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding.
 If the blocker is missing user clarification, ask `technical_manager` to route it through `Aide` to the user.
@@ -43,7 +43,7 @@ End every final report with this exact section:
 {
   "role": "tester",
   "status": "complete|blocked",
-  "plan_path": "plans/[task-implementation-brief].md",
+  "brief_path": "plans/[implementation-brief].md",
   "needs_qc": true,
   "workflow_chain_id": "",
   "validation_targets": [],
@@ -60,6 +60,6 @@ End every final report with this exact section:
   "blockers": []
 }
 ```
-For `status=complete`, `plan_path` must be a non-empty path to the active `Task Implementation Brief`.
+For `status=complete`, `brief_path` must be a non-empty path to the active `Implementation Brief` (`任务实施说明`).
 If the brief/path is missing, set status to blocked and include the concrete blocker.
 """

@@ -1,80 +1,53 @@
-# Project Progress
+# Task Progress (Current Snapshot)
 
-**Mode**: minimal long-running tracking
-**Last Updated**: YYYY-MM-DD HH:MM
-**Use This Template When**: the work needs lightweight durable tracking across steps or sessions, but release-specific promotion or deployment checkpoints are not the main concern.
+**Template Target**: `.codex/progress/active/<task-id>/current.md`
+**Archive Target**: `.codex/progress/archive/<task-id>/current.md`
+**Mode**: long-running (non-release)
+**Last Synced**: YYYY-MM-DD HH:MM
+**Latest Event**: `new-task|brief-refresh|handoff-switch|blocked|resume|completed`
+**Latest History Entry**: `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`
 
-If the work is mainly about promotion, deployment, release readiness, or post-push follow-through, use `.codex/templates/progress.release.md` instead.
+Use this template for long-running work where release promotion/deploy checkpoints are not the primary concern.
+If release checkpoints are primary, use `.codex/templates/progress.release.md` for the same `current.md` target.
 
 ---
 
-## Current Work
+## Task Identity
 
-### [Work Item Name]
+- Task ID: `<task-id>`
+- Work Item: [short title]
 - Task Class: `bugfix|feature|product|refactor|exploration`
 - Delivery Mode: `long-running`
-- Status: `active`
-- Started: YYYY-MM-DD
-- Last Updated: YYYY-MM-DD HH:MM
-- Implementation Plan: `[path/to/plan.md or N/A]`
-- Plan Summary: `[path/to/plan-summary.md or N/A]`
+- Status: `active|handoff|blocked|parked|completed`
+- Current Checkpoint: `align|brief|implement|validate|handoff|close`
+- Owner: `technical_manager`
+- Active Roles / Modules: `technical_manager`, [others or main agent]
+
+## Scope and Brief
+
+- Implementation Brief: `[path/to/implementation-brief.md or N/A]`
 - Scope:
   - [intended outcome]
   - [key files, modules, or surfaces]
-- Current Checkpoint: `[align|implement|validate|handoff]`
-- Active Roles / Modules: `technical_manager`, main agent
-- Validation Plan:
-  - `[command or manual check]`
+- Key Decisions:
+  - [decision summary or N/A]
+
+## Current State
+
+- Summary: [what changed since the previous history entry]
 - Next Step: [single next action]
+- Next Owner: [role]
 - Risks or Blockers: [none or short note]
-- Notes: [optional]
 
-<!-- Example:
-### Improve login error handling
-- Task Class: `bugfix`
-- Delivery Mode: `long-running`
-- Status: `active`
-- Implementation Plan: `plans/login-error-handling.md`
-- Plan Summary: `N/A`
-- Scope:
-  - make API errors user-readable
-  - update auth handler and related tests
-- Current Checkpoint: `validate`
-- Active Roles / Modules: `technical_manager`, `tester`, `coder`
-- Validation Plan:
-  - `pnpm test -- login`
-- Next Step: rerun focused auth tests after final copy update
--->
+## Validation
 
----
+- Last Verification:
+  - `[command or manual check + result]`
+- Pending Verification:
+  - `[next check or N/A]`
 
-## Completed
+## History Sync
 
-### [Work Item Name]
-- Completed: YYYY-MM-DD HH:MM
-- Outcome: [short result]
-- Validation: [key checks that passed]
-- Follow-up: [none or short note]
-
----
-
-## Parked or Blocked
-
-### [Work Item Name]
-- Status: `parked|blocked`
-- Since: YYYY-MM-DD HH:MM
-- Current Checkpoint: `[align|implement|validate|handoff]`
-- Reason: [short explanation]
-- Evidence:
-  - `[file:line or command snippet]`
-- Suggested Resume Point: [where to restart]
-- Owner: [person or role]
-
----
-
-## Optional Checkpoint Guide
-
-- `align`: confirm scope, files, owners, and the minimum modules needed
-- `implement`: make the change or complete the assigned handoff
-- `validate`: run the narrowest useful verification for the active risk
-- `handoff`: pause, transfer, or queue the clean next step for the next session
+- History Directory: `.codex/progress/active/<task-id>/history/`
+- Latest History Entry: `[timestamp-slug.md]`
+- Sync Rule: on `new-task|brief-refresh|handoff-switch|blocked|resume|completed`, append history and refresh this file in the same update cycle.

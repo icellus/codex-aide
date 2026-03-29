@@ -21,9 +21,15 @@ bash /path/to/agent-skills/codex-starter/install.sh
 - [install.sh](/workspace/agent-skills/codex-starter/install.sh)
 - [codex-starter/AGENTS.md](/workspace/agent-skills/codex-starter/AGENTS.md)
 
-维护与测试：
+维护入口：
 
 - [CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
-- [tests/codex-starter/README.md](/workspace/agent-skills/tests/codex-starter/README.md)
+- [discussion/codex-starter-refactor/CONTEXT.md](/workspace/agent-skills/discussion/codex-starter-refactor/CONTEXT.md)
+- [discussion/codex-starter-refactor/PLAN.md](/workspace/agent-skills/discussion/codex-starter-refactor/PLAN.md)
+
+说明：
+
+- 旧的 `tests/codex-starter/` 测试脚本已移除，不再作为仓库默认验证入口
+- 当前维护以任务相关的最小验证或明确记录“未验证”为准
 
 `claude-starter` 已从本仓库迁出，归档说明见：[CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md)

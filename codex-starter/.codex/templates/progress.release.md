@@ -1,86 +1,52 @@
-# Release Progress
+# Release Task Progress (Current Snapshot)
 
-**Mode**: release long-running tracking
-**Last Updated**: YYYY-MM-DD HH:MM
-**Release Goal**: [version, milestone, or deployment objective]
-**Current Checkpoint**: `[readiness|pre-release-checks|promote|follow-through|close]`
+**Template Target**: `.codex/progress/active/<task-id>/current.md`
+**Archive Target**: `.codex/progress/archive/<task-id>/current.md`
+**Mode**: long-running (release)
+**Last Synced**: YYYY-MM-DD HH:MM
+**Latest Event**: `new-task|brief-refresh|handoff-switch|blocked|resume|completed`
+**Latest History Entry**: `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`
 
-Use this template when release work needs explicit checkpoints, promotion notes, or post-release follow-through.
+Use this template when release work needs explicit readiness, promotion, and follow-through checkpoints.
+This file is the task-local `current.md` snapshot, not a root-level aggregate progress note.
 
 ---
+
+## Task Identity
+
+- Task ID: `<task-id>`
+- Release Goal: [version, milestone, or deployment objective]
+- Delivery Mode: `long-running`
+- Status: `active|handoff|blocked|parked|completed`
+- Current Checkpoint: `readiness|pre-release-checks|promote|follow-through|close`
+- Owner: `technical_manager`
+- Active Roles / Modules: `technical_manager`, [others or main agent]
 
 ## Release Snapshot
 
 - Scope: [what is being released]
 - Target: [environment, channel, or audience]
-- Active Roles / Modules: `technical_manager`, main agent
-- Related Plans:
-  - `[path or N/A]`
-- Validation Baseline:
-  - `[command or manual check]`
+- Related Briefs / Docs:
+  - `[path/to/implementation-brief.md or related doc or N/A]`
 - Rollback or Recovery Note: [short note or N/A]
 
----
+## Checkpoint Status
 
-## Active Checkpoints
+- Readiness: `not-started|active|done`
+- Pre-release Checks: `not-started|active|done`
+- Promote: `not-started|active|done`
+- Follow-through: `not-started|active|done`
+- Current Focus: [single checkpoint + next move]
 
-### Readiness
-- Status: `not-started|active|done`
-- Entry Criteria:
-  - [scope confirmed]
-  - [dependencies or approvals ready]
-- Notes: [optional]
+## Validation and Exceptions
 
-### Pre-release Checks
-- Status: `not-started|active|done`
-- Commands / Evidence:
-  - `[command, report, or manual check]`
-- `/qc`: `[not-needed|queued|done]`
+- Validation Evidence:
+  - `[command, report, incident id, link, or manual check]`
 - Risks or Exceptions: [none or short note]
+- Unblock Action (if blocked): [single best next move]
 
-### Promote
-- Status: `not-started|active|done`
-- Steps:
-  - [promotion or deploy action]
-- Evidence:
-  - `[link, log, build id, or note]`
-- Rollback Plan: [short note]
+## History Sync
 
-### Follow-through
-- Status: `not-started|active|done`
-- Monitoring / Smoke Checks:
-  - `[check or command]`
-- `/submit`: `[not-needed|queued|done]`
-- Exit Criteria: [what must be true to close]
-
----
-
-## Blockers or Exceptions
-
-### [Item Name]
-- Since: YYYY-MM-DD HH:MM
-- Checkpoint: `[readiness|pre-release-checks|promote|follow-through]`
-- Reason: [short explanation]
-- Evidence:
-  - `[command snippet, incident id, or file:line]`
-- Owner: [person or role]
-- Unblock Action: [single best next move]
-
----
-
-## Completed Releases or Milestones
-
-### [Release Goal]
-- Completed: YYYY-MM-DD HH:MM
-- Summary: [short result]
-- Validation: [key checks that passed]
-- Follow-up: [none or short note]
-
----
-
-## Decisions or Writebacks (Optional)
-
-### [YYYY-MM-DD HH:MM]
-- Decision: [important release choice]
-- Exception: [optional]
-- Writeback Candidate: `[none|/Aide|AGENTS.md|agent/skill/template path]`
+- History Directory: `.codex/progress/active/<task-id>/history/`
+- Latest History Entry: `[timestamp-slug.md]`
+- Sync Rule: on `new-task|brief-refresh|handoff-switch|blocked|resume|completed`, append history and refresh this file in the same update cycle.

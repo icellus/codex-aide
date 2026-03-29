@@ -21,7 +21,10 @@ Otherwise, plain-language intent should map to the same routes.
 - Treat repository exploration and environment setup as actions/capabilities, not primary role expansion points.
 - `technical_manager` produces and refreshes `任务实施说明`, which is the only execution input for `coder` and `tester`.
 - if `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`.
+- for long-running tasks, `technical_manager` owns `.codex/progress/**` writes and keeps `history` + `current.md` synchronized.
+- progress trigger events are fixed: `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, `completed`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`.
+- once the task enters the `product_manager` path, `architect` is mandatory as the next routing step before returning to `technical_manager`.
 - `coder` / `tester` / `qc` report only to `technical_manager` in the execution chain.
 - After required `tester` handoff in coder-involved work, `technical_manager` decides whether `/qc` is needed.
 - `/qc` is optional by risk or explicit audit need, and cannot replace `tester`.
@@ -37,7 +40,7 @@ Default staged chain for execution work:
 1. `Aide`: outer coordination and decision to enter delivery routing.
 2. `technical_manager`: execution entry, preconditions, conflict scan, and chain design.
 3. optional `product_manager`: product-manager clarification for unstable WHAT/WHY/MVP.
-4. optional `architect`: architect clarification for unstable system-level HOW.
+4. `architect`: mandatory when step 3 is active; otherwise enabled by `technical_manager` when system-level HOW remains unstable.
 5. `technical_manager`: produce or refresh `任务实施说明`.
 6. `coder`: implement against the latest `任务实施说明`.
 7. `tester`: validate against the same `任务实施说明`.
@@ -72,11 +75,14 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 
 - enter `technical_manager` when the task needs any execution workflow or durable artifact handoff
 - enable `product_manager` when scope, MVP, or success criteria are unstable
-- enable `architect` when interfaces, boundaries, or integration design are unstable
+- if `product_manager` path is active, require `architect` as the next step
+- if `product_manager` path is inactive, enable `architect` when interfaces, boundaries, or integration design are unstable
 - require `technical_manager` to produce or refresh `任务实施说明` before any `coder`/`tester` work
 - enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `coder` for implementation ownership, followed by required downstream `tester`
-- enable `long-running` mode and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
+- enable `long-running` mode and `.codex/progress/active/<task-id>/current.md` when work is multi-step, cross-session, blocked, or release-shaped
+- during long-running mode, on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md`
+- when `completed` is emitted, archive the task record to `.codex/progress/archive/<task-id>/...` after the final sync
 - enable `/qc` when risk is high, the user asks for audit, or release confidence needs it
 - enable `/submit` when governed commit/push or post-push follow-through matters
 
@@ -106,7 +112,10 @@ Environment setup decisions and preparation belong to `technical_manager`.
 - `.codex/state/task-registry.json`: cold task registry for current and unfinished task management
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: validation commands and constraints
-- `PROGRESS.md`: long-running checkpoints only
+- `.codex/progress/active/<task-id>/current.md`: primary long-running snapshot per active task
+- `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only long-running progress events
+- `.codex/progress/archive/<task-id>/...`: archived progress records for completed/closed tasks
+- `PROGRESS.md`: legacy optional note only, never the primary runtime progress source
 - `.codex/state/runtime-state.json`: reminders, QC follow-up, and runtime memory
 - `.codex/project-profile.md`: human summary only
 

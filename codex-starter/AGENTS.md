@@ -47,7 +47,11 @@ Project-level Codex workflow starter.
 - `.codex/state/evolution-registry.json`: cold evolution candidates and settled-task review log
 - `.codex/state/repo-context.json`: cached repo facts
 - `.codex/validation-profile.json`: repository validation baseline and constraints
-- `PROGRESS.md`: long-running checkpoint tracking only
+- `.codex/progress/active/<task-id>/current.md`: primary long-running task snapshot for active work
+- `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only progress events per active task
+- `.codex/progress/archive/<task-id>/...`: archived task progress snapshots and history
+- `.codex/templates/progress.md` / `.codex/templates/progress.release.md`: templates for `.codex/progress/**/current.md`
+- `.codex/templates/progress.history.md`: template for `.codex/progress/**/history/<timestamp>-<slug>.md`
 - `.codex/logs/codex-hooks/YYYY-MM-DD.jsonl`: raw Codex lifecycle event log captured by repo-local hooks
 - `.codex/state/runtime-state.json`: runtime memory, reminders, and QC follow-up
 - `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`: hook invocation log with stdin/stdout/stderr and runtime write traces; oversized daily logs rotate into numbered chunks
@@ -72,6 +76,7 @@ Project-level Codex workflow starter.
 - `Aide` coordinates, delegates, and closes the user-facing response; it must not become the default implementer or primary deep-dive troubleshooter for concrete repo changes
 - `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`; route execution chains to `technical_manager`
 - `technical_manager` is the execution-chain owner for entry, preconditions, environment readiness, `任务实施说明`, and staged execution management
+- once a task enters the `product_manager` path, `architect` is required next before returning to `technical_manager`
 - if `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`; `/qc` is optional by risk and cannot replace `tester`
 - after required `tester` handoff in coder-involved work, only `technical_manager` decides whether to enter `/qc`
 - `coder` / `tester` / `qc` handoff outputs must return to `technical_manager`; they do not route directly to `Aide` on the execution chain
@@ -83,7 +88,8 @@ Project-level Codex workflow starter.
 - `environment setup` and related readiness judgment belong to `technical_manager`
 - `/qc` is opt-in per task need or policy
 - `/submit` is the governed post-validation delivery step for commit, push, and optional post-push follow-through
-- only the main agent or runtime scripts write `.codex/state/*.json`, `.codex/project-profile.md`, or `PROGRESS.md`
+- only the main agent or runtime scripts write `.codex/state/*.json` or `.codex/project-profile.md`
+- only `technical_manager` writes `.codex/progress/**` (`current.md` and `history/*.md`)
 - allow only one write-capable subagent at a time
 - do not duplicate routing tables across files
 - low-cost evolution sweeps must not block the initial `/Aide` route

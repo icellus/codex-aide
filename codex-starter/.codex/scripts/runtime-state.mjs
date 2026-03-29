@@ -1006,11 +1006,11 @@ function detectMissingTaskImplementationBrief(role, message, structured = null) 
           .join("\n")
       );
     }
-    textParts.push(String(structured.plan_path || structured.planPath || structured.plan || ""));
+    textParts.push(String(structured.brief_path || structured.briefPath || structured.brief || ""));
   }
 
   const text = textParts.join("\n");
-  const mentionsBrief = /task implementation brief|任务实施说明|execution brief|execution input|plan_path/i.test(text);
+  const mentionsBrief = /implementation brief|任务实施说明|execution brief|execution input|brief_path|brief path/i.test(text);
   const missingSignal =
     /missing|not found|unreadable|cannot read|unable to read|not provided|empty|缺失|缺少|不存在|未提供|无法读取|不可读|为空|没给/i.test(
       text
@@ -1352,7 +1352,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
     const contract = validateStructuredResultContract(role, message);
     if (!contract.ok) {
       const scopedTaskId = resolveWorkflowScopedTaskId(taskId, workflow);
-      const missingBriefByContract = contract.code === "missing_structured_result_plan_path";
+      const missingBriefByContract = contract.code === "missing_structured_result_brief_path";
       clearExecutionContinuation(state, scopedTaskId);
       updateWorkflowState(workflow, {
         phase: role,
@@ -1544,12 +1544,12 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
     const blockedNote = isAmbiguousBlockedScope
       ? `Recent ${role} blockage detected, but active task ownership is ambiguous. Resolve ownership (currentTaskId/cwd/worktree/branch) before resuming.`
       : missingImplementationBrief
-        ? `Recent ${role} blockage detected: Task Implementation Brief is missing or unreadable. Stop downstream tester/qc/submit and route back through technical_manager. If user clarification is needed, technical_manager should collect it via Aide -> user.`
+        ? `Recent ${role} blockage detected: Implementation Brief (任务实施说明) is missing or unreadable. Stop downstream tester/qc/submit and route back through technical_manager. If user clarification is needed, technical_manager should collect it via Aide -> user.`
       : `Recent ${role} blockage detected. Route back through technical_manager and review the structured handoff before continuing.`;
     const reviewNote = isAmbiguousBlockedScope
       ? `A ${role} handoff blocked while multiple active plans were unresolved. Investigate task ownership first, then route fixes to the correct task chain.`
       : missingImplementationBrief
-        ? `A ${role} handoff was blocked because Task Implementation Brief was missing or unreadable. Resume only after technical_manager refreshes the brief; if user clarification is required, route via technical_manager -> Aide -> user.`
+        ? `A ${role} handoff was blocked because Implementation Brief (任务实施说明) was missing or unreadable. Resume only after technical_manager refreshes the brief; if user clarification is required, route via technical_manager -> Aide -> user.`
       : `A ${role} handoff blocked the workflow. Investigate whether execution entry, technical_manager brief ownership, role boundaries, or shared guidance caused the break.`;
 
     upsertPendingAction(state, {
