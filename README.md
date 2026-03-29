@@ -38,8 +38,8 @@ bash /path/to/agent-skills/codex-starter/install.sh
 ```bash
 node tests/codex-starter/run.mjs
 node tests/codex-starter/run.mjs --file codex-starter/AGENTS.md
-node tests/codex-starter/run.mjs --suite fast
 node tests/codex-starter/run.mjs --suite smoke
+node tests/codex-starter/run.mjs --suite full
 ```
 
 默认建议：

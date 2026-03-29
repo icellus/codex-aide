@@ -26,7 +26,7 @@ Repository-level maintenance guidance for this repo.
 - For bounded subagent-owned work, prefer targeted validation with explicit files instead of whole-worktree guessing:
   `node tests/codex-starter/run.mjs --file <path> --file <path>`
 - Use explicit suites only when you deliberately need them:
-  `--suite fast`, `--suite smoke`, `--suite mutation`, `--suite full`
+  `--suite contract`, `--suite smoke`, `--suite full`
 - If the runner, manifest, shared test helpers, or multiple runtime/test layers changed together, run:
   `node tests/codex-starter/run.mjs --suite full`
 
@@ -66,3 +66,6 @@ Repository-level maintenance guidance for this repo.
 - `node tests/codex-starter/run.mjs` auto-selects the minimal mapped suites from the current git worktree.
 - `node tests/codex-starter/run.mjs --file ...` does the same for an explicit file set.
 - Docs-only changes may legitimately map to no test suite; do not invent fake coverage.
+- Keep the test inventory intentionally small and executable.
+- New test files or larger test bodies require an explicit budget update in the contract gate; do not let `tests/` grow by drift.
+- For feature work, keep only the highest-signal checks. If a test file is getting large, split it by domain or delete lower-value coverage instead of piling on.

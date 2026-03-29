@@ -5,134 +5,80 @@ const manifestPath = fileURLToPath(import.meta.url);
 const testRootDir = path.dirname(manifestPath);
 const repoRootDir = path.resolve(testRootDir, "..", "..");
 
-const contractFiles = [
-  "contract/aide-authority-alignment.contract.mjs",
-  "contract/aide-baseline.contract.mjs",
-  "contract/aide-conflict.contract.mjs",
-  "contract/aide-dialogue.contract.mjs",
-  "contract/aide-routing-matrix.contract.mjs",
-  "contract/aide-staffing.contract.mjs",
-  "contract/test-manifest.contract.mjs"
-];
-
-const behaviorFiles = [
-  "behavior/aide-adversarial-behavior.mjs",
-  "behavior/aide-delegation-behavior.mjs",
-  "behavior/aide-reply-behavior.mjs"
-];
-
-const mutationFiles = [
-  "mutation/aide-baseline.mutation.mjs",
-  "mutation/aide-conflict.mutation.mjs",
-  "mutation/aide-routing-matrix.mutation.mjs"
-];
+const contractFiles = ["contract/test-manifest.contract.mjs"];
 
 const smokeFiles = [
   "smoke/log-analysis.smoke.mjs",
-  "smoke/runtime-hooks.smoke.mjs"
+  "smoke/runtime-workflow.smoke.mjs",
+  "smoke/runtime-ops.smoke.mjs",
+  "smoke/runtime-overview.smoke.mjs"
 ];
 
 export const suiteDefinitions = {
   contract: {
     kind: "leaf",
-    description: "authority and text contract checks",
+    description: "runner and suite-selection contract checks",
     files: contractFiles
-  },
-  behavior: {
-    kind: "leaf",
-    description: "reply, delegation, and adversarial behavior checks",
-    files: behaviorFiles
-  },
-  mutation: {
-    kind: "leaf",
-    description: "anti-regression mutation checks",
-    files: mutationFiles
   },
   smoke: {
     kind: "leaf",
     description: "runtime, install, and log-analysis smoke checks",
     files: smokeFiles
   },
-  fast: {
-    kind: "aggregate",
-    description: "daily fast path for contract and behavior coverage",
-    includes: ["contract", "behavior"]
-  },
   full: {
     kind: "aggregate",
-    description: "full repository maintenance coverage",
-    includes: ["contract", "behavior", "mutation", "smoke"]
+    description: "full executable repository maintenance coverage",
+    includes: ["contract", "smoke"]
   }
 };
 
-export const suiteOrder = ["contract", "behavior", "mutation", "smoke", "fast", "full"];
+const leafSuiteNames = Object.entries(suiteDefinitions)
+  .filter(([, definition]) => definition.kind === "leaf")
+  .map(([suiteName]) => suiteName);
+
+export const suiteOrder = ["contract", "smoke", "full"];
 
 export const selectionRules = [
   {
     id: "test-runner-core",
     patterns: ["tests/codex-starter/run.mjs", "tests/codex-starter/manifest.mjs"],
     suites: ["full"],
-    reason: "runner or manifest changes affect test selection across all layers"
+    reason: "runner or manifest changes affect test selection and execution flow"
   },
   {
     id: "test-helpers",
     patterns: [/^tests\/codex-starter\/helpers\//],
     suites: ["full"],
-    reason: "shared test helpers affect multiple suites"
+    reason: "shared test helpers affect multiple executable suites"
   },
   {
     id: "contract-tests",
     patterns: [/^tests\/codex-starter\/contract\//],
     suites: ["contract"],
-    reason: "contract-layer test change"
-  },
-  {
-    id: "behavior-tests",
-    patterns: [/^tests\/codex-starter\/behavior\//],
-    suites: ["behavior"],
-    reason: "behavior-layer test change"
-  },
-  {
-    id: "mutation-tests",
-    patterns: [/^tests\/codex-starter\/mutation\//],
-    suites: ["mutation"],
-    reason: "mutation-layer test change"
+    reason: "suite-definition or selection-contract change"
   },
   {
     id: "smoke-tests",
     patterns: [/^tests\/codex-starter\/smoke\//],
     suites: ["smoke"],
-    reason: "smoke-layer test change"
+    reason: "runtime smoke coverage changed"
   },
   {
-    id: "repo-maintenance-guidance",
-    patterns: ["AGENTS.md"],
-    suites: ["contract"],
-    reason: "repo-level maintenance guidance is enforced by contract coverage only"
-  },
-  {
-    id: "runtime-authority",
-    patterns: [
-      "codex-starter/AGENTS.md",
-      "codex-starter/.codex/routing-policy.md",
-      /^codex-starter\/\.codex\/agents\//,
-      /^codex-starter\/\.agents\/skills\//
-    ],
-    suites: ["fast", "smoke"],
-    reason: "runtime authority and role contracts affect prompt behavior and runtime orchestration"
-  },
-  {
-    id: "runtime-install-and-hooks",
+    id: "runtime-artifacts",
     patterns: [
       "codex-starter/install.sh",
+      "codex-starter/AGENTS.md",
       "codex-starter/.codex/config.toml",
       "codex-starter/.codex/hooks.json",
+      "codex-starter/.codex/routing-policy.md",
+      /^codex-starter\/\.codex\/agents\//,
       /^codex-starter\/\.codex\/hooks\//,
       /^codex-starter\/\.codex\/scripts\//,
-      /^codex-starter\/\.codex\/bootstrap-state\//
+      /^codex-starter\/\.codex\/bootstrap-state\//,
+      /^codex-starter\/\.agents\/skills\//
     ],
     suites: ["smoke"],
-    reason: "install, hook, runtime helper, and bootstrap-state changes are covered by smoke"
+    reason: "installed runtime artifacts and smoke fixtures depend on these files; prompt-text semantics are not implied"
   },
   {
     id: "runtime-policy-json",
@@ -142,17 +88,23 @@ export const selectionRules = [
       "codex-starter/.codex/validation-profile.json"
     ],
     suites: ["smoke"],
-    reason: "runtime policy json changes affect hook/runtime behavior"
+    reason: "runtime policy json changes affect executable runtime behavior"
   },
   {
     id: "archived-or-legacy-paths",
-    patterns: [/^claude-starter\//, /^codex-starter\/tests\//],
+    patterns: [
+      /^claude-starter\//,
+      /^codex-starter\/tests\//,
+      /^tests\/codex-starter\/behavior\//,
+      /^tests\/codex-starter\/mutation\//
+    ],
     suites: [],
-    reason: "archived component or legacy test-path cleanup with no active mapped suite"
+    reason: "archived component or retired legacy suite path with no active mapped suite"
   },
   {
-    id: "docs-only",
+    id: "docs-and-maintenance-guides",
     patterns: [
+      "AGENTS.md",
       "README.md",
       "NEXT_SESSION_CONTEXT.md",
       "CLAUDE_STARTER_ARCHIVE.md",
@@ -161,7 +113,7 @@ export const selectionRules = [
       /^codex-starter\/docs\//
     ],
     suites: [],
-    reason: "docs-only change with no mapped repository test suite"
+    reason: "documentation and maintenance guidance changes have no direct executable suite mapping"
   }
 ];
 
@@ -229,25 +181,11 @@ export function compressLeafSuites(leafSuites) {
     return [];
   }
 
-  const allLeaves = ["contract", "behavior", "mutation", "smoke"];
-  if (allLeaves.every((name) => remaining.has(name))) {
+  if (leafSuiteNames.length > 1 && leafSuiteNames.every((name) => remaining.has(name))) {
     return ["full"];
   }
 
-  const selected = [];
-  if (remaining.has("contract") && remaining.has("behavior")) {
-    selected.push("fast");
-    remaining.delete("contract");
-    remaining.delete("behavior");
-  }
-
-  for (const name of ["contract", "behavior", "mutation", "smoke"]) {
-    if (remaining.has(name)) {
-      selected.push(name);
-    }
-  }
-
-  return selected;
+  return leafSuiteNames.filter((name) => remaining.has(name));
 }
 
 export function explainSelectionForFiles(files) {
@@ -277,7 +215,7 @@ export function explainSelectionForFiles(files) {
     }
   }
 
-  const leafSuites = ["contract", "behavior", "mutation", "smoke"].filter((name) => selectedLeafSuites.has(name));
+  const leafSuites = leafSuiteNames.filter((name) => selectedLeafSuites.has(name));
   const suites = compressLeafSuites(leafSuites);
 
   return {
