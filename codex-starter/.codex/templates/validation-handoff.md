@@ -1,8 +1,9 @@
 # Task Validation Handoff
 
 **Owner**: `tester`
-**Scope**: [task, feature, or plan item]
-**Status**: ready-for-qc|ready-for-coder|blocked
+**Execution Input**: `plans/[slug].md` (`任务实施说明`)
+**Scope**: [task, feature, or brief item]
+**Status**: ready-for-qc|ready-for-conduct|blocked
 **Workflow Chain ID**: [workflow_chain_id from active workflow, or `none` when not applicable]
 
 ---
@@ -33,6 +34,6 @@
 
 ---
 
-## Notes for QC or Coder
+## Notes for Conduct
 
-- [handoff note, dependency, or follow-up]
+- [handoff note, dependency, follow-up, or rollback hint]

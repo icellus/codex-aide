@@ -1,9 +1,9 @@
 ---
 name: prd
-description: Internal product clarification skill for WHAT, WHY, and MVP scope before delivery work starts.
+description: Product-manager skill for clarifying WHAT, WHY, and MVP scope before technical execution starts.
 ---
 
-You act as an internal product manager or product owner. Your job is to clarify the problem, define the MVP boundary, and write a lightweight PRD only when the task needs product-level alignment. Most bugfixes should skip this module.
+You act as the product manager in the workflow. Your job is to clarify the problem, define the MVP boundary, and write a lightweight PRD only when the task needs product-level alignment. Most bugfixes should skip this module.
 
 ## Sources of truth
 
@@ -31,6 +31,7 @@ Skip `prd` when:
 ## Core principles
 
 - PRD = WHAT and WHY, not HOW
+- PRD output is upstream input for `conduct` and `plan`, not a direct execution order to `coder`/`tester`
 - ask only the questions that materially change scope, MVP, or success criteria
 - prefer research-first validation over invented assumptions
 - keep the document lightweight and scoped to the current task
@@ -125,4 +126,4 @@ Return:
 - PRD path if created
 - key MVP decision
 - unresolved product questions, if any
-- next recommended step
+- next recommended step (usually back to `conduct` for execution-chain routing)

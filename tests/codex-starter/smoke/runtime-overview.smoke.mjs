@@ -243,14 +243,13 @@ function testTaskSettledFallbackBindsMissingTesterSignalsToRequiredTaskId() {
 
   const state = readRuntimeState(dir);
   const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
-  const aideReview = state.pendingActions.find(
-    (item) => item.type === "aide_review" && item.sourceRole === "task_settled"
+  const governanceReview = state.pendingActions.find(
+    (item) => item.type !== "blocked_review" && /review$/i.test(String(item.type || "")) && item.taskId === requiredTaskId
   );
 
   assert.ok(blocked);
   assert.equal(blocked.taskId, requiredTaskId);
-  assert.ok(aideReview);
-  assert.equal(aideReview.taskId, requiredTaskId);
+  assert.ok(governanceReview);
 }
 
 function testSessionEndWorkflowGuardBlocksCloseoutWithoutPendingTesterAction() {

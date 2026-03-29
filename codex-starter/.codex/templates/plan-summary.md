@@ -1,7 +1,7 @@
-# Plan Summary: [Title]
+# Task Implementation Brief Summary: [Title]
 
-**Implementation Plan**: `plans/[slug].md`
-**Status**: ready-for-dev
+**Task Implementation Brief**: `plans/[slug].md`
+**Status**: ready-for-coder
 **Depends On**: [Dependencies or N/A]
 
 ---
@@ -20,9 +20,9 @@
 
 ---
 
-## Coordination Notes
+## Execution Chain Notes
 
-- Shared components: [components that may conflict with other active work]
-- Active handoff: [tester|coder|qc|follow or N/A]
+- Chain owner: `conduct`
+- Active handoff: [conduct|coder|tester|qc|submit|follow or N/A]
 - Major risks: [short bullets]
-- Regenerate this summary if the main plan changes materially
+- Regenerate this summary if the main brief changes materially

@@ -1,158 +1,152 @@
 ---
 name: plan
-description: Create the lightest durable Implementation Plan needed for the current task.
+description: Create the lightest durable 任务实施说明 (Task Implementation Brief) for execution.
 ---
 
-You create an `Implementation Plan` when delivery routing says the task needs durable implementation guidance, clearer scope, or a reusable handoff. Use one plan artifact by default. Add a plan summary only when `long-running` mode truly needs cross-session or cross-role state.
+You produce `任务实施说明` (`Task Implementation Brief`) for delivery execution.
+
+`conduct` decides when this module is active.
+When `coder` or `tester` is in the chain, this artifact is mandatory and is their only execution input.
 
 ## Sources of truth
 
-- `.codex/project-profile.md` is the first place to read for task class, risk, and recommended delivery mode
-- `conduct` decides whether the `plan` module is active
-- the user's stated goal is part of the decision input
-- repository code, tests, and manifests are the primary implementation context
-- `PRD.md` is the first optional upstream artifact when the `prd` module is active
-- `ARCHITECTURE.md` is the first optional technical upstream artifact when the `architect` module is active
+- `.codex/project-profile.md` for task class/risk/mode context
+- `conduct` route decision and execution-chain requirements
+- user goal and constraints
+- repository code/tests/manifests as primary implementation context
+- optional upstream artifacts: `PRD.md` and `ARCHITECTURE.md`
 
-## Phase 0: Decide whether a plan should be created
+## Phase 0: Decide whether artifact is needed
 
 Choose one outcome:
 
 ### Outcome A: `skip`
 
-Use when:
+Use only when:
 
-- the task is tiny and still safely fits `lightweight`
-- no durable handoff or written scope is needed
-- the user did not explicitly ask for a plan artifact
-
-In this case, return a short note that lightweight execution is sufficient.
+- task stays in discussion/product clarification and does not activate `coder`/`tester`
+- durable execution guidance would add process without value
 
 ### Outcome B: `plan`
 
 Use when:
 
-- the task needs written implementation guidance or handoff
-- the task is a normal feature, non-trivial bugfix, or non-trivial refactor
-- requirements are clear enough that one implementation-focused artifact is sufficient
+- execution chain needs one durable `任务实施说明`
+- task is non-trivial bugfix/feature/refactor needing stable handoff
+- `coder` or `tester` is active (mandatory)
 
 ### Outcome C: `plan+summary`
 
 Use when:
 
 - `long-running` mode is active
-- multiple roles or sessions need the same durable context
-- conflict scanning or follow-up checkpoints benefit from a short summary artifact
+- multiple sessions/roles need a compact coordination snapshot
 
-Do not create a second heavier artifact type just because the task is larger. Keep the main artifact as `Implementation Plan` and add only the optional sections the task really needs.
-
-If the task still lacks a stable WHAT, WHY, or MVP boundary, stop and route back to `prd` instead of inventing requirements inside the plan.
-
-If the task lacks stable HOW at system level, stop and route to `architect` instead of inventing architecture inside the plan.
+Do not create extra heavy artifacts by default.
+If WHAT/WHY/MVP is unstable, stop and route to `prd`.
+If system-level HOW is unstable, stop and route to `architect`.
 
 ## Phase 1: Gather context
 
 Always read:
 
 1. `.codex/project-profile.md`
-2. the user's goal
-3. dependency manifests such as `go.mod`, `package.json`, `pyproject.toml`, or equivalents
-4. the most relevant implementation and test files in the target area
+2. user goal and latest `conduct` handoff
+3. dependency manifests (`go.mod`, `package.json`, `pyproject.toml`, or equivalents)
+4. most relevant implementation and test files
 
-Read these only when they clearly matter:
+Read when relevant:
 
 1. `PRD.md`
 2. `ARCHITECTURE.md`
-3. prior plans that define dependencies or conventions
+3. prior plans with active dependencies
 
 Extract:
 
 - exact target files or candidate files
-- nearby patterns to reuse
-- relevant libraries and tooling
+- reusable local patterns
+- key libraries/tooling constraints
 - local validation commands
-- obvious risks, sequencing needs, or unknowns
+- sequencing needs and known risks
 
-## Phase 2: Write the Implementation Plan
-
-Default to one implementation-focused artifact.
+## Phase 2: Write 任务实施说明
 
 Recommended structure:
 
 ```markdown
-# Implementation Plan: [Title]
+# 任务实施说明 (Task Implementation Brief): [Title]
 
-**Status**: ready-for-dev
+**Status**: ready-for-coder
 **Task Class**: [bugfix|feature|refactor|release-follow-up|exploration]
 **Goal**: [one-sentence outcome]
+**Execution Owners**: `coder -> tester`
 
 ## Context
 - why this work exists
-- relevant repo facts only
+- only relevant repo facts
 
 ## Scope
-- what is in scope
-- what is explicitly out of scope when useful
+- in scope
+- out of scope (if needed)
 
 ## Target Files / Modules
 - `path/to/file`
 
 ## Implementation Steps
-1. concrete step
-2. concrete step
+1. concrete executable step
+2. concrete executable step
 
-## Validation
-- nearest tests, lint, or build checks to run
+## Validation Plan
+- nearest tests/lint/build checks
 
 ## Risks / Notes
-- only meaningful risks or caveats
+- meaningful risks only
 ```
 
-Optional sections when complexity justifies them:
+Optional sections only when needed:
 
 - `## Technical Approach`
 - `## Dependencies / Sequencing`
 - `## Open Questions`
 
-Use `Technical Approach` only when the task needs an explicit design choice, interface change, or architectural tradeoff. Do not default to a separate technical design document for normal work.
+## Phase 3: Artifact paths
 
-## Phase 3: Write artifact paths
+### Main brief
 
-### Main plan
+- prefer durable path: `plans/[slug].md` unless repository convention differs
+- avoid invented ticket IDs unless project already uses them
 
-- prefer a durable path such as `plans/[slug].md` unless the project already has a naming convention
-- do not invent ticket IDs or numbered plan IDs unless the repository already uses them
+### Optional summary
 
-### Optional plan summary
+- create only when `long-running` and cross-session coordination truly benefits
+- prefer durable path: `plans/[slug]-summary.md`
 
-- create a summary only when `long-running` mode is active and the summary will actually help
-- use a durable path such as `plans/[slug]-summary.md` unless the project already has a convention
+Summary should include only:
 
-Summary content should stay short and include only:
-
-- full plan path
-- status
+- full brief path
+- current status
 - key scope bullets
 - planned files
-- dependencies or handoff notes
+- dependencies/handoff notes
 - major risks
 
-## Phase 4: Validate the output
+## Phase 4: Validate output
 
 Before finishing:
 
-- ensure the plan matches the real repository context
+- ensure content matches real repository context
 - ensure planned files are real or intentionally new
-- ensure the plan stays implementation-focused rather than generic theory
-- ensure optional sections are present only when they add real value
-- ensure the summary never adds requirements missing from the main plan
+- ensure guidance is execution-focused, not generic theory
+- ensure optional sections are present only when useful
+- ensure summary does not add requirements absent from main brief
+- ensure `coder`/`tester` can execute solely from this artifact plus repo evidence
 
 ## Output contract
 
 Return:
 
 - selected outcome: `skip`, `plan`, or `plan+summary`
-- plan path if created
+- brief path if created
 - summary path if created
 - blockers or open questions
 - next recommended step

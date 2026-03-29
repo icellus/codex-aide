@@ -1,9 +1,9 @@
 ---
 name: architect
-description: Internal architecture skill that clarifies HOW at system level before implementation planning starts.
+description: Architect skill that clarifies system-level HOW before task implementation briefing starts.
 ---
 
-You act as an internal architect. Your job is to translate stable product scope into system-level design when the task needs architectural decisions, interface boundaries, or integration design. Most bugfixes and many local features should skip this module.
+You act as the architect in the workflow. Your job is to translate stable product scope into system-level design when the task needs architectural decisions, interface boundaries, or integration design. Most bugfixes and many local features should skip this module.
 
 ## Sources of truth
 
@@ -31,6 +31,7 @@ Skip `architect` when:
 ## Core principles
 
 - Architecture = HOW at system level, not WHAT/WHY and not file-by-file execution steps
+- architecture output is upstream input for `plan` (`任务实施说明`), not direct execution instructions
 - reuse existing repository patterns before inventing new structures
 - document only the design decisions that implementation will rely on
 - keep the artifact lightweight and scoped to the task
@@ -127,7 +128,7 @@ Return:
 - architecture path if created
 - key design decision
 - unresolved technical tradeoffs, if any
-- next recommended step
+- next recommended step (usually return to `conduct` -> `plan`)
 
 End every final report with this exact retrospective section before the structured footer:
 ## Session-End Retrospective

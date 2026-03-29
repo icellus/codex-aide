@@ -2,9 +2,10 @@
 
 This file is the routing authority.
 
-`Aide` selects or refreshes the route.
-`conduct` applies it to active delivery.
-`.codex/state/task-context.json` records the current choice.
+`Aide` owns outer coordination: user-facing intake, governance, and closeout.
+`conduct` is the technical-manager layer for delivery.
+Once a task needs durable artifacts or execution ownership, it must enter `conduct` before any execution role is activated.
+`.codex/state/task-context.json` records current route and checkpoints.
 
 `/Aide`, `/qc`, and `/submit` are route aliases only when the client supports custom slash commands.
 Otherwise, plain-language intent should map to the same routes.
@@ -13,34 +14,39 @@ Otherwise, plain-language intent should map to the same routes.
 
 - Prefer the lightest workflow that can safely finish the task.
 - Keep `lightweight` as the default for small, local, low-risk work.
-- Add durable artifacts only when coordination, uncertainty, or risk requires them.
-- Keep lightweight discussion, Q&A, and option-comparison work inside `Aide` when the user is not asking for a durable artifact or an execution workflow.
-- For read-heavy analysis requests that need repository evidence (for example, checking whether a copied service is incomplete), default to `Aide -> repo_explorer -> Aide`.
-- In that read-heavy analysis flow, `Aide` should synthesize findings instead of deep-reading large implementation areas or running validation commands unless the user explicitly asks for execution-level proof.
-- `Aide` must not execute concrete repo changes itself; once the task requires code, config, script, test, documentation, or any other durable artifact, assign the smallest fitting execution role or hand off to `conduct`.
-- For concrete implementation tasks, `Aide` should prefer cached state plus minimal boundary evidence over deep local code reading before delegation.
-- When ownership is unclear, prefer `repo_explorer` or `conduct` before broad local reading by `Aide`.
-- Missing or stale repo context does not override early delegation for a clearly scoped implementation task; use minimal triage first, then delegate.
-- Use a full scan before delegation only when the user explicitly asked for repo-wide assessment, ownership is still unclear after minimal triage, or change boundaries remain high-risk and unknown.
-- New repo, cold start, or thin context is not by itself a reason to activate the whole team.
-- When execution roles are active, prefer real subagents when delegation is available.
-- When a new task chain starts and read-heavy analysis or multi-step delegation has clear value, prefer subagent-first execution to keep the main thread context clean.
-- Route directly to `product_assistant` when the primary deliverable is a non-code artifact.
-- `environment setup` belongs to `conduct`, including dependency installation, toolchain bootstrap, and runtime preparation.
-- Any route that activates `coder` must include a downstream `tester` handoff before the task can settle or submit.
-- `/qc` is decided by task risk and audit need only, and `/qc` cannot replace the required `tester` handoff after `coder`.
-- `/qc` is optional unless the task or policy explicitly enables it.
-- `/submit` is the governed delivery step after local completion or QC pass when commit, push, or post-push follow-through matters.
-- Main-thread completion, diff review, or direct closeout cannot substitute for a missing `tester` handoff once `coder` has participated.
+- Keep discussion, Q&A, option comparison, and non-delivery analysis in `Aide`.
+- `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`.
+- For any concrete repo change or durable artifact workflow, route to `conduct` first.
+- `conduct` owns execution entry, precondition checks, repository understanding depth, environment readiness, and staged handoff management.
+- Treat repository exploration and environment setup as actions/capabilities, not primary role expansion points.
+- `plan` output is a `任务实施说明` (`Task Implementation Brief`) and is the only execution input for `coder` and `tester`.
+- If `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`.
+- `/qc` is optional by risk or explicit audit need, and cannot replace `tester`.
+- `/submit` is the governed delivery step after required validation gates.
+- Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
+
+## Delivery Chain
+
+Default staged chain for execution work:
+
+1. `Aide`: outer coordination and decision to enter delivery routing.
+2. `conduct`: execution entry, preconditions, conflict scan, and chain design.
+3. optional `prd`: product-manager clarification for unstable WHAT/WHY/MVP.
+4. optional `architect`: architect clarification for unstable system-level HOW.
+5. `plan`: produce or refresh `任务实施说明` (`Task Implementation Brief`).
+6. `coder`: implement against the latest `任务实施说明`.
+7. `tester`: validate against the same `任务实施说明`.
+8. optional `/qc`: independent audit when risk/policy requires.
+9. optional `/submit`: governed commit/push/follow-through.
+
+Do not skip step 5 when `coder` or `tester` is active.
 
 ## Delegation Context And Fork Policy
 
-- Subagent delegation should default to token-efficient execution: complete the task independently without wasting context or token budget.
+- Subagent delegation should default to token-efficient execution.
 - Do not default to `fork_context: true`.
 - For bounded tasks with clear goal and write set, prefer `fork_context: false` plus a minimal but complete assignment brief.
 - Use `fork_context: true` only when the subagent genuinely needs full conversation state and the main thread's immediate next step depends on that inherited context.
-- Delegation reliability is mandatory: the main thread must provide the smallest context package that is still complete enough for independent execution.
-- Avoid both extremes: no blind full-thread fork, and no underspecified handoff that forces retries.
 
 ## Default Modes
 
@@ -55,42 +61,38 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 
 - default owner: `Aide`
 - default state behavior: no durable state write
-- escalate only when the task turns into implementation, validation ownership, or artifact delivery
+- escalate only when the task turns into delivery workflow, validation ownership, or artifact output
 
 ## Upgrade Triggers
 
+- enter `conduct` when the task needs any execution workflow or durable artifact handoff
 - enable `prd` when scope, MVP, or success criteria are unstable
 - enable `architect` when interfaces, boundaries, or integration design are unstable
-- enable `plan` when implementation guidance needs a durable artifact
+- enable `plan` when implementation guidance is needed; if `coder`/`tester` is active, `plan` is mandatory
 - enable `product_assistant` when the primary deliverable is a non-code artifact
-- enable `coder` for implementation ownership, and always enable downstream `tester` when `coder` is active
+- enable `coder` for implementation ownership, followed by required downstream `tester`
 - enable `long-running` mode and `PROGRESS.md` when work is multi-step, cross-session, blocked, or release-shaped
-- enable `/qc` when risk is high, the user asks for an audit, or release confidence needs it
-- enable `/submit` when the task should finish with governed commit, push, or optional post-push delivery follow-through
+- enable `/qc` when risk is high, the user asks for audit, or release confidence needs it
+- enable `/submit` when governed commit/push or post-push follow-through matters
 
-Do not upgrade a lightweight discussion into an execution route only because the topic is technical or complex.
-Upgrade only when the expected output changes from advice to a concrete deliverable.
+Do not upgrade discussion-only turns into execution routes merely because the topic is technical.
 
 ## Role Staffing
 
 - Start with the smallest active team that can safely finish the current task.
-- For lightweight advice, Q&A, analysis, and option comparison, keep only `Aide` active unless the task later turns into delivery.
-- For read-heavy analysis with repository fact-finding value, keep `Aide` user-facing and add a short-lived `repo_explorer` pass.
-- For a clear small repo change, activate one clear execution role first instead of waking multiple roles.
-- If `coder` is active, keep `tester` active in the same delivery chain as a required downstream handoff.
-- Activate `/qc` only when risk is high or explicit audit confidence is needed; `/qc` does not replace `tester`.
-- Use `repo_explorer` only as a short-lived read-only helper when ownership, entrypoints, or boundaries are unclear.
-- Activate `conduct` when environment setup decisions/preparation, conflict checks, or multi-role delivery routing actually matter.
-- Activate `prd`, `architect`, or `plan` only for genuine scope, HOW, or implementation-structure uncertainty.
-- Activate `/submit` only when governed delivery or commit/push follow-through matters.
-- When the task narrows or uncertainty is resolved, drop roles that are no longer needed instead of keeping the whole team active.
-- Avoid multiple write-capable execution roles at the same time unless `conduct` coordinates a staged handoff.
+- Keep `Aide` alone for lightweight advice, Q&A, analysis, and option comparison.
+- For any execution route, activate `conduct` first, then activate downstream roles through `conduct`.
+- Use repository exploration as a short-lived action inside routing/execution when ownership, entrypoints, or boundaries are unclear.
+- Keep one focused write-capable execution role at a time unless `conduct` explicitly stages a safe handoff.
+- If uncertainty resolves, drop unnecessary roles immediately.
 
 ## Environment Setup
 
 - default: `skip`
 - choose `current-workspace` for small readiness checks or bootstrap steps
 - choose `isolated-workspace` only when conflict risk or policy makes isolation useful
+
+Environment setup decisions and preparation belong to `conduct`.
 
 ## Durable State
 
@@ -107,7 +109,7 @@ Upgrade only when the expected output changes from advice to a concrete delivera
 
 Queue or remind `/qc` only when:
 
-1. a required `tester` handoff completed
+1. required `tester` handoff in the active execution chain is complete
 2. the current task enables QC through `qc_policy` or enabled modules
 3. the handoff is not blocked and not just a progress ping
 
@@ -115,20 +117,18 @@ Queue or remind `/qc` only when:
 
 Queue or remind `/submit` when:
 
-1. a required `tester` handoff completed and QC is disabled
-2. QC passed after a required `tester` handoff, or the task settled with QC already satisfied
-3. the delivery policy enables governed submit for the current task
+1. required `tester` handoff completed and QC is disabled
+2. QC passed after required `tester` handoff, or the task settled with QC already satisfied
+3. delivery policy enables governed submit for the current task
 
 ## Route Output
 
 When routing changes, persist full routing details in state.
-In the user-facing reply, return only:
+In user-facing replies, return only:
 
 - who acts next
 - the immediate next step
 - the shortest useful reason in plain language
 
-Aide analysis replies should sound like coordination: concise conclusion, next owner, and next move, not memo-style technical writeups unless the user explicitly asks for that format.
-
-Do not expose task class, delivery mode, enabled modules, or other internal workflow labels unless the user explicitly asks about the workflow design.
-Do not present coordination work as if `Aide` is personally going to implement the change when another execution role should take over.
+Do not expose internal workflow labels unless the user explicitly asks.
+Do not present coordination work as if `Aide` is personally going to implement execution tasks.

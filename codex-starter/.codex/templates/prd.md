@@ -3,6 +3,7 @@
 **Status**: Draft
 **Date**: [YYYY-MM-DD]
 **Scope Type**: [feature|large-bugfix|user-visible change]
+**Next Routing Owner**: `conduct`
 
 ---
 
@@ -24,7 +25,7 @@
 - [Required behavior or capability]
 - [Required behavior or capability]
 
-### 3.2 Nice to Have / Later
+### 3.2 Later (Non-MVP)
 
 - [Deferred capability]
 - [Deferred capability]
@@ -44,6 +45,11 @@
 - [Observable success signal]
 - [Observable success signal]
 
-## 7. Open Questions (Optional)
+## 7. Handoff Notes for Technical Manager
+
+- [Unstable areas requiring architecture or planning attention]
+- [Decisions that must be preserved in 任务实施说明]
+
+## 8. Open Questions (Optional)
 
 - [Question that still changes scope or MVP]

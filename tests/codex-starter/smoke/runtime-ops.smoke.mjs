@@ -241,12 +241,12 @@ function testValidateGitWritesBlockedInvocationLog() {
 function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   const dir = makeTempDir("codex-starter-install-");
   fs.writeFileSync(path.join(dir, ".gitignore"), "node_modules/\n", "utf8");
-  fs.mkdirSync(path.join(dir, ".agents", "skills", "aide"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".agents", "skills", "conduct"), { recursive: true });
   fs.mkdirSync(path.join(dir, ".codex", "hooks"), { recursive: true });
   fs.mkdirSync(path.join(dir, ".codex", "state"), { recursive: true });
   fs.mkdirSync(path.join(dir, ".product", "templates"), { recursive: true });
   fs.writeFileSync(path.join(dir, "AGENTS.md"), "stale agents\n", "utf8");
-  fs.writeFileSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md"), "stale skill\n", "utf8");
+  fs.writeFileSync(path.join(dir, ".agents", "skills", "conduct", "SKILL.md"), "stale skill\n", "utf8");
   fs.writeFileSync(path.join(dir, ".codex", "config.toml"), "[features]\ncodex_hooks = false\n", "utf8");
   fs.writeFileSync(path.join(dir, ".codex", "hooks.json"), "{\"stale\":true}\n", "utf8");
   fs.writeFileSync(path.join(dir, ".codex", "hooks", "stale.mjs"), "stale\n", "utf8");
@@ -261,7 +261,7 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   assert.equal(result.status, 0);
   assert.match(result.stdout, /Installed codex-starter files into/);
   assert.ok(fs.existsSync(path.join(dir, "AGENTS.md")));
-  assert.ok(fs.existsSync(path.join(dir, ".agents", "skills", "aide", "SKILL.md")));
+  assert.ok(fs.existsSync(path.join(dir, ".agents", "skills", "conduct", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(dir, ".codex", "routing-policy.md")));
   assert.ok(fs.existsSync(path.join(dir, ".codex", "config.toml")));
   assert.match(fs.readFileSync(path.join(dir, ".codex", "config.toml"), "utf8"), /\[features\]\s+codex_hooks = true/);
@@ -282,6 +282,58 @@ function testInstallScriptCopiesStarterFilesAndUpdatesGitignore() {
   assert.match(gitignore, /^\.agents\/$/m);
   assert.match(gitignore, /^\.codex\/$/m);
   assert.match(gitignore, /^\.product\/$/m);
+}
+
+function testInstalledRuntimeAuthorityUsesMiddleLayerSemantics() {
+  const dir = makeTempDir("codex-starter-middle-layer-semantics-");
+  const result = spawnSync("bash", [installScriptPath], {
+    cwd: dir,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0);
+
+  const agents = fs.readFileSync(path.join(dir, "AGENTS.md"), "utf8");
+  const routingPolicy = fs.readFileSync(path.join(dir, ".codex", "routing-policy.md"), "utf8");
+  const conductSkill = fs.readFileSync(path.join(dir, ".agents", "skills", "conduct", "SKILL.md"), "utf8");
+  const prdSkill = fs.readFileSync(path.join(dir, ".agents", "skills", "prd", "SKILL.md"), "utf8");
+  const architectSkill = fs.readFileSync(path.join(dir, ".agents", "skills", "architect", "SKILL.md"), "utf8");
+  const planSkill = fs.readFileSync(path.join(dir, ".agents", "skills", "plan", "SKILL.md"), "utf8");
+  const coderAgent = fs.readFileSync(path.join(dir, ".codex", "agents", "coder.toml"), "utf8");
+  const testerAgent = fs.readFileSync(path.join(dir, ".codex", "agents", "tester.toml"), "utf8");
+  const authorityText = `${agents}\n${routingPolicy}\n${conductSkill}`;
+
+  assert.match(
+    authorityText,
+    /Aide[\s\S]{0,180}(must not|do not|不直接)[\s\S]{0,180}(coder|tester|\/qc|\/submit)/i
+  );
+  assert.match(
+    authorityText,
+    /(route|handoff|through|先|进入|交给)[\s\S]{0,220}(conduct|technical-manager|技术经理)[\s\S]{0,220}(coder|tester|qc|submit)/i
+  );
+  assert.match(
+    authorityText,
+    /(repo_explorer|repository exploration|environment setup|setup|环境准备|环境设置)[\s\S]{0,200}(action|capabilit|helper|非主角色|not (a )?primary role)/i
+  );
+  assert.doesNotMatch(agents, /Prefer real subagents for[^\n]*repo_explorer/i);
+
+  assert.match(prdSkill, /(product manager|product owner|产品经理)/i);
+  assert.match(architectSkill, /(architect|架构师)/i);
+  assert.match(planSkill, /(任务实施说明|Task Implementation Brief|implementation brief)/i);
+  assert.match(
+    `${planSkill}\n${routingPolicy}`,
+    /(任务实施说明|Task Implementation Brief|implementation brief)[\s\S]{0,220}(coder|tester)/i
+  );
+  assert.doesNotMatch(coderAgent, /"plan_path":\s*null/i);
+  assert.doesNotMatch(testerAgent, /"plan_path":\s*null/i);
+  assert.match(
+    `${coderAgent}\n${testerAgent}`,
+    /status=complete[\s\S]{0,220}plan_path[\s\S]{0,220}non-empty[\s\S]{0,220}Task Implementation Brief/i
+  );
+  assert.match(
+    `${coderAgent}\n${testerAgent}`,
+    /(brief|path)[\s\S]{0,220}(missing|unreadable)[\s\S]{0,220}(blocked|blocker)/i
+  );
 }
 
 function testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFiles() {
@@ -484,6 +536,7 @@ testRuntimeLogSplitsLargeDailyLogsIntoChunks();
 testValidateGitRejectsBroadAdd();
 testValidateGitWritesBlockedInvocationLog();
 testInstallScriptCopiesStarterFilesAndUpdatesGitignore();
+testInstalledRuntimeAuthorityUsesMiddleLayerSemantics();
 testInstallScriptSkipsSourceRuntimeArtifactsAndPreservesTargetRuntimeFiles();
 
 process.stdout.write("runtime ops smoke tests passed\n");

@@ -107,7 +107,7 @@ function testRepoContextHelpersWriteNormalizedState() {
   assert.deepEqual(saved.notes, []);
 }
 
-function testCoderCompletionWithNullPlanPathQueuesTester() {
+function testCoderCompletionWithBriefPathQueuesTester() {
   const dir = makeTempDir("codex-starter-qc-");
   prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"), [
     ["- QC policy: `disabled`", "- QC policy: `enabled`"],
@@ -129,7 +129,7 @@ function testCoderCompletionWithNullPlanPathQueuesTester() {
           {
             role: "coder",
             status: "complete",
-            plan_path: null,
+            plan_path: "docs/plans/coder-queues-tester.md",
             needs_qc: true,
             files_changed: ["src/demo.ts"],
             validation: [{ command: "npm test -- demo", result: "PASS" }],
@@ -225,7 +225,7 @@ function testCoderAndTesterCompletionUpdateWorkflowHotState() {
             role: "tester",
             status: "complete",
             needs_qc: true,
-            plan_path: null,
+            plan_path: "docs/plans/runtime-flow-v1.md",
             workflow_chain_id: workflowChainId,
             validation_targets: ["runtime workflow guard"],
             coverage_rationale: "smoke",
@@ -333,7 +333,7 @@ function testTesterCompletionFallsBackToRequiredHandoffTaskIdWhenTaskLookupIsMis
             role: "tester",
             status: "complete",
             needs_qc: true,
-            plan_path: null,
+            plan_path: "docs/plans/fallback-tester-task.md",
             workflow_chain_id: workflowChainId,
             validation_targets: ["fallback task scope"],
             coverage_rationale: "required handoff task id should bind the tester result",
@@ -444,15 +444,14 @@ function testTesterCompletionWithoutWorkflowChainIdKeepsGuardEvenWithPlanPath() 
   const state = readRuntimeState(dir);
   const workflowAfterTester = readTaskContextFile(dir).task.workflow;
   const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
-  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "tester");
-  const signalNote = [blocked?.note || "", aideReview?.note || ""].join(" ");
+  const signalNote = blocked?.note || "";
 
   assert.equal(workflowAfterTester.workflow_chain_id, activeChainId);
   assert.equal(workflowAfterTester.required_handoff, "tester");
   assert.equal(workflowAfterTester.settlement_guard, "require_required_handoff");
   assert.equal(workflowAfterTester.expected_next_step, "tester_handoff");
   assert.equal(state.pendingActions.some((item) => item.type === "run_submit"), false);
-  assert.ok(blocked || aideReview);
+  assert.ok(blocked);
   assert.match(signalNote, /workflow_chain_id|chain|required|missing/i);
 }
 
@@ -473,12 +472,10 @@ function testRuntimeRejectsCoderCompletionWithoutStructuredFooter() {
 
   const state = readRuntimeState(dir);
   const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "coder");
-  const aideReview = state.pendingActions.find((item) => item.type === "aide_review" && item.sourceRole === "coder");
   const testerAction = state.pendingActions.find((item) => item.type === "run_tester");
 
   assert.ok(blocked);
   assert.match(blocked.note, /missing required "## Structured Result" section/i);
-  assert.ok(aideReview);
   assert.equal(testerAction, undefined);
 }
 
@@ -739,7 +736,7 @@ testQcDetectionRequiresQcMarkers();
 testTaskContextJsonOverridesMarkdownProfile();
 testTaskContextHelpersWriteNormalizedState();
 testRepoContextHelpersWriteNormalizedState();
-testCoderCompletionWithNullPlanPathQueuesTester();
+testCoderCompletionWithBriefPathQueuesTester();
 testCoderAndTesterCompletionUpdateWorkflowHotState();
 testTesterCompletionFallsBackToRequiredHandoffTaskIdWhenTaskLookupIsMissing();
 testTesterCompletionWithoutWorkflowChainIdKeepsGuardEvenWithPlanPath();
