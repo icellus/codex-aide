@@ -1,3 +1,7 @@
 # Local optimization context notes; keep out of version control.
 codex-starter-optimization/
 core
+
+# Personal discussion carry-over; keep local only.
+discussion/current.md
+discussion/history/
