@@ -160,12 +160,10 @@ function normalizeArtifactField(value) {
   return raw;
 }
 
-function extractStoryPath(block) {
+function extractPlanPath(block) {
   return normalizeArtifactField(
-    block.match(/\*\*Story\*\*:\s*`([^`]+)`/)?.[1] ||
-      block.match(/\*\*Implementation Plan\*\*:\s*`([^`]+)`/)?.[1] ||
+    block.match(/\*\*Implementation Plan\*\*:\s*`([^`]+)`/)?.[1] ||
       block.match(/- Implementation Plan:\s*`([^`]+)`/)?.[1] ||
-      block.match(/- Story:\s*`([^`]+)`/)?.[1] ||
       null
   );
 }
@@ -174,7 +172,6 @@ function extractSummaryPath(block) {
   return normalizeArtifactField(
     block.match(/- Plan Summary:\s*`([^`]+)`/)?.[1] ||
       block.match(/\*\*Plan Summary\*\*:\s*`([^`]+)`/)?.[1] ||
-      block.match(/\*\*Story Summary\*\*:\s*`([^`]+)`/)?.[1] ||
       null
   );
 }
@@ -558,7 +555,7 @@ function normalizeWorkflowChainId(value) {
   return normalized || null;
 }
 
-function normalizeWorkflowStoryPath(value) {
+function normalizeWorkflowPathReference(value) {
   if (typeof value !== "string") {
     return null;
   }
@@ -601,7 +598,7 @@ export function createEmptyTaskWorkflowState() {
     current_chain: "idle",
     expected_next_step: "none",
     required_handoff: "none",
-    required_handoff_story_path: null,
+    required_handoff_task_id: null,
     settlement_guard: "none",
     settlement_guard_reason: "",
     updated_at: null
@@ -624,11 +621,11 @@ export function normalizeTaskWorkflowState(value = {}) {
     current_chain: currentChain,
     expected_next_step: normalizeWorkflowToken(source.expected_next_step, empty.expected_next_step),
     required_handoff: requiredHandoff,
-    required_handoff_story_path:
-      requiredHandoff === "none" ? null : normalizeWorkflowStoryPath(source.required_handoff_story_path),
+    required_handoff_task_id:
+      requiredHandoff === "none" ? null : normalizeWorkflowChainId(source.required_handoff_task_id),
     settlement_guard: settlementGuard,
     settlement_guard_reason: settlementGuard === "none" ? "" : normalizeWorkflowReason(source.settlement_guard_reason),
-    updated_at: normalizeWorkflowStoryPath(source.updated_at)
+    updated_at: normalizeWorkflowPathReference(source.updated_at)
   };
 }
 
@@ -1216,7 +1213,7 @@ function mapTaskContextToProfile(parsed = {}) {
     workflowCurrentChain: workflow.current_chain,
     workflowExpectedNextStep: workflow.expected_next_step,
     workflowRequiredHandoff: workflow.required_handoff,
-    workflowRequiredHandoffStoryPath: workflow.required_handoff_story_path,
+    workflowRequiredHandoffTaskId: workflow.required_handoff_task_id,
     workflowSettlementGuard: workflow.settlement_guard,
     workflowSettlementGuardReason: workflow.settlement_guard_reason,
     preferredAddress: normalizeProfileValue(collaboration.preferred_address) || "Boss",
@@ -1251,7 +1248,7 @@ export function loadProjectProfileState(projectDir) {
       workflowCurrentChain: emptyWorkflow.current_chain,
       workflowExpectedNextStep: emptyWorkflow.expected_next_step,
       workflowRequiredHandoff: emptyWorkflow.required_handoff,
-      workflowRequiredHandoffStoryPath: emptyWorkflow.required_handoff_story_path,
+      workflowRequiredHandoffTaskId: emptyWorkflow.required_handoff_task_id,
       workflowSettlementGuard: emptyWorkflow.settlement_guard,
       workflowSettlementGuardReason: emptyWorkflow.settlement_guard_reason,
       preferredAddress: "Boss",
@@ -1280,7 +1277,7 @@ export function loadProjectProfileState(projectDir) {
     workflowCurrentChain: emptyWorkflow.current_chain,
     workflowExpectedNextStep: emptyWorkflow.expected_next_step,
     workflowRequiredHandoff: emptyWorkflow.required_handoff,
-    workflowRequiredHandoffStoryPath: emptyWorkflow.required_handoff_story_path,
+    workflowRequiredHandoffTaskId: emptyWorkflow.required_handoff_task_id,
     workflowSettlementGuard: emptyWorkflow.settlement_guard,
     workflowSettlementGuardReason: emptyWorkflow.settlement_guard_reason,
     preferredAddress: normalizeProfileValue(readProfileField(text, "Preferred address")) || "Boss",
@@ -1359,7 +1356,7 @@ export function findProgressFile(startDir) {
   return null;
 }
 
-export function parseActiveStories(progressPath) {
+export function parseActivePlans(progressPath) {
   if (!progressPath || !fs.existsSync(progressPath)) {
     return [];
   }
@@ -1376,20 +1373,20 @@ export function parseActiveStories(progressPath) {
     .filter((block) => block.startsWith("### "))
     .map((block) => {
       const title = block.match(/^###\s+(.+)$/m)?.[1]?.trim() || "Unknown Plan";
-      const storyPath = extractStoryPath(block);
+      const planPath = extractPlanPath(block);
       const summaryPath = extractSummaryPath(block);
       const branch = normalizeArtifactField(block.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null);
       const worktree = normalizeArtifactField(block.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null);
 
       return {
         title,
-        storyPath,
+        planPath,
         summaryPath,
         branch,
         worktree
       };
     })
-    .filter((item) => item.storyPath || item.branch || item.worktree);
+    .filter((item) => item.planPath || item.branch || item.worktree);
 }
 
 function extractSectionBody(text, sectionNamePattern) {
@@ -1422,7 +1419,7 @@ function parseCurrentWorkItems(text) {
   return splitProgressBlocks(extractSectionBody(text, "(?:Current|Active) Work"))
     .map((block) => ({
       title: extractTitle(block),
-      storyPath: extractStoryPath(block),
+      planPath: extractPlanPath(block),
       summaryPath: extractSummaryPath(block),
       branch: normalizeArtifactField(block.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null),
       worktree: normalizeArtifactField(block.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null),
@@ -1432,14 +1429,14 @@ function parseCurrentWorkItems(text) {
       checkpoint: extractBulletField(block, "Current Checkpoint"),
       nextStep: extractBulletField(block, "Next Step")
     }))
-    .filter((item) => item.title || item.storyPath || item.branch || item.worktree);
+    .filter((item) => item.title || item.planPath || item.branch || item.worktree);
 }
 
 function parseParkedWorkItems(text) {
   return splitProgressBlocks(extractSectionBody(text, "(?:Parked or Blocked|Blockers or Exceptions)"))
     .map((block) => ({
       title: extractTitle(block),
-      storyPath: extractStoryPath(block),
+      planPath: extractPlanPath(block),
       summaryPath: extractSummaryPath(block),
       branch: normalizeArtifactField(block.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null),
       worktree: normalizeArtifactField(block.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null),
@@ -1449,21 +1446,21 @@ function parseParkedWorkItems(text) {
       owner: extractBulletField(block, "Owner"),
       nextStep: extractBulletField(block, "Suggested Resume Point") || extractBulletField(block, "Unblock Action")
     }))
-    .filter((item) => item.title || item.storyPath || item.reason || item.nextStep);
+    .filter((item) => item.title || item.planPath || item.reason || item.nextStep);
 }
 
 function parseCompletedWorkItems(text) {
   return splitProgressBlocks(extractSectionBody(text, "(?:Completed|Completed Releases or Milestones)"))
     .map((block) => ({
       title: extractTitle(block),
-      storyPath: extractStoryPath(block),
+      planPath: extractPlanPath(block),
       summaryPath: extractSummaryPath(block),
       completedAt: extractBulletField(block, "Completed"),
       summary: extractBulletField(block, "Outcome") || extractBulletField(block, "Summary"),
       validation: extractBulletField(block, "Validation"),
       nextStep: extractBulletField(block, "Follow-up")
     }))
-    .filter((item) => item.title || item.storyPath || item.summary);
+    .filter((item) => item.title || item.planPath || item.summary);
 }
 
 export function parseProgressTasks(progressPath) {
@@ -1531,23 +1528,23 @@ function currentGitBranch(cwd) {
   }
 }
 
-export function resolveActiveStory(activeStories, input = {}, projectDir) {
-  if (!Array.isArray(activeStories) || activeStories.length === 0) {
+export function resolveActivePlan(activePlans, input = {}, projectDir) {
+  if (!Array.isArray(activePlans) || activePlans.length === 0) {
     return null;
   }
 
-  const explicitPlan = [input.plan_path, input.planPath, input.plan, input.story_path, input.storyPath, input.story]
+  const explicitPlan = [input.plan_path, input.planPath, input.plan]
     .map((value) => String(value || "").trim())
     .find(Boolean);
 
   if (explicitPlan) {
-    const exact = activeStories.filter((item) => item.storyPath === explicitPlan);
+    const exact = activePlans.filter((item) => item.planPath === explicitPlan);
     if (exact.length === 1) {
       return exact[0];
     }
 
-    const byBase = activeStories.filter(
-      (item) => item.storyPath && basenameLabel(item.storyPath) === basenameLabel(explicitPlan)
+    const byBase = activePlans.filter(
+      (item) => item.planPath && basenameLabel(item.planPath) === basenameLabel(explicitPlan)
     );
     if (byBase.length === 1) {
       return byBase[0];
@@ -1556,7 +1553,7 @@ export function resolveActiveStory(activeStories, input = {}, projectDir) {
 
   const cwd = input.cwd ? path.resolve(String(input.cwd)) : null;
   if (cwd) {
-    const worktreeMatches = activeStories.filter((item) => {
+    const worktreeMatches = activePlans.filter((item) => {
       const worktreePath = resolveWorkflowPath(projectDir, item.worktree);
       return worktreePath ? pathContains(worktreePath, cwd) : false;
     });
@@ -1567,15 +1564,15 @@ export function resolveActiveStory(activeStories, input = {}, projectDir) {
 
     const branch = currentGitBranch(cwd);
     if (branch) {
-      const branchMatches = activeStories.filter((item) => item.branch === branch);
+      const branchMatches = activePlans.filter((item) => item.branch === branch);
       if (branchMatches.length === 1) {
         return branchMatches[0];
       }
     }
   }
 
-  if (activeStories.length === 1) {
-    return activeStories[0];
+  if (activePlans.length === 1) {
+    return activePlans[0];
   }
 
   return null;
@@ -1587,11 +1584,10 @@ function slugifyTaskValue(value) {
 }
 
 function createTaskMatchKey(entry = {}) {
-  if (entry.storyPath) {
-    return `story:${String(entry.storyPath).trim()}`;
-  }
-
-  return `task:${slugifyTaskValue(entry.title || entry.task || entry.currentTask || "untitled-task")}`;
+  const titleKey = slugifyTaskValue(entry.title || entry.task || entry.currentTask || "untitled-task");
+  const branchKey = normalizeText(entry.branch).toLowerCase();
+  const worktreeKey = normalizeText(entry.worktree).toLowerCase();
+  return `task:${titleKey}|branch:${branchKey || "none"}|worktree:${worktreeKey || "none"}`;
 }
 
 function createTaskId(matchKey, sequence) {
@@ -1761,7 +1757,7 @@ export function upsertTaskRegistryTask(registry, entry = {}, options = {}) {
   writeTaskField(next, "deliveryMode", entry.deliveryMode);
   writeTaskField(next, "risk", entry.risk);
   writeTaskField(next, "routeRationale", entry.routeRationale);
-  writeTaskField(next, "storyPath", entry.storyPath);
+  writeTaskField(next, "planPath", entry.planPath);
   writeTaskField(next, "summaryPath", entry.summaryPath);
   writeTaskField(next, "branch", entry.branch);
   writeTaskField(next, "worktree", entry.worktree);
@@ -1831,6 +1827,56 @@ export function listTaskRegistryTasks(registry, predicate = null) {
   const tasks = Array.isArray(registry?.tasks) ? [...registry.tasks] : [];
   const filtered = predicate ? tasks.filter(predicate) : tasks;
   return filtered.sort(compareTaskTimestamps);
+}
+
+function normalizeTaskId(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+export function resolveActiveTask(registry, input = {}, projectDir = process.cwd()) {
+  const tasks = listTaskRegistryTasks(registry, (task) => hasUnsettledStatus(task));
+  const explicitTaskId = [input.task_id, input.taskId, input.current_task_id, input.currentTaskId]
+    .map((value) => normalizeTaskId(value))
+    .find(Boolean);
+
+  if (explicitTaskId) {
+    const explicitMatch = (Array.isArray(registry?.tasks) ? registry.tasks : []).find((task) => task.id === explicitTaskId);
+    if (explicitMatch) {
+      return explicitMatch;
+    }
+  }
+
+  const currentTask = getCurrentTaskRecord(registry);
+  if (currentTask && hasUnsettledStatus(currentTask)) {
+    return currentTask;
+  }
+
+  const cwd = input.cwd ? path.resolve(String(input.cwd)) : null;
+  if (cwd) {
+    const worktreeMatches = tasks.filter((task) => {
+      const worktreePath = resolveWorkflowPath(projectDir, task.worktree);
+      return worktreePath ? pathContains(worktreePath, cwd) : false;
+    });
+
+    if (worktreeMatches.length === 1) {
+      return worktreeMatches[0];
+    }
+
+    const branch = currentGitBranch(cwd);
+    if (branch) {
+      const branchMatches = tasks.filter((task) => task.branch === branch);
+      if (branchMatches.length === 1) {
+        return branchMatches[0];
+      }
+    }
+  }
+
+  return tasks.length === 1 ? tasks[0] : null;
 }
 
 export function syncTaskRegistry(projectDir, input = {}) {
@@ -1932,8 +1978,9 @@ export function syncTaskRegistry(projectDir, input = {}) {
       upsertTaskRegistryTask(
         registry,
         {
+          id: item.taskId,
           title: item.task,
-          storyPath: item.storyPath,
+          planPath: item.planPath,
           deliveryMode: item.deliveryMode,
           summary: item.summary,
           status: "done",
@@ -2217,6 +2264,17 @@ export function validateStructuredResultContract(role, message) {
     };
   }
 
+  const legacyScopeKeys = ["story_path", "storyPath", "story"];
+  const legacyScopeKey = legacyScopeKeys.find((key) => Object.prototype.hasOwnProperty.call(structured, key));
+  if (legacyScopeKey) {
+    return {
+      ok: false,
+      code: "legacy_structured_scope_key",
+      reason: `${normalizedRole} structured result uses deprecated scope key "${legacyScopeKey}".`,
+      structured
+    };
+  }
+
   if (structured.needs_qc !== true) {
     return {
       ok: false,
@@ -2456,10 +2514,10 @@ export function toLessonId(source, category) {
   return `lesson-${raw.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
 }
 
-function summarizeRetryPattern(state, storyPath) {
-  const source = storyPath || "unknown";
+function summarizeRetryPattern(state, taskId) {
+  const sourceTaskId = taskId || "unknown-task";
   const items = Object.values(state.failurePatterns)
-    .filter((item) => item.source === source)
+    .filter((item) => item.taskId === sourceTaskId)
     .sort((left, right) => right.count - left.count || left.category.localeCompare(right.category));
 
   if (items.length === 0) {
@@ -2467,6 +2525,41 @@ function summarizeRetryPattern(state, storyPath) {
   }
 
   return items.map((item) => `${item.category} x${item.count}`).join(", ");
+}
+
+function resolveTaskIdFromProgressChunk(taskRegistry, chunk) {
+  if (!taskRegistry || !Array.isArray(taskRegistry.tasks)) {
+    return null;
+  }
+
+  const title = extractTitle(chunk);
+  const branch = normalizeArtifactField(chunk.match(/\*\*Branch\*\*:\s*`([^`]+)`/)?.[1] || null);
+  const worktree = normalizeArtifactField(chunk.match(/\*\*Worktree\*\*:\s*`([^`]+)`/)?.[1] || null);
+  const openTasks = taskRegistry.tasks.filter((task) => hasUnsettledStatus(task));
+
+  if (worktree) {
+    const byWorktree = openTasks.filter((task) => normalizeText(task.worktree) === worktree);
+    if (byWorktree.length === 1) {
+      return byWorktree[0].id;
+    }
+  }
+
+  if (branch) {
+    const byBranch = openTasks.filter((task) => normalizeText(task.branch) === branch);
+    if (byBranch.length === 1) {
+      return byBranch[0].id;
+    }
+  }
+
+  if (title) {
+    const normalizedTitle = normalizeText(title).toLowerCase();
+    const byTitle = openTasks.filter((task) => normalizeText(task.title).toLowerCase() === normalizedTitle);
+    if (byTitle.length === 1) {
+      return byTitle[0].id;
+    }
+  }
+
+  return null;
 }
 
 function updateQcRetryPatternLine(block, summary) {
@@ -2504,7 +2597,7 @@ function ensureProgressSection(text, heading, emptyBody) {
   return `${text.trimEnd()}\n\n${section}`;
 }
 
-function updateCurrentWorkSection(text, activeStories, state) {
+function updateCurrentWorkSection(text, activePlans, state, taskRegistry = null) {
   const match = text.match(/(## (?:Current|Active) Work\s*\n\n)([\s\S]*?)(\n---\s*\n\s*## Completed|\n## Completed|$)/);
   if (!match) {
     return text;
@@ -2528,12 +2621,12 @@ function updateCurrentWorkSection(text, activeStories, state) {
             return chunk;
           }
 
-          const storyPath = extractStoryPath(chunk);
-          if (!storyPath) {
+          const taskId = resolveTaskIdFromProgressChunk(taskRegistry, chunk);
+          if (!taskId) {
             return chunk;
           }
 
-          const summary = summarizeRetryPattern(state, storyPath);
+          const summary = summarizeRetryPattern(state, taskId);
           return updateQcRetryPatternLine(chunk, summary);
         })
         .join("\n");
@@ -2616,8 +2709,8 @@ function updateLearningQueueSection(text, state) {
   return text.replace(match[0], `${prefix}${bodyText}${suffix}`);
 }
 
-function retrospectiveSlug(storyPath) {
-  const raw = basenameLabel(storyPath || "unknown").toLowerCase();
+function retrospectiveSlug(taskId) {
+  const raw = String(taskId || "unknown-task").toLowerCase();
   return raw.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
@@ -2629,7 +2722,8 @@ function buildRetrospectiveBlock(entry, blockId) {
 
   return [
     `### ${blockId}`,
-    `**Story**: \`${entry.storyPath || "unknown"}\``,
+    `**Task ID**: \`${entry.taskId || "unknown-task"}\``,
+    `**Implementation Plan**: \`${entry.planPath || "N/A"}\``,
     `**Trigger**: \`${entry.trigger || "pending"}\``,
     "**Decisions Made**:",
     "- Pending capture during the next internal long-running handoff or session close.",
@@ -2645,7 +2739,7 @@ function buildRetrospectiveBlock(entry, blockId) {
 function parseRetrospectiveChunk(chunk) {
   return {
     id: chunk.match(/^###\s+(.+)$/m)?.[1]?.trim() || null,
-    storyPath: chunk.match(/\*\*Story\*\*:\s*`([^`]+)`/)?.[1] || null,
+    taskId: chunk.match(/\*\*Task ID\*\*:\s*`([^`]+)`/)?.[1] || null,
     writebackDecision: chunk.match(/\*\*Writeback Decision\*\*:\s*`([^`]+)`/)?.[1] || null,
     chunk
   };
@@ -2659,8 +2753,8 @@ function isPendingAutoRetrospective(parsed) {
   );
 }
 
-function nextRetrospectiveId(storyPath, existingIds) {
-  const slug = retrospectiveSlug(storyPath);
+function nextRetrospectiveId(taskId, existingIds) {
+  const slug = retrospectiveSlug(taskId);
   const prefix = `retrospective-${slug}`;
   let next = 1;
 
@@ -2718,7 +2812,8 @@ function updateSessionRetrospectiveSection(text, state) {
   }
 
   for (const entry of retrospectiveEntries) {
-    const related = parsedBlocks.filter((item) => item.storyPath === (entry.storyPath || "unknown"));
+    const entryTaskId = String(entry.taskId || "unknown-task");
+    const related = parsedBlocks.filter((item) => item.taskId === entryTaskId);
     const updatable = related.find((item) => isPendingAutoRetrospective(item));
     const pendingManual = related.find(
       (item) => item.writebackDecision === "pending retrospective" && !isPendingAutoRetrospective(item)
@@ -2728,7 +2823,7 @@ function updateSessionRetrospectiveSection(text, state) {
       continue;
     }
 
-    const id = updatable?.id || nextRetrospectiveId(entry.storyPath || "unknown", Array.from(blockMap.keys()));
+    const id = updatable?.id || nextRetrospectiveId(entryTaskId, Array.from(blockMap.keys()));
     const block = buildRetrospectiveBlock(entry, id);
     if (!blockMap.has(id)) {
       order.push(id);
@@ -2754,14 +2849,14 @@ function updateSessionRetrospectiveSection(text, state) {
   return text.replace(match[0], `${prefix}${bodyText}${suffix}`);
 }
 
-export function syncProgressFromState(progressPath, activeStories, state) {
+export function syncProgressFromState(progressPath, activePlans, state, taskRegistry = null) {
   if (!progressPath || !fs.existsSync(progressPath)) {
     return;
   }
 
   const projectDir = findProjectDir(path.dirname(progressPath)) || path.dirname(progressPath);
   const original = fs.readFileSync(progressPath, "utf8");
-  const withRetryPattern = updateCurrentWorkSection(original, activeStories, state);
+  const withRetryPattern = updateCurrentWorkSection(original, activePlans, state, taskRegistry);
   const withLearningQueue = updateLearningQueueSection(withRetryPattern, state);
   const withRetrospective = updateSessionRetrospectiveSection(withLearningQueue, state);
 

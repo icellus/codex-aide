@@ -38,7 +38,6 @@ End every final report with this exact section:
 {
   "role": "tester",
   "status": "complete|blocked",
-  "story_path": null,
   "plan_path": null,
   "needs_qc": true,
   "workflow_chain_id": "",

@@ -35,7 +35,6 @@ function testSessionContextWritesFullInvocationLogs() {
       {
         id: "run-submit:current-task",
         type: "run_submit",
-        storyPath: null,
         trigger: "tester_complete_without_qc",
         note: "Run /submit."
       }
@@ -118,7 +117,6 @@ function testStartupContextRunsStartupChainAndWritesInvocationLogs() {
       {
         id: "run-submit:current-task",
         type: "run_submit",
-        storyPath: null,
         trigger: "tester_complete_without_qc",
         note: "Run /submit."
       }

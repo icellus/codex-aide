@@ -27,7 +27,7 @@
       "current_chain": "idle",
       "expected_next_step": "none",
       "required_handoff": "none",
-      "required_handoff_story_path": null,
+      "required_handoff_task_id": null,
       "settlement_guard": "none",
       "settlement_guard_reason": "",
       "updated_at": null

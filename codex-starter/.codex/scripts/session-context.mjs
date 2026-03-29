@@ -8,10 +8,12 @@ import {
   isTaskSettled,
   loadProjectProfileState,
   loadRuntimeState,
-  parseActiveStories,
+  parseActivePlans,
   readJsonStdinEnvelope,
-  resolveActiveStory,
+  resolveActivePlan,
+  resolveActiveTask,
   saveRuntimeState,
+  syncTaskRegistry,
   startRuntimeInvocationLogging
 } from "./runtime-utils.mjs";
 function summarizePendingQCActions(state) {
@@ -34,12 +36,12 @@ function summarizeQueuedLessons(state) {
   return state.learningQueue.filter((item) => item.status === "queued");
 }
 
-function summarizeAideReviews(state, currentStory) {
-  const activeStoryPath = currentStory?.storyPath || null;
+function summarizeAideReviews(state, currentTask) {
+  const activeTaskId = currentTask?.id || null;
   const items = state.pendingActions.filter((item) => item.type === "aide_review");
 
-  if (activeStoryPath) {
-    const matching = items.filter((item) => item.storyPath === activeStoryPath || !item.storyPath);
+  if (activeTaskId) {
+    const matching = items.filter((item) => item.taskId === activeTaskId || !item.taskId);
     if (matching.length > 0) {
       return matching.sort((left, right) => compareGovernanceSeverity(left.severity, right.severity)).slice(0, 2);
     }
@@ -48,12 +50,12 @@ function summarizeAideReviews(state, currentStory) {
   return items.sort((left, right) => compareGovernanceSeverity(left.severity, right.severity)).slice(0, 2);
 }
 
-function summarizeRetrospectiveActions(state, currentStory) {
-  const activeStoryPath = currentStory?.storyPath || null;
+function summarizeRetrospectiveActions(state, currentTask) {
+  const activeTaskId = currentTask?.id || null;
   const items = state.pendingActions.filter((item) => item.type === "session_retrospective");
 
-  if (activeStoryPath) {
-    const matching = items.filter((item) => item.storyPath === activeStoryPath);
+  if (activeTaskId) {
+    const matching = items.filter((item) => item.taskId === activeTaskId);
     if (matching.length > 0) {
       return matching.slice(-1);
     }
@@ -80,34 +82,41 @@ async function main() {
 
   try {
     const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
-    const activeStories = parseActiveStories(progressPath);
-    const currentStory = resolveActiveStory(activeStories, input, projectDir);
+    const activePlans = parseActivePlans(progressPath);
+    const currentPlan = resolveActivePlan(activePlans, input, projectDir);
     const profile = loadProjectProfileState(projectDir);
     const state = loadRuntimeState(projectDir);
+    const taskRegistry = syncTaskRegistry(projectDir, {
+      profile,
+      runtimeState: state,
+      progressPath,
+      persist: false
+    });
+    const currentTask = resolveActiveTask(taskRegistry, input, projectDir);
 
     const blockedActions = summarizeBlockedActions(state);
-    const blockedForCurrent = currentStory
-      ? blockedActions.filter((item) => item.storyPath === currentStory.storyPath)
+    const blockedForCurrent = currentTask
+      ? blockedActions.filter((item) => item.taskId === currentTask.id)
       : [];
     const pendingTester = summarizePendingTesterActions(state);
-    const pendingTesterForCurrent = currentStory
-      ? pendingTester.filter((item) => item.storyPath === currentStory.storyPath)
+    const pendingTesterForCurrent = currentTask
+      ? pendingTester.filter((item) => item.taskId === currentTask.id)
       : [];
     const pendingQC = summarizePendingQCActions(state);
-    const pendingQcForCurrent = currentStory
-      ? pendingQC.filter((item) => item.storyPath === currentStory.storyPath)
+    const pendingQcForCurrent = currentTask
+      ? pendingQC.filter((item) => item.taskId === currentTask.id)
       : [];
     const pendingSubmit = summarizePendingSubmitActions(state);
-    const pendingSubmitForCurrent = currentStory
-      ? pendingSubmit.filter((item) => item.storyPath === currentStory.storyPath)
+    const pendingSubmitForCurrent = currentTask
+      ? pendingSubmit.filter((item) => item.taskId === currentTask.id)
       : [];
-    const blockedPool = currentStory ? blockedForCurrent : blockedActions;
-    const pendingTesterPool = currentStory ? pendingTesterForCurrent : pendingTester;
-    const pendingQcPool = currentStory ? pendingQcForCurrent : pendingQC;
-    const pendingSubmitPool = currentStory ? pendingSubmitForCurrent : pendingSubmit;
-    const retrospectiveActions = summarizeRetrospectiveActions(state, currentStory);
+    const blockedPool = currentTask ? blockedForCurrent : blockedActions;
+    const pendingTesterPool = currentTask ? pendingTesterForCurrent : pendingTester;
+    const pendingQcPool = currentTask ? pendingQcForCurrent : pendingQC;
+    const pendingSubmitPool = currentTask ? pendingSubmitForCurrent : pendingSubmit;
+    const retrospectiveActions = summarizeRetrospectiveActions(state, currentTask);
     const queuedLessons = summarizeQueuedLessons(state);
-    const aideReviews = summarizeAideReviews(state, currentStory);
+    const aideReviews = summarizeAideReviews(state, currentTask);
 
     if (
       isTaskSettled(profile) &&
@@ -147,38 +156,38 @@ async function main() {
     for (const item of blocked) {
       pushReminder(
         100,
-        `- Blocked handoff${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: review the structured blockage before resuming ${item.phase || "work"}.`
+        `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: review the structured blockage before resuming ${item.phase || "work"}.`
       );
     }
 
-    if (currentStory) {
-      const activePlan = currentStory;
+    if (currentPlan) {
+      const activePlan = currentPlan;
       pushReminder(
         60,
-        `- Active plan: ${activePlan.title}${activePlan.storyPath ? ` (${basenameLabel(activePlan.storyPath)})` : ""}`
+        `- Active plan: ${activePlan.title}${activePlan.planPath ? ` (${basenameLabel(activePlan.planPath)})` : ""}`
       );
-    } else if (activeStories.length > 1) {
-      pushReminder(55, `- Active plans: ${activeStories.length} (current plan unresolved from cwd/worktree)`);
+    } else if (activePlans.length > 1) {
+      pushReminder(55, `- Active plans: ${activePlans.length} (current plan unresolved from currentTaskId/cwd/worktree)`);
     }
 
     for (const item of pendingQcPool.slice(-1)) {
       pushReminder(
         90,
-        `- Pending QC: run /qc --phase=${item.phase}${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}`
+        `- Pending QC: run /qc --phase=${item.phase}${item.taskId ? ` for ${item.taskId}` : ""}`
       );
     }
 
     for (const item of pendingTesterPool.slice(-1)) {
       pushReminder(
         95,
-        `- Pending tester handoff${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: route to tester before QC/submit/settlement`
+        `- Pending tester handoff${item.taskId ? ` for ${item.taskId}` : ""}: route to tester before QC/submit/settlement`
       );
     }
 
     for (const item of pendingSubmitPool.slice(-1)) {
       pushReminder(
         85,
-        `- Pending submit${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: run /submit`
+        `- Pending submit${item.taskId ? ` for ${item.taskId}` : ""}: run /submit`
       );
     }
 
@@ -186,7 +195,7 @@ async function main() {
       for (const item of retrospectiveActions) {
         pushReminder(
           40,
-          `- Retrospective pending${item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""}: capture decisions and writeback candidates before closing the long-running task.`
+          `- Retrospective pending${item.taskId ? ` for ${item.taskId}` : ""}: capture decisions and writeback candidates before closing the long-running task.`
         );
         if (Array.isArray(item.categories) && item.categories.length > 0) {
           pushReminder(35, `- Retrospective focus: ${item.categories.join(", ")}`);
@@ -206,7 +215,7 @@ async function main() {
       pushReminder(
         80,
         `- /Aide review pending [${String(item.severity || "L2").toUpperCase()} ${item.capability || "investigation"}]${
-          item.storyPath ? ` for ${basenameLabel(item.storyPath)}` : ""
+          item.taskId ? ` for ${item.taskId}` : ""
         }: ${item.note || "review the shared workflow and decide on writeback."}`
       );
     }

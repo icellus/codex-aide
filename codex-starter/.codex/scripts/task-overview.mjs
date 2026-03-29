@@ -25,8 +25,8 @@ function formatTaskLine(prefix, task) {
     parts.push(`mode=${task.deliveryMode}`);
   }
 
-  if (task.storyPath) {
-    parts.push(`story=${basenameLabel(task.storyPath)}`);
+  if (task.planPath) {
+    parts.push(`plan=${basenameLabel(task.planPath)}`);
   }
 
   if (task.nextStep) {

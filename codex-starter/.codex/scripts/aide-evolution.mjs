@@ -71,8 +71,8 @@ function buildAideReviewCandidate(item) {
     status: "queued",
     severity: normalizeGovernanceSeverity(item.severity || "L2"),
     capability: String(item.capability || "investigation").trim().toLowerCase() || "investigation",
-    storyPath: item.storyPath || null,
-    taskId: null,
+    taskId: item.taskId || null,
+    planPath: item.planPath || null,
     taskTitle: null,
     routeTarget: item.routeTarget || null,
     signalIds: [item.id],
@@ -92,8 +92,8 @@ function buildLearningQueueCandidate(item) {
     status: "queued",
     severity: triggerCount >= 4 ? "L4" : triggerCount >= 2 ? "L3" : "L2",
     capability: "writeback",
-    storyPath: item.source || null,
-    taskId: null,
+    taskId: item.taskId || item.source || null,
+    planPath: item.planPath || null,
     taskTitle: null,
     routeTarget,
     category: item.category || null,
@@ -108,11 +108,11 @@ function buildLearningQueueCandidate(item) {
 }
 
 function relatedSignalsForTask(task, candidates) {
-  if (task.storyPath) {
-    return candidates.filter((item) => item.storyPath === task.storyPath);
+  if (task.id) {
+    return candidates.filter((item) => item.taskId === task.id);
   }
 
-  return candidates.filter((item) => item.sourceType === "aide_review" && !item.storyPath);
+  return candidates.filter((item) => item.sourceType === "aide_review" && !item.taskId);
 }
 
 function upsertCandidate(registry, entry, now) {
@@ -460,7 +460,7 @@ async function main() {
         taskId: task.id,
         taskTitle: task.title || "Untitled task",
         taskStatus: task.status || "done",
-        storyPath: task.storyPath || null,
+        planPath: task.planPath || null,
         completedAt: task.completedAt || null,
         checkedAt: now,
         trigger,
@@ -489,7 +489,7 @@ async function main() {
           relatedSignals.find((item) => item.capability === "audit")?.capability ||
           relatedSignals[0]?.capability ||
           "investigation",
-        storyPath: task.storyPath || null,
+        planPath: task.planPath || null,
         taskId: task.id,
         taskTitle: task.title || "Untitled task",
         routeTarget: routeTargets.join(", ") || "/Aide review",

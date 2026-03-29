@@ -179,6 +179,80 @@ function testTaskSettledWorkflowGuardBlocksCloseoutWithoutPendingTesterAction() 
   assert.equal(workflow.expected_next_step, "tester_handoff");
 }
 
+function testTaskSettledFallbackBindsMissingTesterSignalsToRequiredTaskId() {
+  const dir = makeTempDir("codex-starter-task-settled-fallback-taskid-");
+  prepareProjectProfile(path.join(dir, ".codex", "project-profile.md"));
+
+  saveTaskContext(dir, {
+    task: {
+      current_task: "Fallback settlement scope",
+      status: "active"
+    }
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "subagent_result",
+      cwd: dir,
+      role: "coder",
+      message: [
+        "## Implementation Complete",
+        "",
+        "## Structured Result",
+        "```json",
+        JSON.stringify(
+          {
+            role: "coder",
+            status: "complete",
+            plan_path: "docs/plans/fallback-settlement-task.md",
+            needs_qc: true,
+            files_changed: ["src/demo.ts"],
+            validation: [{ command: "npm test -- demo", result: "PASS" }],
+            blockers: []
+          },
+          null,
+          2
+        ),
+        "```"
+      ].join("\n")
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const requiredTaskId = readTaskContextFile(dir).task.workflow.required_handoff_task_id;
+  assert.equal(typeof requiredTaskId, "string");
+  assert.notEqual(requiredTaskId, "");
+
+  writeJson(path.join(dir, ".codex", "state", "task-registry.json"), {
+    version: 1,
+    updatedAt: "2026-03-29T10:05:00.000Z",
+    currentTaskId: null,
+    tasks: []
+  });
+
+  runNode(
+    runtimeStateScript,
+    {
+      event: "task_settled",
+      cwd: dir,
+      message: "Task status: done"
+    },
+    { CODEX_PROJECT_DIR: dir }
+  );
+
+  const state = readRuntimeState(dir);
+  const blocked = state.pendingActions.find((item) => item.type === "blocked_review" && item.phase === "tester");
+  const aideReview = state.pendingActions.find(
+    (item) => item.type === "aide_review" && item.sourceRole === "task_settled"
+  );
+
+  assert.ok(blocked);
+  assert.equal(blocked.taskId, requiredTaskId);
+  assert.ok(aideReview);
+  assert.equal(aideReview.taskId, requiredTaskId);
+}
+
 function testSessionEndWorkflowGuardBlocksCloseoutWithoutPendingTesterAction() {
   const dir = makeTempDir("codex-starter-session-end-workflow-guard-");
 
@@ -234,7 +308,6 @@ function testSessionEndDoesNotAdvanceSubmitOrSettleWithoutTaskSettledEvent() {
         current_chain: "tester",
         expected_next_step: "submit",
         required_handoff: "none",
-        required_handoff_story_path: null,
         settlement_guard: "none",
         settlement_guard_reason: "",
         updated_at: "2026-03-29T09:00:00.000Z"
@@ -266,6 +339,7 @@ testTaskOverviewShowsCurrentAndHistoricalUnfinishedTasks();
 testTaskOverviewDoesNotWriteTaskRegistryForReadOnlyQuery();
 testTaskSettledDoesNotBypassRequiredTesterHandoff();
 testTaskSettledWorkflowGuardBlocksCloseoutWithoutPendingTesterAction();
+testTaskSettledFallbackBindsMissingTesterSignalsToRequiredTaskId();
 testSessionEndWorkflowGuardBlocksCloseoutWithoutPendingTesterAction();
 testSessionEndDoesNotAdvanceSubmitOrSettleWithoutTaskSettledEvent();
 

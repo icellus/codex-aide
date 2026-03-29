@@ -24,7 +24,6 @@ End every final report with this exact section:
 {
   "role": "coder",
   "status": "complete|blocked",
-  "story_path": null,
   "plan_path": null,
   "needs_qc": true,
   "files_changed": [],

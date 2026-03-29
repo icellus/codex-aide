@@ -8,6 +8,9 @@
 2. `discussion/current.md`
 3. 如果 `current.md` 指向了某条历史，再读对应的 `discussion/history/*.md`
 
+`discussion/backlog/` 不在默认读取路径里。
+只有用户明确要清 backlog，或当前问题与某条 backlog note 的症状高度一致时，才按需读取。
+
 默认收尾顺序：
 
 1. 在 `discussion/history/` 追加一条新记录
@@ -19,6 +22,7 @@
 - `prefs.md`：长期稳定的偏好、仓库边界、常用验证入口
 - `current.md`：当前有效状态、下一步、相关文件、关联历史
 - `history/*.md`：一次任务一条记录，只追加，不作为默认全量加载内容
+- `backlog/*.md`：低优先级、非当前焦点、只在相关症状出现时才需要回想的问题堆积区
 
 历史文件命名：
 
@@ -30,6 +34,7 @@
 
 - `current.md` 始终表示唯一当前态
 - `history/` 只做追溯，不堆叠进默认上下文
+- `backlog/` 不进入默认当前态；只有被显式提起或症状命中时才回看
 - 详细过程交给代码、测试、日志和 Git，`discussion/` 只保留续接必需信息
 - `discussion/*` 默认不属于仓库测试范围，除非以后你明确要求把某部分流程脚本化
 - `prefs.md` 只记录宿主层长期偏好与边界，不回填 `codex-starter` 运行时 prompt / persona / routing 术语
