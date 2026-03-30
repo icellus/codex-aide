@@ -15,7 +15,7 @@ Plain-language intent should map to the same routes.
 - product-definition line:
   - `skip`: `Aide -> product_manager -> technical_manager`
   - `product`: `Aide -> product_manager -> architect -> technical_manager`
-- technical-delivery line: `Aide -> technical_manager -> coder -> tester -> optional /qc -> optional /submit`
+- technical-delivery line: `Aide -> technical_manager -> coder -> tester -> optional qc -> optional submit`
 - non-code delivery line: `Aide -> product_assistant -> Aide`
 
 ## Core Rules
@@ -32,14 +32,14 @@ Plain-language intent should map to the same routes.
 - If `technical_manager` detects unresolved product scope or non-technical ownership mismatch, escalate back to `Aide` for re-triage.
 - `technical_manager` must not directly route to `product_manager`.
 - `product_assistant` receives non-code delivery work from `Aide` and returns results to `Aide`.
-- `product_assistant` should not auto-enter `/submit`; only explicit user intent enables governed submit for non-code work.
+- `product_assistant` should not auto-enter the submit path; only explicit user intent enables governed submit for non-code work.
 - `technical_manager` produces and refreshes `任务实施说明`, which is the execution input for `coder` and `tester`.
 - If `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`.
-- If `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`.
+- If `coder` is active, downstream `tester` handoff is mandatory before settlement or submit.
 - `coder` / `tester` / `qc` report only to `technical_manager` in the technical-delivery line.
-- After required `tester` handoff in coder-involved work, `technical_manager` decides whether `/qc` is needed.
-- `/qc` is optional by risk or explicit audit need, and cannot replace `tester`.
-- `/submit` is the governed delivery step after required validation gates.
+- After required `tester` handoff in coder-involved work, `technical_manager` decides whether `qc` is needed.
+- `qc` is optional by risk or explicit audit need, and cannot replace `tester`.
+- `submit` is the governed delivery step after required validation gates.
 - Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
 - blocked handoff from missing `任务实施说明` must stop tester/qc/submit continuation until `technical_manager` resolves it.
 - if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
@@ -62,8 +62,8 @@ Plain-language intent should map to the same routes.
 2. `technical_manager`: preconditions, conflict scan, and `任务实施说明`.
 3. `coder`: implement against the latest `任务实施说明`.
 4. `tester`: validate against the same `任务实施说明`.
-5. optional `/qc`: independent audit when risk/policy requires.
-6. optional `/submit`: governed commit/push/follow-through.
+5. optional `qc`: independent audit when risk/policy requires.
+6. optional `submit`: governed commit/push/follow-through.
 
 Do not skip `任务实施说明` production when `coder` or `tester` is active.
 
@@ -73,7 +73,7 @@ Do not skip `任务实施说明` production when `coder` or `tester` is active.
 2. `product_assistant`: produce/update non-code artifacts.
 3. `Aide`: user-facing integration and closeout.
 
-For this line, `/submit` is opt-in only via explicit user request.
+For this line, `submit` is opt-in only via explicit user request.
 
 ## Delegation Context And Fork Policy
 
@@ -125,8 +125,8 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 - enable `long-running` mode and `.codex/progress/active/<task-id>/current.md` when work is multi-step, cross-session, blocked, or release-shaped
 - during long-running mode, on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md`
 - when `completed` is emitted, archive the task record to `.codex/progress/archive/<task-id>/...` after the final sync
-- enable `/qc` when risk is high, the user asks for audit, or release confidence needs it
-- enable `/submit` when governed commit/push or post-push follow-through matters
+- enable `qc` when risk is high, the user asks for audit, or release confidence needs it
+- enable `submit` when governed commit/push or post-push follow-through matters
 
 Do not upgrade discussion-only turns into execution routes merely because the topic is technical.
 
@@ -165,7 +165,7 @@ Environment setup decisions and preparation belong to `technical_manager`.
 
 ## QC Gate
 
-Queue or remind `/qc` only when:
+Queue or remind `qc` only when:
 
 1. required `tester` handoff in the active execution chain is complete
 2. the current task enables QC through `qc_policy` or enabled modules
@@ -174,7 +174,7 @@ Queue or remind `/qc` only when:
 
 ## Submit Gate
 
-Queue or remind `/submit` when:
+Queue or remind `submit` when:
 
 1. required `tester` handoff completed and QC is disabled
 2. QC passed after required `tester` handoff, or the task settled with QC already satisfied

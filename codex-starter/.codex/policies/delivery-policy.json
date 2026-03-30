@@ -2,10 +2,10 @@
   "version": 1,
   "status": "starter-default",
   "ownership": {
-    "maintained_by": "/Aide",
+    "maintained_by": "Aide",
     "purpose": "submit orchestration and guarded post-validation delivery defaults",
     "notes": [
-      "/submit owns commit, push, and optional post-push delivery stages.",
+      "The submit path owns commit, push, and optional post-push delivery stages.",
       "The project itself still owns real CI, release, and notification integrations."
     ]
   },
@@ -19,7 +19,7 @@
     },
     "notes": [
       "Automatic submit queueing applies to technical-delivery routes unless a runtime guard blocks it.",
-      "Non-code delivery stays out of /submit unless the user explicitly asks for governed delivery."
+      "Non-code delivery stays out of the submit path unless the user explicitly asks for governed delivery."
     ]
   },
   "commit": {

@@ -80,7 +80,7 @@ Hard boundaries:
 4. `.codex/state/repo-context.json` if present
 5. `.codex/policies/routing-policy.md`
 6. `.codex/policies/aide-governance-policy.md` when governance judgment or writeback disposition matters
-7. `.codex/policies/aide-writeback-policy.json` when low-risk writeback thresholds matter
+7. `.codex/policies/aide-writeback-policy.json` when `G1` automatic guidance writeback thresholds matter
 8. `.codex/policies/validation-profile.json`
 9. the user's goal
 10. only repo files needed for classification or direct answer

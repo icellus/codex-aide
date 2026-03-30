@@ -13,47 +13,47 @@
 
 # Aide Governance Policy
 
-本文件是 `Aide` 治理规则的单点 authority。
+This file is the single authority for `Aide` governance rules.
 
 ## Governance Objects
 
-- 角色合同
-- 路由规则
-- 关键 runtime 行为
-- 默认状态与默认摘要
-- 共享提示与共享约束
+- Role contracts
+- Routing rules
+- Critical runtime behavior
+- Default state and default summaries
+- Shared prompts and shared constraints
 
 ## Governance Triggers
 
-- 同一类失败重复出现
-- 多个文件对同一概念定义不一致
-- runtime 行为与合同不一致
-- 默认值、提示语或状态字段持续写回旧模型
-- 角色边界反复漂移或越界
+- The same failure pattern repeats
+- Multiple files define the same concept inconsistently
+- Runtime behavior diverges from the contract
+- Defaults, prompts, or state fields keep reintroducing an outdated model
+- Role boundaries drift or are crossed repeatedly
 
 ## Governance Levels
 
 ### G1
 
-- 低风险治理项
-- 只修正文案、摘要、去重、默认描述、目录指向或低风险文本写回
-- 不改变系统行为，不改变角色边界，不改变路由决策
+- Low-risk governance items
+- Limited to wording fixes, summary fixes, deduplication, default descriptions, authority pointers, or other low-risk text writebacks
+- Must not change system behavior, role boundaries, or routing decisions
 
 ### G2
 
-- 中风险治理项
-- 会影响系统合同、自我理解、角色边界或 authority 归属
-- 不直接改变 runtime 自动行为
+- Medium-risk governance items
+- Affect the system contract, role boundaries, authority ownership, or how the system interprets itself
+- Do not directly change automated runtime behavior
 
 ### G3
 
-- 高风险治理项
-- 会影响 runtime 自动行为、路由推进、状态流转或治理边界
-- 一旦改错会直接改变系统运行结果
+- High-risk governance items
+- Affect automated runtime behavior, route progression, state transitions, or governance boundaries
+- Incorrect changes would directly alter system behavior
 
 ## Governance Output
 
-每次治理输出固定包含：
+Every governance result must include:
 
 - `issue`
 - `level`
@@ -64,7 +64,7 @@
 
 ## State Persistence
 
-治理结果在状态层最少保留以下字段：
+At minimum, persist the following fields in state:
 
 - `issue`
 - `level`
@@ -78,4 +78,4 @@
 - `G2 -> ask-user`
 - `G3 -> ask-user`
 
-自动写回只允许 `G1`。
+Only `G1` items may be auto-fixed.

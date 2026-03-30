@@ -24,15 +24,10 @@
         "aide-evolution.mjs",
         "aide-governance.mjs",
         "runtime-state.mjs",
-        "validate-git.mjs",
-        "/Aide",
-        "/qc",
-        "/submit"
+        "validate-git.mjs"
       ],
       "forbidden_terms": [
-        "workflow_chain_id",
-        "slash command",
-        "route alias"
+        "workflow_chain_id"
       ]
     },
     {
@@ -74,17 +69,6 @@
       "allowed_paths": [
         "codex-starter/.codex/agents/",
         "codex-starter/.codex/skills/"
-      ]
-    },
-    {
-      "id": "no_slash_routes_in_top_level_agents",
-      "pattern_any_of": [
-        "/Aide",
-        "/qc",
-        "/submit"
-      ],
-      "allowed_paths": [
-        "codex-starter/.codex/"
       ]
     }
   ],

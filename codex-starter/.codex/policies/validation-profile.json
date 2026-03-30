@@ -12,11 +12,11 @@
     "e2e": ""
   },
   "ownership": {
-    "maintained_by": "/Aide",
+    "maintained_by": "Aide",
     "purpose": "repository validation baseline only",
     "task_level_validation_owner": "tester",
     "notes": [
-      "/Aide records repository-level validation capabilities and constraints.",
+      "Aide records repository-level validation capabilities and constraints.",
       "tester chooses task-level feature validation from requirements and real repository evidence.",
       "coder may run the lightest sanity checks but does not own feature acceptance."
     ]
