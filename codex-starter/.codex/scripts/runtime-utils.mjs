@@ -2429,20 +2429,20 @@ export function detectFailureCategories(message) {
 export function suggestedRoutesForCategory(category) {
   switch (category) {
     case "placeholder":
-      return [".codex/agents/coder.toml", ".agents/skills/qc/SKILL.md"];
+      return [".codex/agents/coder.toml", ".codex/skills/qc/SKILL.md"];
     case "fake-test":
     case "missing-test":
-      return [".codex/agents/tester.toml", ".agents/skills/qc/SKILL.md"];
+      return [".codex/agents/tester.toml", ".codex/skills/qc/SKILL.md"];
     case "missing-implementation":
     case "plan-mismatch":
     case "error-handling":
-      return [".codex/agents/coder.toml", ".agents/skills/qc/SKILL.md"];
+      return [".codex/agents/coder.toml", ".codex/skills/qc/SKILL.md"];
     case "shared-protocol":
       return ["AGENTS.md", ".codex/templates/progress.md"];
     case "environment-mismatch":
-      return [".agents/skills/submit/SKILL.md", "AGENTS.md"];
+      return [".codex/skills/submit/SKILL.md", "AGENTS.md"];
     default:
-      return [".agents/skills/qc/SKILL.md"];
+      return [".codex/skills/qc/SKILL.md"];
   }
 }
 

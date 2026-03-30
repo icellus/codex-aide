@@ -41,10 +41,50 @@ copy_file_if_missing() {
   fi
 }
 
+copy_dir_if_missing() {
+  local src_dir="$1"
+  local dst_dir="$2"
+
+  mkdir -p "$dst_dir"
+
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --ignore-existing "$src_dir"/ "$dst_dir"/
+    return
+  fi
+
+  local src_path
+  while IFS= read -r -d '' src_path; do
+    local rel_path="${src_path#$src_dir/}"
+    local dst_path="$dst_dir/$rel_path"
+
+    if [[ -d "$src_path" ]]; then
+      mkdir -p "$dst_path"
+      continue
+    fi
+
+    if [[ ! -e "$dst_path" ]]; then
+      mkdir -p "$(dirname "$dst_path")"
+      cp -a "$src_path" "$dst_path"
+    fi
+  done < <(find "$src_dir" -mindepth 1 -print0)
+}
+
 cleanup_legacy_codex_runtime_artifacts() {
   local dst_dir="$1"
 
   rm -f -- "$dst_dir/logs/runtime-hooks.jsonl"
+}
+
+migrate_legacy_product_dir() {
+  local target_dir="$1"
+  local legacy_dir="$target_dir/.product"
+  local dst_dir="$target_dir/.codex/product"
+
+  if [[ ! -d "$legacy_dir" ]]; then
+    return
+  fi
+
+  copy_dir_if_missing "$legacy_dir" "$dst_dir"
 }
 
 prune_dir_children_except() {
@@ -67,12 +107,16 @@ copy_codex_dir() {
   local src_dir="$1"
   local dst_dir="$2"
 
-  prune_dir_children_except "$dst_dir" "logs" "state"
+  prune_dir_children_except "$dst_dir" "logs" "product" "progress" "state" "settings.local.json"
   cleanup_legacy_codex_runtime_artifacts "$dst_dir"
+  mkdir -p "$dst_dir/logs" "$dst_dir/progress" "$dst_dir/state"
 
   copy_dir "$src_dir/agents" "$dst_dir/agents"
+  copy_dir "$src_dir/defaults" "$dst_dir/defaults"
   copy_dir "$src_dir/hooks" "$dst_dir/hooks"
+  copy_dir_if_missing "$src_dir/product" "$dst_dir/product"
   copy_dir "$src_dir/scripts" "$dst_dir/scripts"
+  copy_dir "$src_dir/skills" "$dst_dir/skills"
   copy_dir "$src_dir/templates" "$dst_dir/templates"
 
   copy_file "$src_dir/config.toml" "$dst_dir/config.toml"
@@ -83,9 +127,9 @@ copy_codex_dir() {
   copy_file "$src_dir/routing-policy.md" "$dst_dir/routing-policy.md"
   copy_file "$src_dir/validation-profile.json" "$dst_dir/validation-profile.json"
 
-  copy_file_if_missing "$src_dir/bootstrap-state/task-context.json" "$dst_dir/state/task-context.json"
-  copy_file_if_missing "$src_dir/bootstrap-state/repo-context.json" "$dst_dir/state/repo-context.json"
-  copy_file_if_missing "$src_dir/bootstrap-state/task-registry.json" "$dst_dir/state/task-registry.json"
+  copy_file_if_missing "$src_dir/defaults/state/task-context.json" "$dst_dir/state/task-context.json"
+  copy_file_if_missing "$src_dir/defaults/state/repo-context.json" "$dst_dir/state/repo-context.json"
+  copy_file_if_missing "$src_dir/defaults/state/task-registry.json" "$dst_dir/state/task-registry.json"
 }
 
 append_gitignore_lines() {
@@ -121,15 +165,14 @@ append_gitignore_lines() {
 }
 
 copy_file "$SOURCE_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md"
-copy_dir "$SOURCE_DIR/.agents" "$TARGET_DIR/.agents"
+migrate_legacy_product_dir "$TARGET_DIR"
 copy_codex_dir "$SOURCE_DIR/.codex" "$TARGET_DIR/.codex"
-copy_dir "$SOURCE_DIR/.product" "$TARGET_DIR/.product"
 
 append_gitignore_lines \
   "$TARGET_DIR/.gitignore" \
-  "AGENTS.md" \
-  ".agents/" \
-  ".codex/" \
-  ".product/"
+  ".codex/settings.local.json" \
+  ".codex/logs/" \
+  ".codex/state/" \
+  ".codex/progress/"
 
 printf '%s\n' "Installed codex-starter files into $TARGET_DIR"

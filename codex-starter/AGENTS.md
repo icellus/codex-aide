@@ -27,25 +27,28 @@ Project-level Codex workflow starter.
 
 ## Route Map
 
-- `Aide` route alias (`/Aide` only when the client supports custom slash commands) -> load `.agents/skills/aide/SKILL.md`
-- delivery routing owner -> load `.agents/skills/technical_manager/SKILL.md`
-- `qc` route alias (`/qc` only when the client supports custom slash commands) -> load `.agents/skills/qc/SKILL.md`
-- `submit` route alias (`/submit` only when the client supports custom slash commands) -> load `.agents/skills/submit/SKILL.md`
+- `Aide` route alias (`/Aide` only when the client supports custom slash commands) -> load `.codex/skills/aide/SKILL.md`
+- delivery routing owner -> load `.codex/skills/technical_manager/SKILL.md`
+- `qc` route alias (`/qc` only when the client supports custom slash commands) -> load `.codex/skills/qc/SKILL.md`
+- `submit` route alias (`/submit` only when the client supports custom slash commands) -> load `.codex/skills/submit/SKILL.md`
 - no explicit supported route alias -> use `.codex/state/task-context.json`, `.codex/routing-policy.md`, and `.codex/validation-profile.json`
 - cold start with no explicit supported route alias -> let `Aide` handle the first user turn by default, reply in Chinese with a warm contextual greeting that acknowledges the user's actual message, keep the default address as `Boss`, and avoid generic "what can I help with" follow-ups after the user already gave a task
 
 ## Runtime Files
 
 - `.codex/config.toml`: minimal project-scoped Codex config; starter only enables repo-local hooks here and leaves other settings to higher-level config
+- `.codex/skills/*/SKILL.md`: runtime skill authorities for route entry, coordination, and specialist behavior
 - `.codex/hooks.json`: repo-local Codex hook wiring
 - `.codex/hooks/*.mjs`: hook handlers for deterministic lifecycle logging
 - `.codex/routing-policy.md`: routing and module activation authority
 - `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk auto-writeback policy
 - `.codex/delivery-policy.json`: governed submit policy for commit, push, and optional post-push delivery steps
-- `.codex/state/task-context.json`: hot task state and collaboration preferences
-- `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed task history
+- `.codex/defaults/state/*.json`: starter seed files used to initialize local runtime state when `.codex/state/*.json` does not exist yet
+- `.codex/state/task-context.json`: hot task state and collaboration preferences; local runtime copy seeded from `.codex/defaults/state/task-context.json`
+- `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed task history; local runtime copy seeded from `.codex/defaults/state/task-registry.json`
 - `.codex/state/evolution-registry.json`: cold evolution candidates and settled-task review log
-- `.codex/state/repo-context.json`: cached repo facts
+- `.codex/state/repo-context.json`: cached repo facts; local runtime copy seeded from `.codex/defaults/state/repo-context.json`
+- `.codex/product/*.json`: durable product memory, registry, and evolution records that belong to the repository
 - `.codex/validation-profile.json`: repository validation baseline and constraints
 - `.codex/progress/active/<task-id>/current.md`: primary long-running task snapshot for active work
 - `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only progress events per active task

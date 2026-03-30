@@ -1,6 +1,4 @@
 .codex/settings.local.json
 .codex/logs/*
 .codex/state/*
-!.codex/state/task-context.json
-!.codex/state/repo-context.json
-!.codex/state/task-registry.json
+.codex/progress/*

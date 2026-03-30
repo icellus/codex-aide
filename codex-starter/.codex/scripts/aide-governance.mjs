@@ -253,7 +253,7 @@ function dedupAuthoritySuggestion(normalizedLine, files) {
   }
 
   if (files.some((file) => file.includes("/aide/"))) {
-    return ".agents/skills/aide/SKILL.md";
+    return ".codex/skills/aide/SKILL.md";
   }
 
   return "the smallest shared authority file";
@@ -262,7 +262,7 @@ function dedupAuthoritySuggestion(normalizedLine, files) {
 function collectDedupCandidates(projectDir) {
   const filePaths = [
     path.join(projectDir, "AGENTS.md"),
-    ...listFiles(path.join(projectDir, ".agents", "skills"), (filePath) => filePath.endsWith("SKILL.md")),
+    ...listFiles(path.join(projectDir, ".codex", "skills"), (filePath) => filePath.endsWith("SKILL.md")),
     ...listFiles(path.join(projectDir, ".codex", "agents"), (filePath) => filePath.endsWith(".toml"))
   ].filter((filePath) => fs.existsSync(filePath));
 
