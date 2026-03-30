@@ -84,10 +84,13 @@ For this line, `/submit` is opt-in only via explicit user request.
 
 ## Default Modes
 
+These defaults choose the initial delivery mode only.
+First-hop routing still follows the topology and upgrade triggers above.
+
 - `bugfix` -> `lightweight`
 - `feature` -> `standard`
-- `product` -> `lightweight`
-- `refactor` -> `lightweight`
+- `product` -> `standard`
+- `refactor` -> `standard`
 - `release` -> `long-running`
 - `exploration` -> `lightweight`
 
