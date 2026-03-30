@@ -31,7 +31,7 @@ Project-level Codex workflow starter.
 - delivery routing owner -> load `.codex/skills/technical_manager/SKILL.md`
 - `qc` route alias (`/qc` only when the client supports custom slash commands) -> load `.codex/skills/qc/SKILL.md`
 - `submit` route alias (`/submit` only when the client supports custom slash commands) -> load `.codex/skills/submit/SKILL.md`
-- no explicit supported route alias -> use `.codex/state/task-context.json`, `.codex/routing-policy.md`, and `.codex/validation-profile.json`
+- no explicit supported route alias -> use `.codex/state/task-context.json`, `.codex/policies/routing-policy.md`, and `.codex/policies/validation-profile.json`
 - cold start with no explicit supported route alias -> let `Aide` handle the first user turn by default, reply in Chinese with a warm contextual greeting that acknowledges the user's actual message, keep the default address as `Boss`, and avoid generic "what can I help with" follow-ups after the user already gave a task
 
 ## Runtime Files
@@ -40,25 +40,27 @@ Project-level Codex workflow starter.
 - `.codex/skills/*/SKILL.md`: runtime skill authorities for route entry, coordination, and specialist behavior
 - `.codex/hooks.json`: repo-local Codex hook wiring
 - `.codex/hooks/*.mjs`: hook handlers for deterministic lifecycle logging
-- `.codex/routing-policy.md`: routing and module activation authority
-- `.codex/evolution-policy.json`: automatic evolution thresholds and low-risk auto-writeback policy
-- `.codex/delivery-policy.json`: governed submit policy for commit, push, and optional post-push delivery steps
-- `.codex/defaults/state/*.json`: starter seed files used to initialize local runtime state when `.codex/state/*.json` does not exist yet
-- `.codex/state/task-context.json`: hot task state and collaboration preferences; local runtime copy seeded from `.codex/defaults/state/task-context.json`
-- `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed task history; local runtime copy seeded from `.codex/defaults/state/task-registry.json`
+- `.codex/policies/routing-policy.md`: routing and module activation authority
+- `.codex/policies/evolution-policy.json`: automatic evolution thresholds and low-risk auto-writeback policy
+- `.codex/policies/delivery-policy.json`: governed submit policy for commit, push, and optional post-push delivery steps
+- `.codex/defaults/state/*.json`: starter-shipped state seed references
+- `.codex/state/task-context.json`: hot task state and collaboration preferences
+- `.codex/state/task-registry.json`: cold task registry for current, unfinished, and completed task history
 - `.codex/state/evolution-registry.json`: cold evolution candidates and settled-task review log
-- `.codex/state/repo-context.json`: cached repo facts; local runtime copy seeded from `.codex/defaults/state/repo-context.json`
+- `.codex/state/repo-context.json`: cached repo facts
 - `.codex/product/*.json`: durable product memory, registry, and evolution records that belong to the repository
-- `.codex/validation-profile.json`: repository validation baseline and constraints
+- `.codex/policies/validation-profile.json`: repository validation baseline and constraints
+- `.codex/context/project-profile.md`: short human summary, not the hot path
 - `.codex/progress/active/<task-id>/current.md`: primary long-running task snapshot for active work
 - `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only progress events per active task
 - `.codex/progress/archive/<task-id>/...`: archived task progress snapshots and history
-- `.codex/templates/progress.md` / `.codex/templates/progress.release.md`: templates for `.codex/progress/**/current.md`
-- `.codex/templates/progress.history.md`: template for `.codex/progress/**/history/<timestamp>-<slug>.md`
+- `.codex/templates/planning/*.md`: planning templates for PRD, research, and architecture artifacts
+- `.codex/templates/execution/*.md`: execution templates for implementation brief and validation handoff artifacts
+- `.codex/templates/progress/current.md` / `.codex/templates/progress/release.md`: templates for `.codex/progress/**/current.md`
+- `.codex/templates/progress/history.md`: template for `.codex/progress/**/history/<timestamp>-<slug>.md`
 - `.codex/logs/codex-hooks/YYYY-MM-DD.jsonl`: raw Codex lifecycle event log captured by repo-local hooks
 - `.codex/state/runtime-state.json`: runtime memory, reminders, and QC follow-up
 - `.codex/logs/runtime-hooks/YYYY-MM-DD[.part-NNN].jsonl`: hook invocation log with stdin/stdout/stderr and runtime write traces; oversized daily logs rotate into numbered chunks
-- `.codex/project-profile.md`: short human summary, not the hot path
 
 ## Runtime Entrypoints
 
@@ -91,7 +93,7 @@ Project-level Codex workflow starter.
 - `environment setup` and related readiness judgment belong to `technical_manager`
 - `/qc` is opt-in per task need or policy
 - `/submit` is the governed post-validation delivery step for commit, push, and optional post-push follow-through
-- only the main agent or runtime scripts write `.codex/state/*.json` or `.codex/project-profile.md`
+- only the main agent or runtime scripts write `.codex/state/*.json` or `.codex/context/project-profile.md`
 - only `technical_manager` writes `.codex/progress/**` (`current.md` and `history/*.md`)
 - allow only one write-capable subagent at a time
 - do not duplicate routing tables across files

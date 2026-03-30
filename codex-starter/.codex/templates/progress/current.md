@@ -8,7 +8,7 @@
 **Latest History Entry**: `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`
 
 Use this template for long-running work where release promotion/deploy checkpoints are not the primary concern.
-If release checkpoints are primary, use `.codex/templates/progress.release.md` for the same `current.md` target.
+If release checkpoints are primary, use `.codex/templates/progress/release.md` for the same `current.md` target.
 
 ---
 

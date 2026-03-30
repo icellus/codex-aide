@@ -41,7 +41,7 @@ function createDefaultPolicy() {
 }
 
 function loadEvolutionPolicy(projectDir) {
-  const policyPath = path.join(projectDir, ".codex", "evolution-policy.json");
+  const policyPath = path.join(projectDir, ".codex", "policies", "evolution-policy.json");
   const fallback = createDefaultPolicy();
 
   if (!fs.existsSync(policyPath)) {

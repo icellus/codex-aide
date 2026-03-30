@@ -10,13 +10,13 @@ Use this only when the current task explicitly enables QC and a required `tester
 ## Sources of truth
 
 - `.codex/state/task-context.json` is the first runtime source when it exists
-- `.codex/project-profile.md` is the fallback summary source
-- `.codex/validation-profile.json` is repository-level validation baseline only
+- `.codex/context/project-profile.md` is the fallback summary source
+- `.codex/policies/validation-profile.json` is repository-level validation baseline only
 - the triggering `tester` completion report is the handoff input being evaluated
 
 ## Core Principles
 
-- trigger only when `.codex/project-profile.md` clearly enables QC
+- trigger only when `.codex/context/project-profile.md` clearly enables QC
 - queue or run an audit, not an automatic commit or push
 - after QC passes, `technical_manager` decides the next step
 - after QC fails, block the current handoff and return findings to `technical_manager`
@@ -26,7 +26,7 @@ Use this only when the current task explicitly enables QC and a required `tester
 Trigger only when all of these are true:
 
 1. a required `tester` completion report was received
-2. `.codex/project-profile.md` sets `QC policy` to `enabled` or `required`, or `Enabled modules` explicitly includes `/qc`
+2. `.codex/context/project-profile.md` sets `QC policy` to `enabled` or `required`, or `Enabled modules` explicitly includes `/qc`
 3. the input is not just a progress update, request for help, or incomplete status
 
 Do not trigger when:

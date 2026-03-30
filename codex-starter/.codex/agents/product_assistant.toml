@@ -4,7 +4,7 @@ model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md.
+Read .codex/state/task-context.json first when it exists; otherwise read .codex/context/project-profile.md.
 Then read `.codex/product/registry.json`, `.codex/product/memory.json`, and `.codex/product/evolution.json` when they exist.
 Read only the minimum repository context needed for the assigned artifact.
 Focus on producing clear, accurate, maintainable non-code deliverables.

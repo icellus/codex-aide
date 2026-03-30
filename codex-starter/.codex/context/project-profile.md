@@ -6,9 +6,9 @@ Hot runtime files:
 
 - `.codex/state/task-context.json`
 - `.codex/state/repo-context.json`
-- `.codex/validation-profile.json`
+- `.codex/policies/validation-profile.json`
 
-Routing policy lives in `.codex/routing-policy.md`.
+Routing policy lives in `.codex/policies/routing-policy.md`.
 
 ## Project Facts
 

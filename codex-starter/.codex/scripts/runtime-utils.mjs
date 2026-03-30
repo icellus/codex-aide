@@ -876,7 +876,7 @@ export function saveRuntimeState(projectDir, state) {
 }
 
 export function loadDeliveryPolicy(projectDir) {
-  const policyPath = path.join(projectDir, ".codex", "delivery-policy.json");
+  const policyPath = path.join(projectDir, ".codex", "policies", "delivery-policy.json");
   const parsed = loadJsonFile(policyPath, createEmptyDeliveryPolicy);
   const emptyPolicy = createEmptyDeliveryPolicy();
   const parsedSubmitQueueAfter = normalizeSubmitQueueAfter(parsed.submit?.queue_after);
@@ -1229,7 +1229,7 @@ export function loadProjectProfileState(projectDir) {
     return mapTaskContextToProfile(loadTaskContext(projectDir));
   }
 
-  const profilePath = path.join(projectDir, ".codex", "project-profile.md");
+  const profilePath = path.join(projectDir, ".codex", "context", "project-profile.md");
   if (!fs.existsSync(profilePath)) {
     return {
       task: null,
@@ -2438,7 +2438,7 @@ export function suggestedRoutesForCategory(category) {
     case "error-handling":
       return [".codex/agents/coder.toml", ".codex/skills/qc/SKILL.md"];
     case "shared-protocol":
-      return ["AGENTS.md", ".codex/templates/progress.md"];
+      return ["AGENTS.md", ".codex/templates/progress/current.md"];
     case "environment-mismatch":
       return [".codex/skills/submit/SKILL.md", "AGENTS.md"];
     default:

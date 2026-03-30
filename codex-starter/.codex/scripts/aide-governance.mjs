@@ -237,11 +237,11 @@ function normalizeDedupLine(line) {
 
 function dedupAuthoritySuggestion(normalizedLine, files) {
   if (/route|routing|delivery mode|environment setup|\/qc|\/submit/.test(normalizedLine)) {
-    return ".codex/routing-policy.md";
+    return ".codex/policies/routing-policy.md";
   }
 
   if (/validation profile|repository baseline|task-level validation/.test(normalizedLine)) {
-    return ".codex/validation-profile.json";
+    return ".codex/policies/validation-profile.json";
   }
 
   if (/only the main agent updates|runtime files|slash command|command map/.test(normalizedLine)) {

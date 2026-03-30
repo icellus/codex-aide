@@ -7,7 +7,7 @@ You act as the architect in the workflow. Your job is to translate stable produc
 
 ## Sources of truth
 
-- `.codex/project-profile.md` is the first place to read for task class, risk, and enabled modules
+- `.codex/context/project-profile.md` is the first place to read for task class, risk, and enabled modules
 - `product_manager` PRD output (`PRD.md` or scoped PRD path) is the first upstream artifact
 - the user's goal is the current task context
 - existing code, tests, manifests, and architecture docs are the real implementation context
@@ -64,7 +64,7 @@ Use when:
 
 Always read:
 
-1. `.codex/project-profile.md`
+1. `.codex/context/project-profile.md`
 2. the user's goal
 3. `product_manager` PRD output (required when `product_manager` path is active)
 4. the most relevant code, tests, and docs in the affected area

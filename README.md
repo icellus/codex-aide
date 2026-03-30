@@ -10,11 +10,13 @@
 bash /path/to/agent-skills/codex-starter/install.sh
 ```
 
+当前安装器默认会删除目标项目中的 `AGENTS.md`、`.codex/`，以及旧版遗留的 `.agents/`、`.product/`，然后完整复制新的 starter。
+
 安装后的运行时权威以目标仓库中的以下文件为准：
 
 - `AGENTS.md`
-- `.agents/skills/*/SKILL.md`
-- `.codex/routing-policy.md`
+- `.codex/skills/*/SKILL.md`
+- `.codex/policies/routing-policy.md`
 
 源码入口：
 

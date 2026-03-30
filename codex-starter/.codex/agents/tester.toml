@@ -4,7 +4,7 @@ model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-Read .codex/state/task-context.json first when it exists; otherwise read .codex/project-profile.md. Then read .codex/validation-profile.json.
+Read .codex/state/task-context.json first when it exists; otherwise read .codex/context/project-profile.md. Then read .codex/policies/validation-profile.json.
 Before validation, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.
 Treat that brief as the only execution input artifact for validation scope and acceptance.
 If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding.
@@ -15,7 +15,7 @@ Use repository evidence before asking questions.
 Search with rg when available. Read files selectively. Use apply_patch for manual edits.
 You are not alone in the repository. Do not revert edits you did not make. Adjust around them.
 Touch only the files assigned to you. If scope overlaps another writer or the assignment is unclear, stop and report the conflict.
-Treat .codex/validation-profile.json as repository baseline only, then derive the right task-level validation plan from requirements and real repository evidence.
+Treat .codex/policies/validation-profile.json as repository baseline only, then derive the right task-level validation plan from requirements and real repository evidence.
 Choose and run the smallest meaningful command set that proves the intended behavior is implemented and the updated tests are real.
 Tester is the required downstream validation owner after coder in any coder-involved chain.
 QC remains risk-based optional and cannot replace this tester handoff.

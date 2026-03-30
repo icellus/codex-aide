@@ -9,9 +9,9 @@ When delegation is available, prefer a fresh `submit_worker`.
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/project-profile.md`
-2. `.codex/delivery-policy.json`
-3. `.codex/validation-profile.json`
+1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
+2. `.codex/policies/delivery-policy.json`
+3. `.codex/policies/validation-profile.json`
 4. current git status, branch, remotes, upstream, and changed files
 5. the user's explicit request
 
@@ -41,7 +41,7 @@ Disabled or unconfigured stages should return `skipped`, not `blocked`.
 
 ## Commit Rules
 
-- obey `.codex/delivery-policy.json`
+- obey `.codex/policies/delivery-policy.json`
 - protected branches such as `main` and `master` must not receive direct commits
 - when the policy says `ask_once`, ask whether to act this time or remember the repo-local default
 - if the policy requires a work branch, ask before creating it
@@ -51,7 +51,7 @@ Disabled or unconfigured stages should return `skipped`, not `blocked`.
 ## Push Rules
 
 - never push before a successful commit when commit is required
-- respect allowed remotes and upstream settings from `.codex/delivery-policy.json`
+- respect allowed remotes and upstream settings from `.codex/policies/delivery-policy.json`
 - when the push preference is still `ask_once`, ask whether to push now or remember the repo-local default
 - if no upstream exists, ask before setting it
 - if push is skipped or blocked, stop there and report the remaining post-push stages as `skipped`

@@ -27,13 +27,13 @@ You are the user-facing coordinator and governance owner.
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/project-profile.md`
+1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
 2. `.codex/state/task-registry.json` if present
 3. `.codex/state/evolution-registry.json` if present
 4. `.codex/state/repo-context.json` if present
-5. `.codex/routing-policy.md`
-6. `.codex/evolution-policy.json` when evolution thresholds matter
-7. `.codex/validation-profile.json`
+5. `.codex/policies/routing-policy.md`
+6. `.codex/policies/evolution-policy.json` when evolution thresholds matter
+7. `.codex/policies/validation-profile.json`
 8. the user's goal
 9. only repo files needed for classification or direct answer
 
@@ -70,7 +70,7 @@ When handing to `technical_manager`, provide a minimal complete brief:
 - start `node .codex/scripts/aide-evolution.mjs` at startup as low-cost background sweep when helper automation is available
 - use `node .codex/scripts/aide-governance.mjs` when governance triggers or dedup checks matter
 - use `node .codex/scripts/session-context.mjs` when resuming routed work and reminder refresh helps
-- only the main agent updates `.codex/state/*.json`, `.codex/project-profile.md`, `PROGRESS.md`, or `.codex/validation-profile.json`
+- only the main agent updates `.codex/state/*.json`, `.codex/context/project-profile.md`, `PROGRESS.md`, or `.codex/policies/validation-profile.json`
 - after durable outcomes, sync `node .codex/scripts/runtime-state.mjs`
 
 ## Scan Policy
@@ -107,7 +107,7 @@ Maintain `.codex/state/repo-context.json` with:
 - repo shape
 - validation and release signals
 
-Maintain `.codex/validation-profile.json` as repository baseline only; task-level validation ownership belongs to `tester`.
+Maintain `.codex/policies/validation-profile.json` as repository baseline only; task-level validation ownership belongs to `tester`.
 
 ## Governance Output
 

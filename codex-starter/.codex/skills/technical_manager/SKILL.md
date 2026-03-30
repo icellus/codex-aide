@@ -21,9 +21,9 @@ You own delivery execution routing once a task enters delivery.
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/project-profile.md`
-2. `.codex/routing-policy.md`
-3. `.codex/validation-profile.json`
+1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
+2. `.codex/policies/routing-policy.md`
+3. `.codex/policies/validation-profile.json`
 4. the current user goal and `Aide` handoff brief
 5. only repository evidence needed to make safe delivery decisions
 
@@ -62,7 +62,7 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 - long-running history path: `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`.
 - on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md` in the same update cycle.
 - on `completed`, keep the final snapshot + history coherent, then move the task record to `.codex/progress/archive/<task-id>/...`.
-- `.codex/templates/progress.md` and `.codex/templates/progress.release.md` are `current.md` templates; `.codex/templates/progress.history.md` is the history-entry template.
+- `.codex/templates/progress/current.md` and `.codex/templates/progress/release.md` are `current.md` templates; `.codex/templates/progress/history.md` is the history-entry template.
 
 ## Capability Rules
 

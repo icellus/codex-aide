@@ -9,8 +9,8 @@ When delegation is available, prefer a fresh read-only `qc_reviewer` with minima
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/project-profile.md`
-2. `.codex/validation-profile.json`
+1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
+2. `.codex/policies/validation-profile.json`
 3. current task context
 4. changed files and the nearest relevant tests
 5. implementation plan or handoff only when the selected audit mode needs it
@@ -25,7 +25,7 @@ If QC is not justified and the user did not explicitly ask for it, return `NOT N
 
 ## Validation Rules
 
-- treat `.codex/validation-profile.json` as repository validation baseline only
+- treat `.codex/policies/validation-profile.json` as repository validation baseline only
 - in coder-involved chains, QC is considered only after required tester handoff, and that routing decision belongs to `technical_manager`
 - for `Phase: tester`, read the latest `任务实施说明` path from `technical_manager`; if missing/unreadable, return `FAIL` and route back through `technical_manager`
 - when tester evidence exists, audit whether tester chose an appropriate task-level validation plan

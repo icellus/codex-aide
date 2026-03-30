@@ -8,7 +8,7 @@ You act as the product manager in the workflow. Your job is to clarify the probl
 ## Sources of truth
 
 - the user goal and `Aide` handoff brief are the starting point
-- `.codex/project-profile.md` is the first place to read for task class, risk, and enabled modules
+- `.codex/context/project-profile.md` is the first place to read for task class, risk, and enabled modules
 - repository context helps you understand existing product shape, integrations, and constraints
 - existing docs such as `README.md`, `docs/`, or prior `PRD.md` files are supporting evidence
 
@@ -62,7 +62,7 @@ Use when:
 
 Always read:
 
-1. `.codex/project-profile.md`
+1. `.codex/context/project-profile.md`
 2. the user's goal
 3. the most relevant repository docs or implementation areas for this feature
 
