@@ -647,7 +647,7 @@ export function createEmptyTaskContext() {
       route_rationale: "",
       routing_overrides: [],
       enabled_roles: ["Aide", "main agent"],
-      enabled_modules: ["startup scan or cached repo context", "lightweight execution"],
+      enabled_modules: ["intake triage and cached repo context", "direct answer or routed delivery"],
       qc_policy: "disabled",
       submit_policy: "enabled",
       validation_profile_status: "not-set",
@@ -1141,8 +1141,14 @@ function normalizeDeliveryModeValue(value) {
 function normalizeEnabledModuleValue(value) {
   const normalized = normalizeProfileValue(value);
   const legacy = normalized.toLowerCase();
+  if (legacy === "startup scan or cached repo context") {
+    return "intake triage and cached repo context";
+  }
+  if (legacy === "lightweight execution") {
+    return "direct answer or routed delivery";
+  }
   if (legacy === "direct implementation" || legacy === "lightweight implementation") {
-    return "lightweight execution";
+    return "direct answer or routed delivery";
   }
   return normalized;
 }

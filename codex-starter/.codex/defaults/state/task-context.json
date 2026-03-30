@@ -15,7 +15,7 @@
     "route_rationale": "",
     "routing_overrides": [],
     "enabled_roles": ["Aide", "main agent"],
-    "enabled_modules": ["startup scan or cached repo context", "lightweight execution"],
+    "enabled_modules": ["intake triage and cached repo context", "direct answer or routed delivery"],
     "qc_policy": "disabled",
     "submit_policy": "enabled",
     "validation_profile_status": "not-set",
