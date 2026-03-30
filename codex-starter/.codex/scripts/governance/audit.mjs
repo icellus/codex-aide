@@ -13,7 +13,7 @@ import {
   normalizeGovernanceLevel,
   readJsonStdinEnvelope,
   startRuntimeInvocationLogging
-} from "./runtime-utils.mjs";
+} from "../runtime/index.mjs";
 
 function relativePath(projectDir, filePath) {
   return path.relative(projectDir, filePath).replace(/\\/g, "/") || path.basename(filePath);
@@ -547,7 +547,7 @@ async function main() {
   const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
-    scriptName: "aide-governance.mjs",
+    scriptName: "governance/audit.mjs",
     input,
     rawInput: envelope.raw,
     metadata: {

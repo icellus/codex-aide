@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
-import { getProjectContext, readJsonStdinEnvelope, startRuntimeInvocationLogging } from "./runtime-utils.mjs";
+import { getProjectContext } from "../shared/project-context.mjs";
+import { readJsonStdinEnvelope } from "../shared/io.mjs";
+import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
 
 function isBroadGitAddCommand(command) {
   const normalized = String(command || "").replace(/\s+/g, " ").trim();
@@ -27,7 +29,7 @@ async function main() {
   const project = getProjectContext(input);
   const logger = startRuntimeInvocationLogging({
     projectDir: project.projectDir,
-    scriptName: "validate-git.mjs",
+    scriptName: "guards/validate-git.mjs",
     input,
     rawInput: envelope.raw,
     metadata: {
@@ -69,7 +71,7 @@ async function main() {
     });
     process.exit(2);
   } catch (error) {
-    process.stderr.write(`validate-git error: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(`guards/validate-git error: ${error instanceof Error ? error.message : String(error)}\n`);
     logger.finalize({
       status: "error",
       error

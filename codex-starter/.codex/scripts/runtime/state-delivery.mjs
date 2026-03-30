@@ -22,7 +22,7 @@ import {
   resolveWorkflowScopedTaskId,
   shouldCompressCompletedTask
 } from "./state-workflow.mjs";
-import { removePendingActions, upsertGovernanceQueueItem, upsertPendingAction } from "./state.mjs";
+import { removePendingActions, upsertGovernanceQueueItem, upsertPendingAction } from "./queue.mjs";
 
 function normalizeToken(value) {
   return String(value || "")

@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-import { getProjectContext, readJsonStdinEnvelope, startRuntimeInvocationLogging } from "./runtime-utils.mjs";
+import { getProjectContext } from "../shared/project-context.mjs";
+import { readJsonStdinEnvelope } from "../shared/io.mjs";
+import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,8 +19,8 @@ function normalizeStepInput(input, projectDir, extra = {}) {
   };
 }
 
-function runStep(projectDir, scriptName, input) {
-  const scriptPath = path.join(__dirname, scriptName);
+function runStep(projectDir, relativeScriptPath, input) {
+  const scriptPath = path.join(__dirname, relativeScriptPath);
   return spawnSync(process.execPath, [scriptPath], {
     cwd: projectDir,
     env: {
@@ -37,7 +39,7 @@ async function main() {
   const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
-    scriptName: "startup-context.mjs",
+    scriptName: "context/startup.mjs",
     input,
     rawInput: envelope.raw,
     metadata: {
@@ -50,15 +52,18 @@ async function main() {
     const trigger = String(input.trigger || "startup").trim().toLowerCase() || "startup";
     const steps = [
       {
-        scriptName: "task-overview.mjs",
+        scriptName: "context/task-overview.mjs",
+        relativeScriptPath: "task-overview.mjs",
         input: normalizeStepInput(input, projectDir)
       },
       {
-        scriptName: "aide-writeback.mjs",
+        scriptName: "governance/writeback.mjs",
+        relativeScriptPath: path.join("..", "governance", "writeback.mjs"),
         input: normalizeStepInput(input, projectDir, { trigger })
       },
       {
-        scriptName: "session-context.mjs",
+        scriptName: "context/session.mjs",
+        relativeScriptPath: "session.mjs",
         input: normalizeStepInput(input, projectDir)
       }
     ];
@@ -66,7 +71,7 @@ async function main() {
     const results = [];
 
     for (const step of steps) {
-      const result = runStep(projectDir, step.scriptName, step.input);
+      const result = runStep(projectDir, step.relativeScriptPath, step.input);
       results.push({
         script: step.scriptName,
         status: result.status,
@@ -106,7 +111,7 @@ async function main() {
       }
     });
   } catch (error) {
-    process.stderr.write(`startup-context error: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(`context/startup error: ${error instanceof Error ? error.message : String(error)}\n`);
     logger.finalize({
       status: "error",
       error

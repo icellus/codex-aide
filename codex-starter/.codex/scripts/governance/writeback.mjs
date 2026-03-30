@@ -18,7 +18,7 @@ import {
   saveGovernanceRegistry,
   startRuntimeInvocationLogging,
   syncTaskRegistry
-} from "./runtime-utils.mjs";
+} from "../runtime/index.mjs";
 
 function candidateTimestamp(item) {
   return new Date(item?.updatedAt || item?.lastSeenAt || item?.createdAt || 0).getTime();
@@ -429,7 +429,7 @@ async function main() {
   const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
-    scriptName: "aide-writeback.mjs",
+    scriptName: "governance/writeback.mjs",
     input,
     rawInput: envelope.raw,
     metadata: {

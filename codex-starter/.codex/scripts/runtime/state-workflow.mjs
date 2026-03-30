@@ -1,13 +1,8 @@
-import {
-  isQcEnabled,
-  isSubmitEnabled,
-  isTaskSettled,
-  normalizeTaskWorkflowState
-} from "./store.mjs";
+import { isQcEnabled, isSubmitEnabled, isTaskSettled, normalizeTaskWorkflowState } from "./store.mjs";
 import { resolveActiveTask } from "./registry.mjs";
 import { compactText, detectQcPhase, detectTaskCompletionMessage } from "./structured.mjs";
 import { normalizeWorkflowChainId, normalizeWorkflowPhase, workflowChainMatches } from "./state-normalizers.mjs";
-import { removePendingActions, upsertPendingAction } from "./state.mjs";
+import { removePendingActions, upsertPendingAction } from "./queue.mjs";
 
 function currentTaskLabel(profile, taskId) {
   return String(profile.task || "").trim() || (taskId || "current-task");

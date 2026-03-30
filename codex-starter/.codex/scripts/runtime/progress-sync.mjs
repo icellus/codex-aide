@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { getProjectContext, logRuntimeFileWrite } from "./core.mjs";
+import { logRuntimeFileWrite } from "../shared/logging.mjs";
+import { getProjectContext } from "../shared/project-context.mjs";
 import { normalizeText } from "./structured.mjs";
 
 function normalizeArtifactField(value) {

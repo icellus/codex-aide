@@ -4,7 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { getProjectContext } from "./runtime-utils.mjs";
+import { getProjectContext } from "../shared/project-context.mjs";
+
+const SCRIPT_PATH = ".codex/scripts/logs/analyze.mjs";
 
 const DEFAULT_THRESHOLDS = {
   readHeavyToolThreshold: 12,
@@ -18,7 +20,7 @@ function printUsage() {
   process.stdout.write(
     [
       "Usage:",
-      "  node .codex/scripts/log-analysis.mjs [--logs <path>] [--codex-hooks <file|dir>] [--runtime-hooks <file|dir>] [--json]",
+      `  node ${SCRIPT_PATH} [--logs <path>] [--codex-hooks <file|dir>] [--runtime-hooks <file|dir>] [--json]`,
       "",
       "Options:",
       "  --logs <path>                             Path to `.codex/logs` or an imported logs directory",

@@ -15,7 +15,7 @@ import {
   saveRuntimeState,
   syncTaskRegistry,
   startRuntimeInvocationLogging
-} from "./runtime-utils.mjs";
+} from "../runtime/index.mjs";
 function summarizePendingQCActions(state) {
   return state.pendingActions.filter((item) => item.type === "run_qc");
 }
@@ -71,7 +71,7 @@ async function main() {
   const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
-    scriptName: "session-context.mjs",
+    scriptName: "context/session.mjs",
     input,
     rawInput: envelope.raw,
     metadata: {

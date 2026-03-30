@@ -1,11 +1,17 @@
 export {
   ensureDir,
-  getProjectContext,
   logRuntimeFileWrite,
-  readJsonStdin,
-  readJsonStdinEnvelope,
   startRuntimeInvocationLogging
-} from "./runtime/core.mjs";
+} from "../shared/logging.mjs";
+
+export {
+  getProjectContext
+} from "../shared/project-context.mjs";
+
+export {
+  readJsonStdin,
+  readJsonStdinEnvelope
+} from "../shared/io.mjs";
 
 export {
   createEmptyAideGovernancePolicy,
@@ -33,7 +39,7 @@ export {
   saveRuntimeState,
   saveTaskContext,
   saveTaskRegistry
-} from "./runtime/store.mjs";
+} from "./store.mjs";
 
 export {
   basenameLabel,
@@ -44,7 +50,7 @@ export {
   pathContains,
   resolveActivePlan,
   resolveWorkflowPath
-} from "./runtime/progress.mjs";
+} from "./progress.mjs";
 
 export {
   getCurrentTaskRecord,
@@ -52,7 +58,7 @@ export {
   resolveActiveTask,
   syncTaskRegistry,
   upsertTaskRegistryTask
-} from "./runtime/registry.mjs";
+} from "./registry.mjs";
 
 export {
   compareGovernanceLevel,
@@ -71,13 +77,13 @@ export {
   suggestedRoutesForCategory,
   toGovernanceItemId,
   validateStructuredResultContract
-} from "./runtime/structured.mjs";
+} from "./structured.mjs";
 
 export {
   removePendingActions,
   trimRuntimeState,
   upsertGovernanceQueueItem,
   upsertPendingAction
-} from "./runtime/state.mjs";
+} from "./queue.mjs";
 
-export { syncProgressFromState } from "./runtime/progress-sync.mjs";
+export { syncProgressFromState } from "./progress-sync.mjs";

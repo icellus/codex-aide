@@ -13,7 +13,7 @@ import {
   readJsonStdinEnvelope,
   startRuntimeInvocationLogging,
   syncTaskRegistry
-} from "./runtime-utils.mjs";
+} from "../runtime/index.mjs";
 
 function formatTaskLine(prefix, task) {
   const parts = [];
@@ -51,7 +51,7 @@ async function main() {
   const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
-    scriptName: "task-overview.mjs",
+    scriptName: "context/task-overview.mjs",
     input,
     rawInput: envelope.raw,
     metadata: {
@@ -142,7 +142,7 @@ async function main() {
       }
     });
   } catch (error) {
-    process.stderr.write(`task-overview error: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(`context/task-overview error: ${error instanceof Error ? error.message : String(error)}\n`);
     logger.finalize({
       status: "error",
       error
