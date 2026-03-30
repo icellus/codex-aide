@@ -82,9 +82,11 @@ function hasSection(text, heading) {
 
 function collectAuditFindings(projectDir) {
   const findings = [];
-  const skillDir = path.join(projectDir, ".agents", "skills");
+  const skillDirs = [path.join(projectDir, ".codex", "skills"), path.join(projectDir, ".agents", "skills")];
   const agentDir = path.join(projectDir, ".codex", "agents");
-  const skillFiles = listFiles(skillDir, (filePath) => filePath.endsWith("SKILL.md"));
+  const skillFiles = Array.from(
+    new Set(skillDirs.flatMap((dirPath) => listFiles(dirPath, (filePath) => filePath.endsWith("SKILL.md"))))
+  ).sort();
   const agentFiles = listFiles(agentDir, (filePath) => filePath.endsWith(".toml"));
 
   for (const filePath of skillFiles) {

@@ -155,9 +155,12 @@ async function main() {
     const blocked = blockedPool.slice(-1);
     for (const item of blocked) {
       const missingImplementationBrief = /Implementation Brief|任务实施说明/i.test(String(item.note || ""));
+      const phase = String(item.phase || "").trim().toLowerCase();
       pushReminder(
         100,
-        missingImplementationBrief
+        phase === "product_assistant"
+          ? `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: product_assistant reported blockage. Route back through Aide for re-triage across product_manager, technical_manager, and product_assistant lines.`
+          : missingImplementationBrief
           ? `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: Implementation Brief (任务实施说明) is missing/unreadable. Stop tester/qc/submit continuation; technical_manager should refresh the brief and gather user clarification via Aide if needed.`
           : `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: route back through technical_manager, review the structured blockage, then resume ${item.phase || "work"}.`
       );

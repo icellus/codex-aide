@@ -488,7 +488,7 @@ function recordProductAssistantReview(state, taskId, status, message) {
       severity: "L2",
       issueType: "workflow_break",
       routeTarget: "Aide investigate",
-      note: "A product_assistant task blocked. Review the chat record to decide whether the user input was incomplete, the task was misunderstood, or the route should switch to coding."
+      note: "A product_assistant task blocked. Review the chat record and re-triage through Aide across product_manager, technical_manager, and product_assistant lines."
     });
     return;
   }
@@ -918,6 +918,75 @@ function hasAmbiguousBlockedSignals(state, role) {
   });
 }
 
+function normalizeToken(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+}
+
+function isProductAssistantPhaseToken(value) {
+  const token = normalizeToken(value);
+  return token === "product-assistant" || token === "product-assistant-blocked";
+}
+
+function isNonCodeRouteByProfile(profile = {}) {
+  const taskClass = normalizeToken(profile.taskClass);
+  if (taskClass.includes("non-code") || taskClass.includes("noncode") || taskClass.includes("artifact")) {
+    return true;
+  }
+
+  const enabledModules = Array.isArray(profile.enabledModules) ? profile.enabledModules : [];
+  return enabledModules.some((item) => {
+    const token = normalizeToken(item);
+    return token.includes("non-code") || token.includes("artifact");
+  });
+}
+
+function isNonCodeRouteByWorkflow(workflow = {}) {
+  return isProductAssistantPhaseToken(workflow?.phase) || isProductAssistantPhaseToken(workflow?.current_chain);
+}
+
+function hasProductAssistantSignal(state, taskId) {
+  const scopedTaskId = taskId || null;
+  const pendingActions = Array.isArray(state.pendingActions) ? state.pendingActions : [];
+  const recentEvents = Array.isArray(state.recentSubagentEvents) ? state.recentSubagentEvents : [];
+
+  if (
+    pendingActions.some(
+      (item) => item.phase === "product_assistant" && matchesTaskScope(item.taskId, scopedTaskId)
+    )
+  ) {
+    return true;
+  }
+
+  return recentEvents.some(
+    (item) =>
+      item.agentType === "product_assistant" &&
+      (scopedTaskId ? item.taskId === scopedTaskId : !item.taskId)
+  );
+}
+
+function isNonCodeDeliveryRoute({ role = "", workflow = {}, profile = {}, state = null, taskId = null } = {}) {
+  if (normalizeToken(role) === "product-assistant") {
+    return true;
+  }
+
+  if (isNonCodeRouteByWorkflow(workflow)) {
+    return true;
+  }
+
+  if (isNonCodeRouteByProfile(profile)) {
+    return true;
+  }
+
+  if (state && hasProductAssistantSignal(state, taskId)) {
+    return true;
+  }
+
+  return false;
+}
+
 function shouldQueueByPolicy(deliveryPolicy, trigger) {
   if (!trigger) {
     return true;
@@ -1049,6 +1118,10 @@ function shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy
     return false;
   }
 
+  if (isNonCodeDeliveryRoute({ role })) {
+    return false;
+  }
+
   if (role === "coder") {
     return false;
   }
@@ -1062,6 +1135,10 @@ function shouldQueueSubmitAfterCompletion(role, profile, message, deliveryPolicy
 
 function shouldQueueSubmitAfterQc(state, taskId, profile, message, deliveryPolicy, workflow) {
   if (!isSubmitEnabled(profile, deliveryPolicy)) {
+    return false;
+  }
+
+  if (isNonCodeDeliveryRoute({ workflow, profile, state, taskId })) {
     return false;
   }
 
@@ -1083,6 +1160,10 @@ function shouldQueueSubmitAfterQc(state, taskId, profile, message, deliveryPolic
 
 function maybeQueueSubmitForSettledTask(state, taskId, profile, message, deliveryPolicy, workflow) {
   if (!isSubmitEnabled(profile, deliveryPolicy)) {
+    return;
+  }
+
+  if (isNonCodeDeliveryRoute({ workflow, profile, state, taskId })) {
     return;
   }
 
@@ -1608,6 +1689,20 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
   }
 
   if (role === "product_assistant" && (status === "complete" || status === "blocked")) {
+    const scopedTaskId = resolveWorkflowScopedTaskId(taskId, workflow);
+    removePendingActions(
+      state,
+      (item) => item.type === "run_submit" && matchesTaskScope(item.taskId, scopedTaskId)
+    );
+    updateWorkflowState(workflow, {
+      phase: "product_assistant",
+      current_chain: status === "blocked" ? "product_assistant_blocked" : "product_assistant",
+      expected_next_step: "aide",
+      required_handoff: "none",
+      required_handoff_task_id: null,
+      settlement_guard: "none",
+      settlement_guard_reason: ""
+    });
     recordProductAssistantReview(state, taskId, status, message);
   }
 

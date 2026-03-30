@@ -2,52 +2,78 @@
 
 This file is the routing authority.
 
-`Aide` owns outer coordination: user-facing intake, governance, and closeout.
-`technical_manager` is the technical-manager layer for staged delivery routing.
-When a task enters staged delivery routing, it must pass through `technical_manager` before any downstream execution role is activated.
+`Aide` role definition and triage semantics are owned by `.codex/skills/aide/SKILL.md`.
 `.codex/state/task-context.json` records current route and checkpoints.
 
 Named route labels such as `Aide`, `qc`, and `submit` are optional affordances.
 Plain-language intent should map to the same routes.
 
+## Routing Topology
+
+- entry owner: `Aide`
+- first-hop targets from `Aide`: `product_manager`, `technical_manager`, `product_assistant`
+- product-definition line:
+  - `skip`: `Aide -> product_manager -> technical_manager`
+  - `product`: `Aide -> product_manager -> architect -> technical_manager`
+- technical-delivery line: `Aide -> technical_manager -> coder -> tester -> optional /qc -> optional /submit`
+- non-code delivery line: `Aide -> product_assistant -> Aide`
+
 ## Core Rules
 
 - Prefer the lightest workflow that can safely finish the task.
 - Keep `lightweight` as the default for small, local, low-risk work.
-- Keep discussion, Q&A, option comparison, and non-delivery analysis in `Aide`.
-- `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`.
-- Use `technical_manager` as the execution-entry owner when the task needs staged execution, environment/setup decisions, task-level validation ownership, durable handoffs, or governed delivery.
-- `technical_manager` owns execution entry, precondition checks, repository understanding depth, environment readiness, `任务实施说明`, and staged handoff management.
-- Treat repository exploration and environment setup as actions/capabilities, not primary role expansion points.
-- `technical_manager` produces and refreshes `任务实施说明`, which is the only execution input for `coder` and `tester`.
-- if `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`.
-- for long-running tasks, `technical_manager` owns `.codex/progress/**` writes and keeps `history` + `current.md` synchronized.
-- progress trigger events are fixed: `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, `completed`.
+- Keep discussion, Q&A, option comparison, and recommendation-only analysis in `Aide`.
+- `Aide` selects first hop by deliverable type and scope stability.
+- `product_manager` is the product-definition owner; it does not route back to `Aide`.
+- In the product-definition line:
+  - `skip` outcome continues to `technical_manager`.
+  - `product` outcome continues to `architect`, then `technical_manager`.
+- `technical_manager` owns the technical-delivery line only.
+- If `technical_manager` detects unresolved product scope or non-technical ownership mismatch, escalate back to `Aide` for re-triage.
+- `technical_manager` must not directly route to `product_manager`.
+- `product_assistant` receives non-code delivery work from `Aide` and returns results to `Aide`.
+- `product_assistant` should not auto-enter `/submit`; only explicit user intent enables governed submit for non-code work.
+- `technical_manager` produces and refreshes `任务实施说明`, which is the execution input for `coder` and `tester`.
+- If `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or `/submit`.
-- once the task enters the `product_manager` path, `architect` is mandatory as the next routing step before returning to `technical_manager`.
-- `coder` / `tester` / `qc` report only to `technical_manager` in the execution chain.
+- `coder` / `tester` / `qc` report only to `technical_manager` in the technical-delivery line.
 - After required `tester` handoff in coder-involved work, `technical_manager` decides whether `/qc` is needed.
 - `/qc` is optional by risk or explicit audit need, and cannot replace `tester`.
 - `/submit` is the governed delivery step after required validation gates.
 - Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
 - blocked handoff from missing `任务实施说明` must stop tester/qc/submit continuation until `technical_manager` resolves it.
 - if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
+- for long-running technical tasks, `technical_manager` owns `.codex/progress/**` writes and keeps `history` + `current.md` synchronized.
+- progress trigger events are fixed: `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, `completed`.
 
-## Delivery Chain
+## Delivery Chains
 
-Default staged chain for execution work:
+### Product-Definition Line
 
-1. `Aide`: outer coordination and decision to enter delivery routing.
-2. `technical_manager`: execution entry, preconditions, conflict scan, and chain design.
-3. optional `product_manager`: product-manager clarification for unstable WHAT/WHY/MVP.
-4. `architect`: mandatory when step 3 is active; otherwise enabled by `technical_manager` when system-level HOW remains unstable.
-5. `technical_manager`: produce or refresh `任务实施说明`.
-6. `coder`: implement against the latest `任务实施说明`.
-7. `tester`: validate against the same `任务实施说明`.
-8. optional `/qc`: independent audit when risk/policy requires.
-9. optional `/submit`: governed commit/push/follow-through.
+1. `Aide`: intake, triage, and handoff brief.
+2. `product_manager`: clarify WHAT/WHY/MVP and choose `skip` or `product`.
+3. if outcome is `skip`, hand off to `technical_manager`.
+4. if outcome is `product`, hand off to `architect`.
+5. `technical_manager`: enter technical-delivery line after `product_manager` `skip` or `architect` output.
 
-Do not skip step 5 when `coder` or `tester` is active.
+### Technical-Delivery Line
+
+1. `Aide`, `product_manager` `skip`, or upstream `architect` output enters `technical_manager`.
+2. `technical_manager`: preconditions, conflict scan, and `任务实施说明`.
+3. `coder`: implement against the latest `任务实施说明`.
+4. `tester`: validate against the same `任务实施说明`.
+5. optional `/qc`: independent audit when risk/policy requires.
+6. optional `/submit`: governed commit/push/follow-through.
+
+Do not skip `任务实施说明` production when `coder` or `tester` is active.
+
+### Non-Code Delivery Line
+
+1. `Aide`: intake, triage, and non-code brief.
+2. `product_assistant`: produce/update non-code artifacts.
+3. `Aide`: user-facing integration and closeout.
+
+For this line, `/submit` is opt-in only via explicit user request.
 
 ## Delegation Context And Fork Policy
 
@@ -73,10 +99,12 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 
 ## Upgrade Triggers
 
-- enter `technical_manager` when the task needs staged execution, environment/setup decisions, task-level validation ownership, durable artifact handoff, or governed delivery
 - enable `product_manager` when scope, MVP, or success criteria are unstable
-- if `product_manager` path is active, require `architect` as the next step
-- if `product_manager` path is inactive, enable `architect` when interfaces, boundaries, or integration design are unstable
+- if `product_manager` outcome is `skip`, continue to `technical_manager`
+- if `product_manager` outcome is `product`, require `architect` as the next step, then `technical_manager`
+- enter `technical_manager` when the task needs code/config/runtime changes, implementation ownership, task-level validation ownership, durable technical handoff, or governed delivery
+- if `technical_manager` cannot proceed because ownership is not technical or product scope is still unstable, escalate to `Aide` for re-triage
+- if interfaces, boundaries, or integration design are unstable inside the technical-delivery line, `technical_manager` may enable `architect`
 - require `technical_manager` to produce or refresh `任务实施说明` before any `coder`/`tester` work
 - enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `coder` for implementation ownership, followed by required downstream `tester`
@@ -92,7 +120,9 @@ Do not upgrade discussion-only turns into execution routes merely because the to
 
 - Start with the smallest active team that can safely finish the current task.
 - Keep `Aide` alone for lightweight advice, Q&A, analysis, and option comparison.
-- For any execution route, activate `technical_manager` first, then activate downstream roles through `technical_manager`.
+- For product-definition routing, activate `product_manager` first.
+- For technical-delivery routing, activate `technical_manager` first, then activate downstream technical roles through `technical_manager`.
+- For non-code routing, activate `product_assistant` directly from `Aide`.
 - Use repository exploration as a short-lived action inside routing/execution when ownership, entrypoints, or boundaries are unclear.
 - Keep one focused write-capable execution role at a time unless `technical_manager` explicitly stages a safe handoff.
 - If uncertainty resolves, drop unnecessary roles immediately.
@@ -135,6 +165,7 @@ Queue or remind `/submit` when:
 1. required `tester` handoff completed and QC is disabled
 2. QC passed after required `tester` handoff, or the task settled with QC already satisfied
 3. delivery policy enables governed submit for the current task
+4. for non-code delivery, only when the user explicitly requests governed submit
 
 ## Route Output
 
