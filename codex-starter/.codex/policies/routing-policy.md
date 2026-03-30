@@ -84,15 +84,26 @@ For this line, `/submit` is opt-in only via explicit user request.
 
 ## Default Modes
 
-These defaults choose the initial delivery mode only.
+Delivery mode is selected by work shape, not by task label alone.
 First-hop routing still follows the topology and upgrade triggers above.
 
-- `bugfix` -> `lightweight`
-- `feature` -> `standard`
-- `product` -> `standard`
-- `refactor` -> `standard`
-- `release` -> `long-running`
-- `exploration` -> `lightweight`
+Choose `lightweight` when:
+
+- the turn is discussion, Q&A, exploration, or recommendation-only work
+- the work is local, low-risk, and can finish without long-running coordination
+- no durable progress tracking is needed
+
+Choose `standard` when:
+
+- the task enters routed delivery but does not need long-running tracking
+- the work needs durable handoff, technical planning, or non-trivial coordination
+- the task is more than a one-shot local answer, but still fits in one active working stretch
+
+Choose `long-running` when:
+
+- the task is multi-step, cross-session, blocked, or release-shaped
+- progress history and current snapshot must stay synchronized
+- handoff checkpoints are likely to span more than one execution cycle
 
 For `exploration`, `analysis`, and discussion-shaped work with no durable artifact:
 
