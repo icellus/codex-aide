@@ -16,7 +16,11 @@
       "qc_pass_after_tester": true,
       "task_settled_without_qc": true,
       "task_settled_after_qc": true
-    }
+    },
+    "notes": [
+      "Automatic submit queueing applies to technical-delivery routes unless a runtime guard blocks it.",
+      "Non-code delivery stays out of /submit unless the user explicitly asks for governed delivery."
+    ]
   },
   "commit": {
     "mode": "ask_once",
