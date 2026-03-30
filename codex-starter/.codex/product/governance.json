@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "updatedAt": null,
+  "policy": {
+    "product_assistant_updates_governance_items": true,
+    "governance_reviews_chat_record": true,
+    "repeated_mismatch_required_for_role_change": true
+  },
+  "governance_item_shape": {
+    "issue": "",
+    "level": "G1|G2|G3",
+    "impact": "",
+    "authority_target": "",
+    "recommended_action": "",
+    "disposition": "auto-fix|ask-user|queue",
+    "source": "product_assistant|aide",
+    "evidence": [],
+    "occurrences": 0,
+    "status": "queued|accepted|rejected|applied",
+    "updatedAt": null
+  },
+  "items": []
+}

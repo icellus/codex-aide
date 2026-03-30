@@ -4,12 +4,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
-  compareGovernanceSeverity,
+  compareGovernanceLevel,
   compactText,
   getProjectContext,
-  loadEvolutionRegistry,
+  loadAideGovernancePolicy,
+  loadGovernanceRegistry,
   loadRuntimeState,
-  normalizeGovernanceSeverity,
+  normalizeGovernanceLevel,
   readJsonStdinEnvelope,
   startRuntimeInvocationLogging
 } from "./runtime-utils.mjs";
@@ -66,8 +67,7 @@ function parseSkillMetadata(filePath) {
 
 function addFinding(findings, entry) {
   findings.push({
-    severity: normalizeGovernanceSeverity(entry.severity || "L2"),
-    capability: entry.capability || "audit",
+    level: normalizeGovernanceLevel(entry.level || "G2"),
     title: entry.title || "Untitled finding",
     impact: entry.impact || "",
     target: entry.target || "",
@@ -80,8 +80,58 @@ function hasSection(text, heading) {
   return String(text || "").includes(heading);
 }
 
+function governanceDisposition(policy, level, fallback = "ask-user") {
+  const normalizedLevel = normalizeGovernanceLevel(level);
+  const defaults = policy?.default_disposition && typeof policy.default_disposition === "object"
+    ? policy.default_disposition
+    : {};
+  return String(defaults[normalizedLevel] || fallback).trim() || fallback;
+}
+
+function pushGovernanceRecord(lines, record) {
+  lines.push(`- issue: ${record.issue || "unknown"}`);
+  lines.push(`  level: ${normalizeGovernanceLevel(record.level)}`);
+  lines.push(`  impact: ${record.impact || "unknown"}`);
+  lines.push(`  authority_target: ${record.authority_target || "to-be-determined"}`);
+  lines.push(`  recommended_action: ${record.recommended_action || "review and decide next step"}`);
+  lines.push(`  disposition: ${record.disposition || "ask-user"}`);
+}
+
+function levelForAuditFinding(item) {
+  const title = String(item.title || "").toLowerCase();
+  const file = String(item.file || item.target || "");
+
+  if (
+    title.includes("structured result footer") ||
+    title.includes("runtime automation") ||
+    file.includes("/scripts/")
+  ) {
+    return "G3";
+  }
+
+  if (
+    title.includes("governance") ||
+    title.includes("authority") ||
+    title.includes("role contract") ||
+    title.includes("developer instructions")
+  ) {
+    return "G2";
+  }
+
+  return "G1";
+}
+
+function levelForPendingReview(item) {
+  return normalizeGovernanceLevel(item.level || "G2");
+}
+
+function levelForGovernanceCandidate(item) {
+  return normalizeGovernanceLevel(item.level || item.governanceLevel || "G2");
+}
+
 function collectAuditFindings(projectDir) {
   const findings = [];
+  const governancePolicy = loadAideGovernancePolicy(projectDir);
   const skillDirs = [path.join(projectDir, ".codex", "skills"), path.join(projectDir, ".agents", "skills")];
   const agentDir = path.join(projectDir, ".codex", "agents");
   const skillFiles = Array.from(
@@ -95,7 +145,7 @@ function collectAuditFindings(projectDir) {
 
     if (!skill.name) {
       addFinding(findings, {
-        severity: "L3",
+        level: "G2",
         title: "Skill missing name metadata",
         impact: "The skill contract is harder to route and audit consistently.",
         target: file,
@@ -106,7 +156,7 @@ function collectAuditFindings(projectDir) {
 
     if (!skill.description) {
       addFinding(findings, {
-        severity: "L2",
+        level: "G1",
         title: "Skill missing description metadata",
         impact: "The skill intent is harder to understand at intake time.",
         target: file,
@@ -117,7 +167,7 @@ function collectAuditFindings(projectDir) {
 
     if (!hasSection(skill.text, "## Read Order") && !hasSection(skill.text, "## Sources of truth")) {
       addFinding(findings, {
-        severity: "L2",
+        level: "G2",
         title: "Skill lacks a clear read-order or source-of-truth section",
         impact: "The role may gather context inconsistently and drift across sessions.",
         target: file,
@@ -127,17 +177,26 @@ function collectAuditFindings(projectDir) {
     }
 
     if (skill.name === "aide") {
-      for (const heading of ["## Capability Ratings", "## Automatic Triggers", "## Governance Output", "## Product Review"]) {
-        if (!hasSection(skill.text, heading)) {
-          addFinding(findings, {
-            severity: "L3",
-            title: `Aide governance contract is incomplete: missing ${heading}`,
-            impact: "Severity-based governance and automatic writeback review become inconsistent.",
-            target: file,
-            file,
-            recommendation: `Add ${heading} to the Aide skill contract.`
-          });
-        }
+      if (!hasSection(skill.text, "## Capability Ratings")) {
+        addFinding(findings, {
+          level: "G2",
+          title: "Aide role contract is incomplete: missing ## Capability Ratings",
+          impact: "Aide capability boundaries are harder to keep stable over time.",
+          target: file,
+          file,
+          recommendation: "Add ## Capability Ratings to the Aide skill contract."
+        });
+      }
+
+      if (!skill.text.includes(".codex/policies/aide-governance-policy.md")) {
+        addFinding(findings, {
+          level: "G2",
+          title: "Aide governance authority is not delegated to the governance policy",
+          impact: "Governance rules may drift back into the Aide skill instead of staying in one policy owner.",
+          target: file,
+          file,
+          recommendation: "Reference .codex/policies/aide-governance-policy.md from the Aide skill."
+        });
       }
     }
 
@@ -145,7 +204,7 @@ function collectAuditFindings(projectDir) {
       for (const heading of ["## Session-End Retrospective", "## Output contract", "## Structured Result"]) {
         if (!hasSection(skill.text, heading)) {
           addFinding(findings, {
-            severity: "L3",
+            level: "G2",
             title: `Architect knowledge-capture contract is incomplete: missing ${heading}`,
             impact: "Architecture decisions and wrong assumptions are harder to feed back into /Aide.",
             target: file,
@@ -164,7 +223,7 @@ function collectAuditFindings(projectDir) {
 
     if (!/name\s*=/.test(text) || !/description\s*=/.test(text)) {
       addFinding(findings, {
-        severity: "L2",
+        level: "G2",
         title: "Agent metadata is incomplete",
         impact: "The role is harder to route and audit consistently.",
         target: file,
@@ -175,7 +234,7 @@ function collectAuditFindings(projectDir) {
 
     if (!/developer_instructions\s*=/.test(text)) {
       addFinding(findings, {
-        severity: "L3",
+        level: "G2",
         title: "Agent is missing developer instructions",
         impact: "The role can drift because its operating contract is implicit.",
         target: file,
@@ -186,7 +245,7 @@ function collectAuditFindings(projectDir) {
 
     if (isWriter && !text.includes("## Structured Result")) {
       addFinding(findings, {
-        severity: "L3",
+        level: "G3",
         title: "Write-capable agent lacks a structured result footer",
         impact: "Runtime automation cannot reliably extract completion status or blockers.",
         target: file,
@@ -196,10 +255,47 @@ function collectAuditFindings(projectDir) {
     }
   }
 
+  const governanceFile = relativePath(projectDir, governancePolicy.filePath || path.join(projectDir, ".codex", "policies", "aide-governance-policy.md"));
+  if (!governancePolicy.text) {
+    addFinding(findings, {
+      level: "G2",
+      title: "Aide governance policy is missing",
+      impact: "Governance objects, triggers, levels, and dispositions no longer have a single owner file.",
+      target: governanceFile,
+      file: governanceFile,
+      recommendation: "Add .codex/policies/aide-governance-policy.md as the single governance authority."
+    });
+  } else {
+    for (const heading of ["## Governance Objects", "## Governance Triggers", "## Governance Levels", "## Governance Output", "## State Persistence", "## Automatic Disposition"]) {
+      if (!hasSection(governancePolicy.text, heading)) {
+        addFinding(findings, {
+          level: "G2",
+          title: `Aide governance policy is incomplete: missing ${heading}`,
+          impact: "Governance rules become harder to audit and keep consistent across scripts and contracts.",
+          target: governanceFile,
+          file: governanceFile,
+          recommendation: `Add ${heading} to .codex/policies/aide-governance-policy.md.`
+        });
+      }
+    }
+
+    const autoFixLevels = Array.isArray(governancePolicy.auto_fix_levels) ? governancePolicy.auto_fix_levels : [];
+    if (autoFixLevels.some((level) => String(level || "").trim().toUpperCase() !== "G1")) {
+      addFinding(findings, {
+        level: "G3",
+        title: "Aide governance policy allows auto-fix outside G1",
+        impact: "Automatic governance writeback could expand beyond the agreed low-risk boundary.",
+        target: governanceFile,
+        file: governanceFile,
+        recommendation: "Keep auto_fix_levels restricted to G1 only."
+      });
+    }
+  }
+
   return findings.sort((left, right) => {
-    const severityOrder = compareGovernanceSeverity(left.severity, right.severity);
-    if (severityOrder !== 0) {
-      return severityOrder;
+    const levelOrder = compareGovernanceLevel(left.level, right.level);
+    if (levelOrder !== 0) {
+      return levelOrder;
     }
     return String(left.title).localeCompare(String(right.title));
   });
@@ -302,9 +398,9 @@ function collectDedupCandidates(projectDir) {
       continue;
     }
 
-    const severity = files.length >= 4 ? "L3" : files.length >= 3 ? "L2" : "L1";
+    const level = files.length >= 4 ? "G2" : "G1";
     candidates.push({
-      severity,
+      level,
       preview: entry.preview,
       files,
       proposedAuthority: dedupAuthoritySuggestion(normalized, files),
@@ -313,21 +409,21 @@ function collectDedupCandidates(projectDir) {
   }
 
   return candidates.sort((left, right) => {
-    const severityOrder = compareGovernanceSeverity(left.severity, right.severity);
-    if (severityOrder !== 0) {
-      return severityOrder;
+    const levelOrder = compareGovernanceLevel(left.level, right.level);
+    if (levelOrder !== 0) {
+      return levelOrder;
     }
     return right.files.length - left.files.length;
   });
 }
 
-function collectPendingAideReviews(state) {
+function collectPendingGovernanceReviews(state) {
   return (Array.isArray(state.pendingActions) ? state.pendingActions : [])
-    .filter((item) => item.type === "aide_review")
+    .filter((item) => item.type === "governance_review")
     .sort((left, right) => {
-      const severityOrder = compareGovernanceSeverity(left.severity, right.severity);
-      if (severityOrder !== 0) {
-        return severityOrder;
+      const levelOrder = compareGovernanceLevel(left.level, right.level);
+      if (levelOrder !== 0) {
+        return levelOrder;
       }
 
       const leftTime = new Date(left.updatedAt || left.createdAt || 0).getTime();
@@ -336,9 +432,9 @@ function collectPendingAideReviews(state) {
     });
 }
 
-function renderPendingReviews(lines, state, limit) {
-  const reviews = collectPendingAideReviews(state);
-  lines.push("Pending Aide reviews:");
+function renderPendingReviews(lines, state, limit, governancePolicy) {
+  const reviews = collectPendingGovernanceReviews(state);
+  lines.push("Pending governance reviews:");
 
   if (reviews.length === 0) {
     lines.push("- none");
@@ -346,21 +442,26 @@ function renderPendingReviews(lines, state, limit) {
   }
 
   reviews.slice(0, limit).forEach((item) => {
-    const severity = normalizeGovernanceSeverity(item.severity || "L2");
-    const capability = item.capability || "investigation";
-    const target = item.routeTarget ? ` -> ${item.routeTarget}` : "";
-    lines.push(`- [${severity}] [${capability}] ${compactText(item.note || "review pending", 120)}${target}`);
+    const level = levelForPendingReview(item);
+    pushGovernanceRecord(lines, {
+      issue: compactText(item.issue || item.note || "review pending", 120),
+      level,
+      impact: item.impact || `governance signal from ${String(item.sourceRole || "runtime").trim() || "runtime"}`,
+      authority_target: item.authority_target || item.planPath || "to-be-determined",
+      recommended_action: item.recommended_action || "review the signal and choose the smallest authority owner",
+      disposition: item.disposition || governanceDisposition(governancePolicy, level)
+    });
   });
 }
 
-function collectActiveEvolutionCandidates(projectDir) {
-  const registry = loadEvolutionRegistry(projectDir);
+function collectActiveGovernanceCandidates(projectDir) {
+  const registry = loadGovernanceRegistry(projectDir);
   return (Array.isArray(registry.candidates) ? registry.candidates : [])
     .filter((item) => String(item.status || "queued").trim().toLowerCase() === "queued")
     .sort((left, right) => {
-      const severityOrder = compareGovernanceSeverity(left.severity, right.severity);
-      if (severityOrder !== 0) {
-        return severityOrder;
+      const levelOrder = compareGovernanceLevel(left.level, right.level);
+      if (levelOrder !== 0) {
+        return levelOrder;
       }
 
       const leftTime = new Date(left.updatedAt || left.lastSeenAt || left.createdAt || 0).getTime();
@@ -369,9 +470,9 @@ function collectActiveEvolutionCandidates(projectDir) {
     });
 }
 
-function renderEvolutionCandidates(lines, projectDir, limit) {
-  const candidates = collectActiveEvolutionCandidates(projectDir);
-  lines.push("Evolution candidates:");
+function renderGovernanceCandidates(lines, projectDir, limit, governancePolicy) {
+  const candidates = collectActiveGovernanceCandidates(projectDir);
+  lines.push("Governance queue:");
 
   if (candidates.length === 0) {
     lines.push("- none");
@@ -379,17 +480,23 @@ function renderEvolutionCandidates(lines, projectDir, limit) {
   }
 
   candidates.slice(0, limit).forEach((item) => {
-    const capability = item.capability ? ` [${item.capability}]` : "";
-    lines.push(
-      `- [${normalizeGovernanceSeverity(item.severity || "L2")}]${capability} ${compactText(
-        item.summary || "candidate queued",
-        120
-      )}`
-    );
+    const level = levelForGovernanceCandidate(item);
+    pushGovernanceRecord(lines, {
+      issue: compactText(item.issue || item.summary || "candidate queued", 120),
+      level,
+      impact: item.impact || `governance candidate from ${String(item.sourceType || "unknown")}`,
+      authority_target: item.authority_target || item.planPath || "to-be-determined",
+      recommended_action:
+        item.recommended_action ||
+        (level === "G1"
+          ? "review whether this low-risk guidance should write back now"
+          : "review before writeback or broader governance correction"),
+      disposition: item.disposition || governanceDisposition(governancePolicy, level, "queue")
+    });
   });
 }
 
-function renderAuditFindings(lines, projectDir, limit) {
+function renderAuditFindings(lines, projectDir, limit, governancePolicy) {
   const findings = collectAuditFindings(projectDir);
   lines.push("Quality audit findings:");
 
@@ -399,16 +506,19 @@ function renderAuditFindings(lines, projectDir, limit) {
   }
 
   findings.slice(0, limit).forEach((item) => {
-    lines.push(
-      `- [${item.severity}] ${item.title} (${item.file || item.target}) -> ${compactText(
-        item.recommendation || item.impact,
-        120
-      )}`
-    );
+    const level = item.level || levelForAuditFinding(item);
+    pushGovernanceRecord(lines, {
+      issue: item.title,
+      level,
+      impact: compactText(item.impact || "governance quality risk", 120),
+      authority_target: item.target || item.file || "to-be-determined",
+      recommended_action: compactText(item.recommendation || "correct the smallest owner file", 120),
+      disposition: governanceDisposition(governancePolicy, level)
+    });
   });
 }
 
-function renderDedup(lines, projectDir, limit) {
+function renderDedup(lines, projectDir, limit, governancePolicy) {
   const candidates = collectDedupCandidates(projectDir);
   lines.push("Dedup candidates:");
 
@@ -418,9 +528,15 @@ function renderDedup(lines, projectDir, limit) {
   }
 
   candidates.slice(0, limit).forEach((item) => {
-    lines.push(
-      `- [${item.severity}] ${compactText(item.preview, 100)} -> ${item.proposedAuthority} (${item.files.length} files)`
-    );
+    const level = item.files.length >= 4 ? "G2" : "G1";
+    pushGovernanceRecord(lines, {
+      issue: compactText(item.preview, 100),
+      level,
+      impact: compactText(item.rationale, 120),
+      authority_target: item.proposedAuthority,
+      recommended_action: `shrink duplicate text into ${item.proposedAuthority}`,
+      disposition: governanceDisposition(governancePolicy, level)
+    });
   });
 }
 
@@ -442,6 +558,7 @@ async function main() {
 
   try {
     const state = loadRuntimeState(projectDir);
+    const governancePolicy = loadAideGovernancePolicy(projectDir);
     const mode = String(input.mode || "summary").trim().toLowerCase();
     const parsedLimit = Number.parseInt(String(input.limit || ""), 10);
     const defaultLimit = mode === "summary" ? 5 : 20;
@@ -450,24 +567,24 @@ async function main() {
 
     if (mode === "investigate") {
       lines.push("Aide governance investigation:");
-      renderPendingReviews(lines, state, limit);
+      renderPendingReviews(lines, state, limit, governancePolicy);
       lines.push("");
-      renderEvolutionCandidates(lines, projectDir, limit);
+      renderGovernanceCandidates(lines, projectDir, limit, governancePolicy);
     } else if (mode === "audit") {
       lines.push("Aide quality audit:");
-      renderAuditFindings(lines, projectDir, limit);
+      renderAuditFindings(lines, projectDir, limit, governancePolicy);
     } else if (mode === "dedup") {
       lines.push("Aide dedup review:");
-      renderDedup(lines, projectDir, limit);
+      renderDedup(lines, projectDir, limit, governancePolicy);
     } else {
       lines.push("Aide governance summary:");
-      renderPendingReviews(lines, state, limit);
+      renderPendingReviews(lines, state, limit, governancePolicy);
       lines.push("");
-      renderEvolutionCandidates(lines, projectDir, Math.min(limit, 3));
+      renderGovernanceCandidates(lines, projectDir, Math.min(limit, 3), governancePolicy);
       lines.push("");
-      renderAuditFindings(lines, projectDir, Math.min(limit, 3));
+      renderAuditFindings(lines, projectDir, Math.min(limit, 3), governancePolicy);
       lines.push("");
-      renderDedup(lines, projectDir, Math.min(limit, 3));
+      renderDedup(lines, projectDir, Math.min(limit, 3), governancePolicy);
     }
 
     process.stdout.write(`${lines.join("\n")}\n`);

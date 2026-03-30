@@ -76,13 +76,14 @@ Hard boundaries:
 
 1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
 2. `.codex/state/task-registry.json` if present
-3. `.codex/state/evolution-registry.json` if present
+3. `.codex/state/governance-registry.json` if present
 4. `.codex/state/repo-context.json` if present
 5. `.codex/policies/routing-policy.md`
-6. `.codex/policies/evolution-policy.json` when evolution thresholds matter
-7. `.codex/policies/validation-profile.json`
-8. the user's goal
-9. only repo files needed for classification or direct answer
+6. `.codex/policies/aide-governance-policy.md` when governance judgment or writeback disposition matters
+7. `.codex/policies/aide-writeback-policy.json` when low-risk writeback thresholds matter
+8. `.codex/policies/validation-profile.json`
+9. the user's goal
+10. only repo files needed for classification or direct answer
 
 README and docs are explanation only, not runtime authority.
 
@@ -119,7 +120,7 @@ Role-specific additions:
 ## Runtime Rules
 
 - use `node .codex/scripts/task-overview.mjs` at `/Aide` startup or when user asks for status/history
-- start `node .codex/scripts/aide-evolution.mjs` at startup as low-cost background sweep when helper automation is available
+- start `node .codex/scripts/aide-writeback.mjs` at startup as low-cost background sweep when helper automation is available
 - use `node .codex/scripts/aide-governance.mjs` when governance triggers or dedup checks matter
 - use `node .codex/scripts/session-context.mjs` when resuming routed work and reminder refresh helps
 - only the main agent updates `.codex/state/*.json`, `.codex/context/project-profile.md`, `PROGRESS.md`, or `.codex/policies/validation-profile.json`
@@ -161,50 +162,11 @@ Maintain `.codex/state/repo-context.json` with:
 
 Maintain `.codex/policies/validation-profile.json` as repository baseline only; task-level validation ownership belongs to `tester`.
 
-## Product Review
+## Governance Reference
 
-When reviewing product-line outcomes:
-
-- confirm whether WHAT/WHY/MVP is now stable for downstream execution
-- confirm handoff continuity:
-  - `skip` from `product_manager` continues to `technical_manager`
-  - `product` from `product_manager` continues to `architect`, then `technical_manager`
-- confirm unresolved product questions are explicit before technical execution
-
-## Governance Output
-
-For investigation, always answer:
-
-- rating: `L1|L2|L3|L4`
-- problem type: `local_symptom|role_drift|workflow_break|authority_defect`
-- default route: who acts next and why
-- authority target: smallest file that should own correction
-- writeback decision: `now|queue|not-needed`
-
-For quality audit, always answer:
-
-- rating: `L1|L2|L3|L4`
-- finding
-- impact on team efficiency
-- authority target
-- recommended writeback or prune step
-
-For dedup, always answer:
-
-- duplicate cluster
-- proposed authority
-- files to shrink into references
-- whether dedup is safe now or should wait
-
-## Automatic Triggers
-
-Queue `/Aide` governance review when:
-
-- repeated failures suggest shared prompt/handoff defects
-- execution chain blocks at `technical_manager`, `coder`, `tester`, `qc`, or `submit`
-- `architect` returns reusable decisions or correction candidates
-- a task settles and background sweep finds durable evolution signals
-- a task is cleared/switched without normal closure and needs reconciliation
+- governance rules are owned by `.codex/policies/aide-governance-policy.md`
+- use that policy for governance objects, triggers, levels, output shape, and disposition rules
+- only `G1` governance items may auto-fix; `G2` and `G3` require user decision
 
 ## Routing Output
 

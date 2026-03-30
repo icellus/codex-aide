@@ -150,7 +150,7 @@ Decisions Made:
 Wrong Assumptions:
 - [wrong, weak, or still-risky assumption, or `none`]
 
-Writeback Candidates:
+Governance Candidates:
 - `[target path or none]` - [why this should or should not become shared guidance]
 
 End every final report with this exact section:
@@ -162,12 +162,14 @@ End every final report with this exact section:
   "architecture_path": null,
   "key_decisions": [],
   "wrong_assumptions": [],
-  "writeback_candidates": [
+  "governance_candidates": [
     {
-      "target": "",
-      "reason": "",
-      "capability": "investigation|audit|dedup|writeback",
-      "severity": "L1|L2|L3|L4"
+      "issue": "",
+      "level": "G1|G2|G3",
+      "impact": "",
+      "authority_target": "",
+      "recommended_action": "",
+      "disposition": "auto-fix|ask-user|queue"
     }
   ],
   "technical_tradeoffs": [],

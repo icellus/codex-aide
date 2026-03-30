@@ -34,9 +34,10 @@ Project-level runtime contract for repositories that install `codex-starter`.
 - Project defaults and top-level guardrails -> this file
 - Aide role contract and triage semantics -> `.codex/skills/aide/SKILL.md`
 - Routing topology, chain rules, and gates -> `.codex/policies/routing-policy.md`
+- Governance scope, triggers, levels, and dispositions -> `.codex/policies/aide-governance-policy.md`
 - Repository validation baseline -> `.codex/policies/validation-profile.json`
 - Governed delivery rules -> `.codex/policies/delivery-policy.json`
-- Evolution thresholds and low-risk writeback policy -> `.codex/policies/evolution-policy.json`
+- Low-risk governance writeback policy -> `.codex/policies/aide-writeback-policy.json`
 - Human-readable project summary -> `.codex/context/project-profile.md`
 - Role behavior, read order, and output contract -> `.codex/skills/*/SKILL.md` and `.codex/agents/*.toml`
 - Runtime state -> `.codex/state/*.json`

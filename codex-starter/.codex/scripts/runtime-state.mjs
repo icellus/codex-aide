@@ -14,12 +14,11 @@ import {
   extractStructuredResult,
   findProgressFile,
   getProjectContext,
-  highestGovernanceSeverity,
+  highestGovernanceLevel,
   isLongRunningProfile,
   isQcEnabled,
   isSubmitEnabled,
   isTaskSettled,
-  lessonForCategory,
   loadDeliveryPolicy,
   loadProjectProfileState,
   loadRuntimeState,
@@ -27,6 +26,7 @@ import {
   normalizeTaskWorkflowState,
   parseActivePlans,
   readJsonStdinEnvelope,
+  recommendedActionForCategory,
   removePendingActions,
   resolveActiveTask,
   saveRuntimeState,
@@ -35,10 +35,9 @@ import {
   suggestedRoutesForCategory,
   syncTaskRegistry,
   syncProgressFromState,
-  toLessonId,
+  toGovernanceItemId,
   trimRuntimeState,
-  normalizeGovernanceSeverity,
-  upsertLearningQueueItem,
+  upsertGovernanceQueueItem,
   upsertPendingAction,
   validateStructuredResultContract
 } from "./runtime-utils.mjs";
@@ -201,32 +200,36 @@ function normalizeStringList(value) {
     .filter(Boolean);
 }
 
-function normalizeWritebackCandidates(message) {
+function normalizeGovernanceCandidates(message) {
   const structured = extractStructuredResult(message);
-  if (!Array.isArray(structured?.writeback_candidates)) {
+  if (!Array.isArray(structured?.governance_candidates)) {
     return [];
   }
 
-  return structured.writeback_candidates
+  return structured.governance_candidates
     .map((entry) => {
       if (!entry || typeof entry !== "object") {
         return null;
       }
 
-      const target = String(entry.target || "").trim();
-      const reason = String(entry.reason || "").trim();
-      const capability = String(entry.capability || "investigation").trim().toLowerCase() || "investigation";
-      const severity = normalizeGovernanceSeverity(entry.severity || "L2");
+      const issue = String(entry.issue || "").trim();
+      const level = String(entry.level || "").trim().toUpperCase();
+      const impact = String(entry.impact || "").trim();
+      const authorityTarget = String(entry.authority_target || "").trim();
+      const recommendedAction = String(entry.recommended_action || "").trim();
+      const disposition = String(entry.disposition || "").trim().toLowerCase();
 
-      if (!target && !reason) {
+      if (!issue && !impact && !authorityTarget && !recommendedAction) {
         return null;
       }
 
       return {
-        target: target || "unknown-target",
-        reason: reason || "No reason provided.",
-        capability,
-        severity
+        issue: issue || "No issue provided.",
+        level: level === "G1" || level === "G2" || level === "G3" ? level : "G2",
+        impact: impact || "Governance follow-up required.",
+        authority_target: authorityTarget || "to-be-determined",
+        recommended_action: recommendedAction || "review and decide next step",
+        disposition: disposition || defaultGovernanceDisposition(level || "G2")
       };
     })
     .filter(Boolean);
@@ -318,78 +321,79 @@ function normalizeProductOpenGaps(message) {
   return normalizeStringList(structured.open_gaps);
 }
 
-function normalizeProductEvolutionCandidates(message) {
+function normalizeProductGovernanceCandidates(message) {
   const structured = extractStructuredResult(message) || {};
-  if (!Array.isArray(structured?.evolution_candidates)) {
+  if (!Array.isArray(structured?.governance_candidates)) {
     return [];
   }
 
-  return structured.evolution_candidates
+  return structured.governance_candidates
     .map((entry) => {
       if (!entry || typeof entry !== "object") {
         return null;
       }
 
-      const id = String(entry.id || "").trim();
-      const category = String(entry.category || "").trim().toLowerCase();
-      const summary = String(entry.summary || entry.reason || "").trim();
+      const issue = String(entry.issue || "").trim();
+      const level = String(entry.level || "").trim().toUpperCase();
+      const impact = String(entry.impact || "").trim();
+      const authorityTarget = String(entry.authority_target || "").trim();
+      const recommendedAction = String(entry.recommended_action || "").trim();
+      const disposition = String(entry.disposition || "").trim().toLowerCase();
       const source = String(entry.source || "").trim();
-      if (!id && !category && !summary && !source) {
+      if (!issue && !impact && !authorityTarget && !recommendedAction && !source) {
         return null;
       }
 
       return {
-        id,
-        category: category || "role_gap",
-        summary: summary || "No summary provided.",
+        issue: issue || "No issue provided.",
+        level: level === "G1" || level === "G2" || level === "G3" ? level : "G2",
+        impact: impact || "Governance follow-up required.",
+        authority_target: authorityTarget || "to-be-determined",
+        recommended_action: recommendedAction || "review and decide next step",
+        disposition: disposition || defaultGovernanceDisposition(level || "G2"),
         source: source || "product_assistant"
       };
     })
     .filter(Boolean);
 }
 
-function governanceSeverityForRetryCount(triggerCount) {
-  return triggerCount >= 4 ? "L4" : "L3";
+function governanceLevelForRetryCount(triggerCount) {
+  return triggerCount >= 4 ? "G3" : "G2";
 }
 
-function preferredGovernanceCapability(candidates = [], fallback = "investigation") {
-  if (candidates.some((item) => item.capability === "dedup")) {
-    return "dedup";
-  }
-
-  if (candidates.some((item) => item.capability === "audit")) {
-    return "audit";
-  }
-
-  if (candidates.some((item) => item.capability === "writeback")) {
-    return "writeback";
-  }
-
-  return fallback;
+function defaultGovernanceDisposition(level) {
+  return String(level || "").trim().toUpperCase() === "G1" ? "auto-fix" : "ask-user";
 }
 
-function upsertAideReview(state, details = {}) {
+function upsertGovernanceReview(state, details = {}) {
   const scopeKey = details.taskId || "current-task";
-  const issueKey = String(details.issueKey || details.sourceRole || details.capability || "general")
+  const issueKey = String(details.issueKey || details.sourceRole || details.issue || "general")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  const level = String(details.level || "").trim().toUpperCase() || "G2";
 
   upsertPendingAction(state, {
-    id: details.id || `aide-review:${issueKey}:${scopeKey}`,
-    type: "aide_review",
+    id: details.id || `governance-review:${issueKey}:${scopeKey}`,
+    type: "governance_review",
     scope: details.scope || undefined,
-    severity: normalizeGovernanceSeverity(details.severity || "L2"),
-    capability: details.capability || "investigation",
+    issue: details.issue || "governance review pending",
+    level: level === "G1" || level === "G2" || level === "G3" ? level : "G2",
+    impact: details.impact || "Governance follow-up required.",
+    authority_target: details.authority_target || details.authorityTarget || "to-be-determined",
+    recommended_action: details.recommended_action || details.recommendedAction || "review and decide next step",
+    disposition: details.disposition || defaultGovernanceDisposition(level),
     taskId: details.taskId || null,
     sourceRole: details.sourceRole || null,
     note: details.note || "",
-    routeTarget: details.routeTarget || null,
-    issueType: details.issueType || null,
     decisions: normalizeStringList(details.decisions),
     wrongAssumptions: normalizeStringList(details.wrongAssumptions),
-    writebackCandidates: Array.isArray(details.writebackCandidates) ? details.writebackCandidates : []
+    governance_candidates: Array.isArray(details.governance_candidates)
+      ? details.governance_candidates
+      : Array.isArray(details.governanceCandidates)
+        ? details.governanceCandidates
+        : []
   });
 }
 
@@ -398,7 +402,7 @@ function recordArchitectRetrospective(state, taskId, message) {
   const decisions = normalizeStringList(structured.key_decisions);
   const wrongAssumptions = normalizeStringList(structured.wrong_assumptions);
   const tradeoffs = normalizeStringList(structured.technical_tradeoffs);
-  const candidates = normalizeWritebackCandidates(message);
+  const candidates = normalizeGovernanceCandidates(message);
 
   upsertSessionRetrospective(state, taskId, {
     id: `session-retrospective:architect:${taskId || "current-task"}`,
@@ -407,7 +411,7 @@ function recordArchitectRetrospective(state, taskId, message) {
     note: `Architect review captured${decisions.length > 0 ? ` decisions: ${decisions.slice(0, 2).join("; ")}` : ""}${
       wrongAssumptions.length > 0 ? `. Wrong assumptions: ${wrongAssumptions.slice(0, 2).join("; ")}` : ""
     }`,
-    categories: Array.from(new Set(candidates.map((item) => item.capability))),
+    categories: Array.from(new Set(candidates.map((item) => item.level))),
     decisions,
     wrongAssumptions,
     tradeoffs
@@ -417,40 +421,37 @@ function recordArchitectRetrospective(state, taskId, message) {
     return;
   }
 
-  upsertAideReview(state, {
+  upsertGovernanceReview(state, {
     issueKey: `architect:${taskId || "current-task"}`,
     taskId,
     sourceRole: "architect",
-    capability: preferredGovernanceCapability(candidates, "investigation"),
-    severity: highestGovernanceSeverity(candidates.map((item) => item.severity), "L2"),
-    issueType: "role_learning",
-    routeTarget: "Aide writeback",
-    note: `Architect completed with ${candidates.length} writeback candidate(s). Review the shared workflow before the next similar task.`,
+    issue: `Architect completed with ${candidates.length} governance candidate(s).`,
+    level: highestGovernanceLevel(candidates.map((item) => item.level), "G2"),
+    impact: "Architect produced reusable governance corrections that may affect shared role guidance or authority files.",
+    authority_target:
+      candidates.length === 1
+        ? candidates[0].authority_target
+        : ".codex/policies/aide-governance-policy.md",
+    recommended_action: "Review the governance candidates and apply only the smallest authority update that stays within the agreed boundary.",
+    disposition: candidates.every((item) => item.disposition === "auto-fix") ? "auto-fix" : "ask-user",
+    note: `Architect completed with ${candidates.length} governance candidate(s). Review the shared workflow before the next similar task.`,
     decisions,
     wrongAssumptions,
-    writebackCandidates: candidates
+    governance_candidates: candidates
   });
 }
 
-function reviewCapabilityForProductResult(candidates = [], openGaps = []) {
+function reviewLevelForProductResult(candidates = [], openGaps = [], memoryUpdates, templateChanges) {
   if (openGaps.length > 0) {
-    return "investigation";
+    return "G2";
   }
 
-  if (candidates.length > 0) {
-    return "writeback";
+  if (candidates.some((item) => item.level === "G3")) {
+    return "G3";
   }
 
-  return "audit";
-}
-
-function reviewSeverityForProductResult(candidates = [], openGaps = [], memoryUpdates, templateChanges) {
-  if (openGaps.length > 0) {
-    return "L2";
-  }
-
-  if (candidates.length >= 2) {
-    return "L3";
+  if (candidates.some((item) => item.level === "G2")) {
+    return "G2";
   }
 
   if (
@@ -459,17 +460,17 @@ function reviewSeverityForProductResult(candidates = [], openGaps = [], memoryUp
     memoryUpdates.userPreferences.length > 0 ||
     memoryUpdates.repoPreferences.length > 0
   ) {
-    return "L1";
+    return "G1";
   }
 
-  return "L1";
+  return "G1";
 }
 
 function recordProductAssistantReview(state, taskId, status, message) {
   const memoryUpdates = normalizeProductMemoryUpdates(message);
   const templateChanges = normalizeProductTemplateChanges(message);
   const openGaps = normalizeProductOpenGaps(message);
-  const candidates = normalizeProductEvolutionCandidates(message);
+  const candidates = normalizeProductGovernanceCandidates(message);
 
   if (status === "blocked") {
     upsertPendingAction(state, {
@@ -480,14 +481,16 @@ function recordProductAssistantReview(state, taskId, status, message) {
       note: "Recent product_assistant blockage detected. Review the missing context or route before continuing."
     });
 
-    upsertAideReview(state, {
+    upsertGovernanceReview(state, {
       issueKey: `blocked:product:${taskId || "current-task"}`,
       taskId,
       sourceRole: "product_assistant",
-      capability: "investigation",
-      severity: "L2",
-      issueType: "workflow_break",
-      routeTarget: "Aide investigate",
+      issue: "A product_assistant task blocked.",
+      level: "G3",
+      impact: "The non-code delivery line cannot continue until Aide re-triages the task across the three direct downstreams.",
+      authority_target: ".codex/skills/aide/SKILL.md",
+      recommended_action: "Review the chat record and re-triage through Aide across product_manager, technical_manager, and product_assistant lines.",
+      disposition: "ask-user",
       note: "A product_assistant task blocked. Review the chat record and re-triage through Aide across product_manager, technical_manager, and product_assistant lines."
     });
     return;
@@ -517,20 +520,31 @@ function recordProductAssistantReview(state, taskId, status, message) {
     noteParts.push("memory updates proposed");
   }
   if (candidates.length > 0) {
-    noteParts.push(`evolution candidates: ${candidates.map((item) => item.category).slice(0, 3).join(", ")}`);
+    noteParts.push(`governance candidates: ${candidates.map((item) => item.issue).slice(0, 2).join("; ")}`);
   }
   if (openGaps.length > 0) {
     noteParts.push(`open gaps: ${openGaps.slice(0, 2).join("; ")}`);
   }
 
-  upsertAideReview(state, {
+  const level = reviewLevelForProductResult(candidates, openGaps, memoryUpdates, templateChanges);
+  upsertGovernanceReview(state, {
     issueKey: `product-review:${taskId || "current-task"}`,
     taskId,
     sourceRole: "product_assistant",
-    capability: reviewCapabilityForProductResult(candidates, openGaps),
-    severity: reviewSeverityForProductResult(candidates, openGaps, memoryUpdates, templateChanges),
-    issueType: "product_review",
-    routeTarget: "Aide review",
+    issue: "Completed product_assistant result requires governance review.",
+    level,
+    impact:
+      level === "G1"
+        ? "Low-risk non-code guidance or preference updates may be ready for direct writeback."
+        : "The completed non-code result affects long-term guidance, routing clarity, or reusable delivery expectations.",
+    authority_target:
+      candidates[0]?.authority_target ||
+      ".codex/policies/aide-governance-policy.md",
+    recommended_action:
+      level === "G1"
+        ? "Review the result for low-risk writeback and keep only the smallest safe update."
+        : "Review the completed result against the chat record before applying any durable governance change.",
+    disposition: defaultGovernanceDisposition(level),
     note: `Review the completed product_assistant result against the chat record before accepting long-term writeback${noteParts.length > 0 ? ` (${noteParts.join("; ")})` : ""}.`
   });
 }
@@ -896,7 +910,7 @@ function clearAmbiguousBlockedSignals(state, role) {
       return item.phase === role && item.scope === "ambiguous";
     }
 
-    if (item.type === "aide_review") {
+    if (item.type === "governance_review") {
       return item.sourceRole === role && item.scope === "ambiguous";
     }
 
@@ -910,7 +924,7 @@ function hasAmbiguousBlockedSignals(state, role) {
       return item.phase === role && item.scope === "ambiguous";
     }
 
-    if (item.type === "aide_review") {
+    if (item.type === "governance_review") {
       return item.sourceRole === role && item.scope === "ambiguous";
     }
 
@@ -1097,14 +1111,16 @@ function recordMissingTesterWorkflowBreak(state, taskId, source, note) {
     note
   });
 
-  upsertAideReview(state, {
+  upsertGovernanceReview(state, {
     issueKey: `tester-required:${source}:${taskId || "current-task"}`,
     taskId,
     sourceRole: source,
-    capability: "investigation",
-    severity: "L3",
-    issueType: "workflow_break",
-    routeTarget: "/Aide investigate",
+    issue: "Required tester handoff is missing.",
+    level: "G3",
+    impact: "The guarded technical delivery chain cannot settle until tester runs for the current workflow chain.",
+    authority_target: ".codex/skills/technical_manager/SKILL.md",
+    recommended_action: "Route back through Aide, then technical_manager, and re-run tester for the active chain before QC or submit.",
+    disposition: "ask-user",
     note
   });
 }
@@ -1256,7 +1272,7 @@ function processQcOutcome(state, taskId, profile, message, deliveryPolicy, workf
     }
 
     if (taskId) {
-      const queuedForTask = state.learningQueue.filter(
+      const queuedForTask = state.governanceQueue.filter(
         (item) => item.status === "queued" && (item.source || "unknown") === taskId
       );
 
@@ -1319,31 +1335,39 @@ function processQcOutcome(state, taskId, profile, message, deliveryPolicy, workf
             category,
             triggerCount: existing.count
           });
-          upsertLearningQueueItem(state, {
-            id: toLessonId(taskId, category),
+          upsertGovernanceQueueItem(state, {
+            id: toGovernanceItemId(taskId, category),
             source: taskId,
             taskId,
             category,
             triggerCount: existing.count,
             suggestedRoute: suggestedRoutesForCategory(category),
-            lesson: lessonForCategory(category),
+            recommended_action: recommendedActionForCategory(category),
+            issue: `Repeated QC failure category detected: ${category}.`,
+            level: governanceLevelForRetryCount(existing.count),
+            impact: `QC repeated the same failure category ${existing.count} time(s), indicating shared guidance or workflow drift.`,
+            authority_target: suggestedRoutesForCategory(category)[0] || ".codex/policies/aide-governance-policy.md",
+            disposition: "ask-user",
             status: "queued"
           });
         }
       }
 
       if (escalatedCategories.length > 0) {
-        upsertAideReview(state, {
+        const level = highestGovernanceLevel(
+          escalatedCategories.map((item) => governanceLevelForRetryCount(item.triggerCount)),
+          "G2"
+        );
+        upsertGovernanceReview(state, {
           issueKey: `qc-pattern:${taskId || "current-task"}`,
           taskId,
           sourceRole: "qc",
-          capability: "audit",
-          severity: highestGovernanceSeverity(
-            escalatedCategories.map((item) => governanceSeverityForRetryCount(item.triggerCount)),
-            "L3"
-          ),
-          issueType: "workflow_break",
-          routeTarget: "Aide audit",
+          issue: "Repeated QC failure categories detected.",
+          level,
+          impact: "Shared prompts, handoff rules, or execution expectations are drifting across repeated failures.",
+          authority_target: ".codex/policies/aide-governance-policy.md",
+          recommended_action: "Review the repeated failure pattern and correct the smallest shared authority file instead of patching only the latest output.",
+          disposition: "ask-user",
           note: `Repeated QC failure categories detected: ${escalatedCategories
             .map((item) => `${item.category} x${item.triggerCount}`)
             .join(", ")}. Review shared prompts and handoff rules instead of only patching the latest output.`
@@ -1387,14 +1411,16 @@ function processSubmitOutcome(state, taskId, profile, message, status, workflow)
       note: "Governed delivery blocked. Review the submit report before continuing."
     });
 
-    upsertAideReview(state, {
+    upsertGovernanceReview(state, {
       issueKey: `blocked:submit:${taskId || "current-task"}`,
       taskId,
       sourceRole: "submit",
-      capability: "investigation",
-      severity: "L2",
-      issueType: "workflow_break",
-      routeTarget: "Aide investigate",
+      issue: "Submit step blocked the governed delivery flow.",
+      level: "G3",
+      impact: "Delivery cannot be completed until submit preconditions or environment constraints are resolved.",
+      authority_target: ".codex/policies/delivery-policy.json",
+      recommended_action: "Review branch policy, remotes, permissions, or delivery configuration before retrying submit.",
+      disposition: "ask-user",
       note: "A submit step blocked the delivery flow. Review branch policy, remotes, permissions, or delivery configuration."
     });
   }
@@ -1466,14 +1492,16 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
       });
 
       if (!missingBriefByContract) {
-        upsertAideReview(state, {
+        upsertGovernanceReview(state, {
           issueKey: `invalid-structured:${role}:${scopedTaskId || "current-task"}`,
           taskId: scopedTaskId,
           sourceRole: role,
-          capability: "investigation",
-          severity: "L3",
-          issueType: "workflow_break",
-          routeTarget: "Aide investigate",
+          issue: "Runtime rejected a handoff because the structured result contract was invalid.",
+          level: "G3",
+          impact: "The technical delivery chain was stopped to prevent a silent workflow break.",
+          authority_target: role === "tester" ? ".codex/agents/tester.toml" : ".codex/agents/coder.toml",
+          recommended_action: "Repair the structured result contract and re-run the handoff through the owning role before resuming the chain.",
+          disposition: "ask-user",
           note: `${contract.reason} Runtime rejected the handoff to prevent silent workflow break in the technical_manager-owned chain.`
         });
       }
@@ -1572,14 +1600,16 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         taskId: scopedTaskId,
         note: mismatchReason
       });
-      upsertAideReview(state, {
+      upsertGovernanceReview(state, {
         issueKey: `tester-${mismatchBlockedId}:${scopedTaskId || "current-task"}`,
         taskId: scopedTaskId,
         sourceRole: "tester",
-        capability: "investigation",
-        severity: "L3",
-        issueType: "workflow_break",
-        routeTarget: "/Aide investigate",
+        issue: "Tester handoff chain did not match the active guarded workflow chain.",
+        level: "G3",
+        impact: "Settlement remains blocked because the required tester handoff for the active chain is still unresolved.",
+        authority_target: ".codex/skills/technical_manager/SKILL.md",
+        recommended_action: "Route back through Aide and technical_manager, then re-run tester for the current guarded chain.",
+        disposition: "ask-user",
         note: mismatchReviewNote
       });
       syncWorkflowExpectedNextStep(state, scopedTaskId, workflow);
@@ -1650,15 +1680,23 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
     }
 
     if (!missingImplementationBrief) {
-      upsertAideReview(state, {
+      upsertGovernanceReview(state, {
         issueKey: `blocked:${role}:${blockedScopeLabel}`,
         taskId: scopedTaskId,
         scope: isAmbiguousBlockedScope ? "ambiguous" : undefined,
         sourceRole: role,
-        capability: "investigation",
-        severity: "L3",
-        issueType: "workflow_break",
-        routeTarget: "Aide investigate",
+        issue: `${role} handoff blocked the workflow.`,
+        level: "G3",
+        impact: isAmbiguousBlockedScope
+          ? "Task ownership is ambiguous and the workflow cannot safely continue."
+          : "The execution chain cannot continue until the blocker is understood and routed to the correct owner.",
+        authority_target: isAmbiguousBlockedScope
+          ? ".codex/state/task-context.json"
+          : ".codex/skills/technical_manager/SKILL.md",
+        recommended_action: isAmbiguousBlockedScope
+          ? "Resolve task ownership first, then re-route the fix through the correct chain."
+          : "Investigate the blocker and correct the smallest owner before resuming execution.",
+        disposition: "ask-user",
         note: reviewNote
       });
     }

@@ -5,7 +5,7 @@ model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/context/project-profile.md.
-Then read `.codex/product/registry.json`, `.codex/product/memory.json`, and `.codex/product/evolution.json` when they exist.
+Then read `.codex/product/registry.json`, `.codex/product/memory.json`, and `.codex/product/governance.json` when they exist.
 You receive non-code delivery assignments from `Aide` and return your results to `Aide`.
 The non-code routing line is `Aide -> product_assistant -> Aide`.
 Read only the minimum repository context needed for the assigned artifact.
@@ -76,11 +76,14 @@ End every final report with this exact section:
       }
     ]
   },
-  "evolution_candidates": [
+  "governance_candidates": [
     {
-      "id": "",
-      "category": "input_gap|role_gap|scope_gap|style_gap|template_gap|memory_gap|routing_gap|evidence_gap|audience_gap|artifact_gap|constraint_gap",
-      "summary": "",
+      "issue": "",
+      "level": "G1|G2|G3",
+      "impact": "",
+      "authority_target": "",
+      "recommended_action": "",
+      "disposition": "auto-fix|ask-user|queue",
       "source": "product_assistant|aide",
       "evidence": [],
       "occurrences": 0,

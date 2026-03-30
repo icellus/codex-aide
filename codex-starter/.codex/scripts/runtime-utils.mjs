@@ -737,6 +737,21 @@ export function createEmptyDeliveryPolicy() {
   };
 }
 
+export function createEmptyAideGovernancePolicy() {
+  return {
+    version: 1,
+    default_disposition: {
+      G1: "auto-fix",
+      G2: "ask-user",
+      G3: "ask-user"
+    },
+    auto_fix_levels: ["G1"],
+    persist_fields: ["issue", "level", "authority_target", "disposition", "note"],
+    filePath: "",
+    text: ""
+  };
+}
+
 export function createEmptyState() {
   return {
     version: 1,
@@ -744,7 +759,7 @@ export function createEmptyState() {
     recentSubagentEvents: [],
     pendingActions: [],
     failurePatterns: {},
-    learningQueue: [],
+    governanceQueue: [],
     completedTasks: [],
     qualityMetrics: {
       qcRuns: 0,
@@ -773,7 +788,7 @@ export function createEmptyTaskRegistry() {
   };
 }
 
-export function createEmptyEvolutionRegistry() {
+export function createEmptyGovernanceRegistry() {
   return {
     version: 1,
     updatedAt: null,
@@ -787,6 +802,215 @@ export function createEmptyEvolutionRegistry() {
     },
     candidates: [],
     settledTaskReviews: []
+  };
+}
+
+function normalizeGovernanceDisposition(value, level = "G2") {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "auto-fix" || normalized === "ask-user" || normalized === "queue") {
+    return normalized;
+  }
+  return normalizeGovernanceLevel(level, "G2") === "G1" ? "auto-fix" : "ask-user";
+}
+
+function normalizeGovernanceCandidateEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const level = normalizeGovernanceLevel(entry.level, "G2");
+  const authorityTarget = String(entry.authority_target || "").trim();
+  const recommendedAction = String(entry.recommended_action || "").trim();
+  const issue = String(entry.issue || "").trim();
+  const impact = String(entry.impact || "").trim();
+
+  if (!issue && !impact && !authorityTarget && !recommendedAction) {
+    return null;
+  }
+
+  return {
+    issue: issue || "Governance follow-up required.",
+    level,
+    impact: impact || "Governance follow-up required.",
+    authority_target: authorityTarget || "to-be-determined",
+    recommended_action: recommendedAction || "review and decide next step",
+    disposition: normalizeGovernanceDisposition(entry.disposition, level)
+  };
+}
+
+function normalizeGovernanceQueueItem(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const id = String(entry.id || "").trim();
+  const triggerCount = Number.isFinite(entry.triggerCount)
+    ? entry.triggerCount
+    : Number.parseInt(String(entry.trigger_count || "0"), 10) || 0;
+  const suggestedRoute = Array.isArray(entry.suggestedRoute)
+    ? entry.suggestedRoute
+    : Array.isArray(entry.suggested_route)
+      ? entry.suggested_route
+      : typeof entry.suggestedRoute === "string"
+        ? entry.suggestedRoute.split(",").map((item) => item.trim()).filter(Boolean)
+        : typeof entry.suggested_route === "string"
+          ? entry.suggested_route.split(",").map((item) => item.trim()).filter(Boolean)
+          : [];
+  const level = normalizeGovernanceLevel(entry.level, "G2");
+  const authorityTarget = String(entry.authority_target || "").trim();
+  const recommendedAction = String(entry.recommended_action || "").trim();
+  const normalizedId = id || `governance-item-${Date.now()}`;
+
+  return {
+    id: normalizedId,
+    category: String(entry.category || "role_gap").trim() || "role_gap",
+    taskId: entry.taskId || null,
+    planPath: entry.planPath || null,
+    triggerCount,
+    suggestedRoute,
+    issue: String(entry.issue || `Queued governance item: ${String(entry.category || "unknown").trim() || "unknown"}`).trim(),
+    level,
+    impact: String(entry.impact || "").trim() || `Governance queue item triggered ${triggerCount || 1} time(s).`,
+    authority_target: authorityTarget || "to-be-determined",
+    recommended_action: recommendedAction || "review and decide next step",
+    disposition: normalizeGovernanceDisposition(entry.disposition || (entry.status === "queued" ? "queue" : ""), level),
+    status: String(entry.status || "queued").trim().toLowerCase() || "queued",
+    source: String(entry.source || entry.taskId || "unknown").trim() || "unknown",
+    createdAt: entry.createdAt || null,
+    updatedAt: entry.updatedAt || null
+  };
+}
+
+function normalizeGovernancePendingAction(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  if (entry.type !== "governance_review") {
+    return entry;
+  }
+
+  const level = normalizeGovernanceLevel(entry.level, "G2");
+  const authorityTarget = String(entry.authority_target || "").trim();
+  const recommendedAction = String(entry.recommended_action || "").trim();
+
+  return {
+    id: String(entry.id || "").trim() || entry.id,
+    type: "governance_review",
+    scope: entry.scope || undefined,
+    issue: String(entry.issue || entry.note || "governance review pending").trim() || "governance review pending",
+    level,
+    impact: String(entry.impact || "").trim() || `governance signal from ${String(entry.sourceRole || "runtime").trim() || "runtime"}`,
+    authority_target: authorityTarget || "to-be-determined",
+    recommended_action: recommendedAction || "review and choose the smallest authority owner",
+    disposition: normalizeGovernanceDisposition(entry.disposition, level),
+    taskId: entry.taskId || null,
+    sourceRole: entry.sourceRole || null,
+    note: entry.note || "",
+    planPath: entry.planPath || null,
+    governance_candidates: Array.isArray(entry.governance_candidates)
+      ? entry.governance_candidates.map((item) => normalizeGovernanceCandidateEntry(item)).filter(Boolean)
+      : [],
+    decisions: Array.isArray(entry.decisions) ? entry.decisions.filter(Boolean) : [],
+    wrongAssumptions: Array.isArray(entry.wrongAssumptions) ? entry.wrongAssumptions.filter(Boolean) : [],
+    createdAt: entry.createdAt || null,
+    updatedAt: entry.updatedAt || null
+  };
+}
+
+function normalizeRuntimeStateShape(parsed = {}) {
+  const emptyState = createEmptyState();
+  const rawPendingActions = Array.isArray(parsed.pendingActions) ? parsed.pendingActions : [];
+  const rawGovernanceQueue = Array.isArray(parsed.governanceQueue) ? parsed.governanceQueue : [];
+
+  return {
+    ...emptyState,
+    ...(parsed || {}),
+    pendingActions: rawPendingActions
+      .map((entry) => normalizeGovernancePendingAction(entry))
+      .filter(Boolean),
+    governanceQueue: rawGovernanceQueue
+      .map((entry) => normalizeGovernanceQueueItem(entry))
+      .filter(Boolean),
+    qualityMetrics: {
+      ...emptyState.qualityMetrics,
+      ...(parsed.qualityMetrics || {}),
+      qcByPhase: {
+        tester: {
+          ...emptyState.qualityMetrics.qcByPhase.tester,
+          ...(parsed.qualityMetrics?.qcByPhase?.tester || {})
+        },
+        coder: {
+          ...emptyState.qualityMetrics.qcByPhase.coder,
+          ...(parsed.qualityMetrics?.qcByPhase?.coder || {})
+        },
+        manual: {
+          ...emptyState.qualityMetrics.qcByPhase.manual,
+          ...(parsed.qualityMetrics?.qcByPhase?.manual || {})
+        }
+      }
+    },
+    sessionContext: {
+      ...emptyState.sessionContext,
+      ...(parsed.sessionContext || {})
+    }
+  };
+}
+
+function normalizeGovernanceRegistryShape(parsed = {}) {
+  const emptyRegistry = createEmptyGovernanceRegistry();
+  const rawCandidates = Array.isArray(parsed.candidates) ? parsed.candidates : [];
+
+  return {
+    ...emptyRegistry,
+    ...parsed,
+    lastSweep: {
+      ...emptyRegistry.lastSweep,
+      ...(parsed.lastSweep || {})
+    },
+    candidates: rawCandidates
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+
+        const level = normalizeGovernanceLevel(entry.level, "G2");
+        const authorityTarget = String(entry.authority_target || "").trim();
+        const recommendedAction = String(entry.recommended_action || "").trim();
+        return {
+          id: entry.id || null,
+          sourceType: entry.sourceType || null,
+          status: entry.status || "queued",
+          taskId: entry.taskId || null,
+          planPath: entry.planPath || null,
+          taskTitle: entry.taskTitle || null,
+          signalIds: Array.isArray(entry.signalIds) ? entry.signalIds : [],
+          summary: entry.summary || "",
+          issue: String(entry.issue || entry.summary || "candidate queued").trim() || "candidate queued",
+          level,
+          impact: String(entry.impact || "").trim() || `governance candidate from ${String(entry.sourceType || "unknown")}`,
+          authority_target: authorityTarget || "to-be-determined",
+          recommended_action: recommendedAction || "review and decide next step",
+          disposition: normalizeGovernanceDisposition(entry.disposition, level),
+          note: entry.note || "",
+          automation: entry.automation || null,
+          createdAt: entry.createdAt || null,
+          updatedAt: entry.updatedAt || null,
+          lastSeenAt: entry.lastSeenAt || null,
+          resolvedAt: entry.resolvedAt || null,
+          appliedAt: entry.appliedAt || null,
+          failedAt: entry.failedAt || null,
+          failureReason: entry.failureReason || null,
+          applyResult: entry.applyResult || null,
+          governance_candidates: Array.isArray(entry.governance_candidates)
+            ? entry.governance_candidates.map((item) => normalizeGovernanceCandidateEntry(item)).filter(Boolean)
+            : []
+        };
+      })
+      .filter(Boolean),
+    settledTaskReviews: Array.isArray(parsed.settledTaskReviews)
+      ? parsed.settledTaskReviews.filter((item) => item && typeof item === "object")
+      : []
   };
 }
 
@@ -830,33 +1054,7 @@ export function loadRuntimeState(projectDir) {
 
   try {
     const parsed = JSON.parse(fs.readFileSync(statePath, "utf8"));
-    const emptyState = createEmptyState();
-    return {
-      ...emptyState,
-      ...parsed,
-      qualityMetrics: {
-        ...emptyState.qualityMetrics,
-        ...(parsed.qualityMetrics || {}),
-        qcByPhase: {
-          tester: {
-            ...emptyState.qualityMetrics.qcByPhase.tester,
-            ...(parsed.qualityMetrics?.qcByPhase?.tester || {})
-          },
-          coder: {
-            ...emptyState.qualityMetrics.qcByPhase.coder,
-            ...(parsed.qualityMetrics?.qcByPhase?.coder || {})
-          },
-          manual: {
-            ...emptyState.qualityMetrics.qcByPhase.manual,
-            ...(parsed.qualityMetrics?.qcByPhase?.manual || {})
-          }
-        }
-      },
-      sessionContext: {
-        ...emptyState.sessionContext,
-        ...(parsed.sessionContext || {})
-      }
-    };
+    return normalizeRuntimeStateShape(parsed);
   } catch {
     return createEmptyState();
   }
@@ -865,10 +1063,11 @@ export function loadRuntimeState(projectDir) {
 export function saveRuntimeState(projectDir, state) {
   const stateDir = path.join(projectDir, ".codex", "state");
   const statePath = path.join(stateDir, "runtime-state.json");
+  const normalizedState = normalizeRuntimeStateShape(state);
 
   ensureDir(stateDir);
-  fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n", "utf8");
-  logRuntimeFileWrite(projectDir, statePath, state, {
+  fs.writeFileSync(statePath, JSON.stringify(normalizedState, null, 2) + "\n", "utf8");
+  logRuntimeFileWrite(projectDir, statePath, normalizedState, {
     category: "state",
     writer: "saveRuntimeState",
     format: "json"
@@ -920,6 +1119,53 @@ export function loadDeliveryPolicy(projectDir) {
       ...emptyPolicy.fallback,
       ...(parsed.fallback || {})
     }
+  };
+}
+
+export function loadAideGovernancePolicy(projectDir) {
+  const fallback = createEmptyAideGovernancePolicy();
+  const policyPath = path.join(projectDir, ".codex", "policies", "aide-governance-policy.md");
+  const next = {
+    ...fallback,
+    filePath: policyPath
+  };
+
+  if (!fs.existsSync(policyPath)) {
+    return next;
+  }
+
+  const text = fs.readFileSync(policyPath, "utf8");
+  const frontmatter = text.match(/^---\n([\s\S]*?)\n---/);
+
+  let parsed = {};
+  if (frontmatter?.[1]) {
+    try {
+      parsed = JSON.parse(frontmatter[1]);
+    } catch {
+      parsed = {};
+    }
+  }
+
+  const normalizedAutoFixLevels = Array.isArray(parsed.auto_fix_levels)
+    ? parsed.auto_fix_levels.map((item) => String(item || "").trim().toUpperCase()).filter(Boolean)
+    : fallback.auto_fix_levels;
+  const normalizedPersistFields = Array.isArray(parsed.persist_fields)
+    ? parsed.persist_fields.map((item) => String(item || "").trim()).filter(Boolean)
+    : fallback.persist_fields;
+
+  return {
+    ...next,
+    ...(parsed && typeof parsed === "object" ? parsed : {}),
+    default_disposition:
+      parsed.default_disposition && typeof parsed.default_disposition === "object"
+        ? {
+            ...fallback.default_disposition,
+            ...parsed.default_disposition
+          }
+        : fallback.default_disposition,
+    auto_fix_levels: normalizedAutoFixLevels.length > 0 ? normalizedAutoFixLevels : fallback.auto_fix_levels,
+    persist_fields: normalizedPersistFields.length > 0 ? normalizedPersistFields : fallback.persist_fields,
+    text
   };
 }
 
@@ -1070,47 +1316,34 @@ export function saveRepoContext(projectDir, repoContext) {
   });
 }
 
-export function loadEvolutionRegistry(projectDir) {
+export function loadGovernanceRegistry(projectDir) {
   const stateDir = path.join(projectDir, ".codex", "state");
-  const registryPath = path.join(stateDir, "evolution-registry.json");
+  const registryPath = path.join(stateDir, "governance-registry.json");
 
   ensureDir(stateDir);
 
   if (!fs.existsSync(registryPath)) {
-    return createEmptyEvolutionRegistry();
+    return createEmptyGovernanceRegistry();
   }
 
   try {
     const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-    const emptyRegistry = createEmptyEvolutionRegistry();
-    return {
-      ...emptyRegistry,
-      ...parsed,
-      lastSweep: {
-        ...emptyRegistry.lastSweep,
-        ...(parsed.lastSweep || {})
-      },
-      candidates: Array.isArray(parsed.candidates)
-        ? parsed.candidates.filter((item) => item && typeof item === "object")
-        : [],
-      settledTaskReviews: Array.isArray(parsed.settledTaskReviews)
-        ? parsed.settledTaskReviews.filter((item) => item && typeof item === "object")
-        : []
-    };
+    return normalizeGovernanceRegistryShape(parsed);
   } catch {
-    return createEmptyEvolutionRegistry();
+    return createEmptyGovernanceRegistry();
   }
 }
 
-export function saveEvolutionRegistry(projectDir, registry) {
+export function saveGovernanceRegistry(projectDir, registry) {
   const stateDir = path.join(projectDir, ".codex", "state");
-  const registryPath = path.join(stateDir, "evolution-registry.json");
+  const registryPath = path.join(stateDir, "governance-registry.json");
+  const normalizedRegistry = normalizeGovernanceRegistryShape(registry);
 
   ensureDir(stateDir);
-  fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n", "utf8");
-  logRuntimeFileWrite(projectDir, registryPath, registry, {
+  fs.writeFileSync(registryPath, JSON.stringify(normalizedRegistry, null, 2) + "\n", "utf8");
+  logRuntimeFileWrite(projectDir, registryPath, normalizedRegistry, {
     category: "state",
-    writer: "saveEvolutionRegistry",
+    writer: "saveGovernanceRegistry",
     format: "json"
   });
 }
@@ -2023,38 +2256,37 @@ export function syncTaskRegistry(projectDir, input = {}) {
   return registry;
 }
 
-const GOVERNANCE_SEVERITY_ORDER = {
-  L1: 1,
-  L2: 2,
-  L3: 3,
-  L4: 4
+const GOVERNANCE_LEVEL_ORDER = {
+  G1: 1,
+  G2: 2,
+  G3: 3
 };
 
-export function normalizeGovernanceSeverity(value, fallback = "L2") {
+export function normalizeGovernanceLevel(value, fallback = "G2") {
   const normalized = String(value || "").trim().toUpperCase();
-  if (normalized === "L1" || normalized === "L2" || normalized === "L3" || normalized === "L4") {
+  if (normalized === "G1" || normalized === "G2" || normalized === "G3") {
     return normalized;
   }
   return fallback;
 }
 
-export function compareGovernanceSeverity(left, right) {
+export function compareGovernanceLevel(left, right) {
   return (
-    (GOVERNANCE_SEVERITY_ORDER[normalizeGovernanceSeverity(right, "L1")] || 0) -
-    (GOVERNANCE_SEVERITY_ORDER[normalizeGovernanceSeverity(left, "L1")] || 0)
+    (GOVERNANCE_LEVEL_ORDER[normalizeGovernanceLevel(right, "G1")] || 0) -
+    (GOVERNANCE_LEVEL_ORDER[normalizeGovernanceLevel(left, "G1")] || 0)
   );
 }
 
-export function highestGovernanceSeverity(values = [], fallback = "L2") {
+export function highestGovernanceLevel(values = [], fallback = "G2") {
   const normalized = Array.isArray(values)
-    ? values.map((item) => normalizeGovernanceSeverity(item, fallback))
+    ? values.map((item) => normalizeGovernanceLevel(item, fallback))
     : [];
 
   if (normalized.length === 0) {
     return fallback;
   }
 
-  return normalized.sort(compareGovernanceSeverity)[0];
+  return normalized.sort(compareGovernanceLevel)[0];
 }
 
 export function normalizeText(value) {
@@ -2452,7 +2684,7 @@ export function suggestedRoutesForCategory(category) {
   }
 }
 
-export function lessonForCategory(category) {
+export function recommendedActionForCategory(category) {
   switch (category) {
     case "placeholder":
       return "Placeholder comments must be treated as incomplete work and rejected before completion.";
@@ -2471,7 +2703,7 @@ export function lessonForCategory(category) {
     case "environment-mismatch":
       return "Environment-specific failures should route to CI or deployment guidance before repeated coding retries.";
     default:
-      return "Repeated QC failures should be captured as reusable lessons.";
+      return "Repeated QC failures should be captured as reusable governance guidance.";
   }
 }
 
@@ -2497,18 +2729,18 @@ export function removePendingActions(state, predicate) {
   state.pendingActions = state.pendingActions.filter((item) => !predicate(item));
 }
 
-export function upsertLearningQueueItem(state, entry) {
-  const index = state.learningQueue.findIndex((item) => item.id === entry.id);
+export function upsertGovernanceQueueItem(state, entry) {
+  const index = state.governanceQueue.findIndex((item) => item.id === entry.id);
   if (index >= 0) {
-    state.learningQueue[index] = {
-      ...state.learningQueue[index],
+    state.governanceQueue[index] = {
+      ...state.governanceQueue[index],
       ...entry,
       updatedAt: new Date().toISOString()
     };
     return;
   }
 
-  state.learningQueue.push({
+  state.governanceQueue.push({
     ...entry,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -2524,7 +2756,7 @@ export function trimRuntimeState(state) {
 
   state.recentSubagentEvents = state.recentSubagentEvents.slice(-15);
   state.pendingActions = state.pendingActions.slice(-12);
-  state.learningQueue = state.learningQueue.slice(-12);
+  state.governanceQueue = state.governanceQueue.slice(-12);
   state.completedTasks = state.completedTasks.slice(-12);
   state.qualityMetrics.recentQcRuns = state.qualityMetrics.recentQcRuns.slice(-15);
   state.failurePatterns = Object.fromEntries(failurePatternEntries.slice(0, 24));
@@ -2538,9 +2770,9 @@ export function basenameLabel(value) {
   return path.basename(value.replace(/\\/g, "/"));
 }
 
-export function toLessonId(source, category) {
+export function toGovernanceItemId(source, category) {
   const raw = `${basenameLabel(source)}-${category}`.toLowerCase();
-  return `lesson-${raw.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+  return `governance-item-${raw.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
 }
 
 function summarizeRetryPattern(state, taskId) {
@@ -2665,7 +2897,7 @@ function updateCurrentWorkSection(text, activePlans, state, taskRegistry = null)
   return text.replace(match[0], `${prefix}${updatedBody}${suffix}`);
 }
 
-function buildLearningQueueBlock(entry) {
+function buildGovernanceQueueBlock(entry) {
   const route = Array.isArray(entry.suggestedRoute)
     ? entry.suggestedRoute.join(", ")
     : String(entry.suggestedRoute || "");
@@ -2676,13 +2908,13 @@ function buildLearningQueueBlock(entry) {
     `**Category**: \`${entry.category}\``,
     `**Trigger Count**: ${entry.triggerCount}`,
     `**Suggested Route**: \`${route}\``,
-    `**Lesson**: ${entry.lesson}`,
+    `**Recommended Action**: ${entry.recommended_action || entry.recommendedAction || ""}`,
     `**Status**: \`${entry.status || "queued"}\``
   ].join("\n");
 }
 
-function updateLearningQueueSection(text, state) {
-  const match = text.match(/(## Learning Queue \(Optional\)\s*\n\n)([\s\S]*?)(\n---\s*\n\s*## |\n## |\s*$)/);
+function updateGovernanceQueueSection(text, state) {
+  const match = text.match(/(## Governance Queue \(Optional\)\s*\n\n)([\s\S]*?)(\n---\s*\n\s*## |\n## |\s*$)/);
   if (!match) {
     return text;
   }
@@ -2715,16 +2947,16 @@ function updateLearningQueueSection(text, state) {
     blockMap.set(id, chunk);
   }
 
-  for (const entry of state.learningQueue) {
-    const block = buildLearningQueueBlock(entry);
+  for (const entry of state.governanceQueue) {
+    const block = buildGovernanceQueueBlock(entry);
     if (!blockMap.has(entry.id)) {
       order.push(entry.id);
     }
     blockMap.set(entry.id, block);
   }
 
-  if (state.learningQueue.length > 0 && blockMap.has("[lesson-slug]")) {
-    blockMap.delete("[lesson-slug]");
+  if (state.governanceQueue.length > 0 && blockMap.has("[governance-item-id]")) {
+    blockMap.delete("[governance-item-id]");
   }
 
   const renderedBlocks = order
@@ -2733,7 +2965,7 @@ function updateLearningQueueSection(text, state) {
     .map((id) => blockMap.get(id));
 
   const parts = [...preamble, ...renderedBlocks].filter(Boolean);
-  const bodyText = parts.length > 0 ? `${parts.join("\n\n")}\n\n` : "<!-- No queued lessons -->\n\n";
+  const bodyText = parts.length > 0 ? `${parts.join("\n\n")}\n\n` : "<!-- No queued governance items -->\n\n";
 
   return text.replace(match[0], `${prefix}${bodyText}${suffix}`);
 }
@@ -2758,9 +2990,9 @@ function buildRetrospectiveBlock(entry, blockId) {
     "- Pending capture during the next internal long-running handoff or session close.",
     "**Wrong Assumptions**:",
     `- Prompt: ${entry.note || "Capture the assumption that failed."}`,
-    "**Candidate Lessons**:",
+    "**Governance Candidates**:",
     ...categories,
-    "**Writeback Decision**: `pending retrospective`",
+    "**Governance Disposition**: `pending retrospective`",
     `**Last Updated**: ${entry.updatedAt || entry.createdAt || "unknown"}`
   ].join("\n");
 }
@@ -2769,7 +3001,7 @@ function parseRetrospectiveChunk(chunk) {
   return {
     id: chunk.match(/^###\s+(.+)$/m)?.[1]?.trim() || null,
     taskId: chunk.match(/\*\*Task ID\*\*:\s*`([^`]+)`/)?.[1] || null,
-    writebackDecision: chunk.match(/\*\*Writeback Decision\*\*:\s*`([^`]+)`/)?.[1] || null,
+    writebackDecision: chunk.match(/\*\*Governance Disposition\*\*:\s*`([^`]+)`/)?.[1] || null,
     chunk
   };
 }
@@ -2886,8 +3118,8 @@ export function syncProgressFromState(progressPath, activePlans, state, taskRegi
   const projectDir = findProjectDir(path.dirname(progressPath)) || path.dirname(progressPath);
   const original = fs.readFileSync(progressPath, "utf8");
   const withRetryPattern = updateCurrentWorkSection(original, activePlans, state, taskRegistry);
-  const withLearningQueue = updateLearningQueueSection(withRetryPattern, state);
-  const withRetrospective = updateSessionRetrospectiveSection(withLearningQueue, state);
+  const withGovernanceQueue = updateGovernanceQueueSection(withRetryPattern, state);
+  const withRetrospective = updateSessionRetrospectiveSection(withGovernanceQueue, state);
 
   if (withRetrospective !== original) {
     fs.writeFileSync(progressPath, withRetrospective, "utf8");

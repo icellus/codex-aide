@@ -4,18 +4,18 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
-  compareGovernanceSeverity,
+  compareGovernanceLevel,
   compactText,
   getProjectContext,
-  highestGovernanceSeverity,
+  highestGovernanceLevel,
+  loadAideGovernancePolicy,
   logRuntimeFileWrite,
-  loadEvolutionRegistry,
+  loadGovernanceRegistry,
   loadProjectProfileState,
   loadRuntimeState,
   listTaskRegistryTasks,
-  normalizeGovernanceSeverity,
   readJsonStdinEnvelope,
-  saveEvolutionRegistry,
+  saveGovernanceRegistry,
   startRuntimeInvocationLogging,
   syncTaskRegistry
 } from "./runtime-utils.mjs";
@@ -28,7 +28,24 @@ function reviewTimestamp(item) {
   return new Date(item?.checkedAt || item?.updatedAt || item?.completedAt || 0).getTime();
 }
 
-function createDefaultPolicy() {
+function normalizeGovernanceLevel(value, fallback = "G2") {
+  const normalized = String(value || "").trim().toUpperCase();
+  return normalized === "G1" || normalized === "G2" || normalized === "G3" ? normalized : fallback;
+}
+
+function governanceDisposition(policy, level, fallback = "ask-user") {
+  const normalizedLevel = normalizeGovernanceLevel(level);
+  const defaults = policy?.default_disposition && typeof policy.default_disposition === "object"
+    ? policy.default_disposition
+    : {};
+  return String(defaults[normalizedLevel] || fallback).trim() || fallback;
+}
+
+function authorityTargetForCandidate({ authorityTarget = null, planPath = null, fallback = "to-be-determined" } = {}) {
+  return authorityTarget || planPath || fallback;
+}
+
+function createDefaultWritebackPolicy() {
   return {
     version: 1,
     auto_apply: {
@@ -40,9 +57,9 @@ function createDefaultPolicy() {
   };
 }
 
-function loadEvolutionPolicy(projectDir) {
-  const policyPath = path.join(projectDir, ".codex", "policies", "evolution-policy.json");
-  const fallback = createDefaultPolicy();
+function loadWritebackPolicy(projectDir) {
+  const policyPath = path.join(projectDir, ".codex", "policies", "aide-writeback-policy.json");
+  const fallback = createDefaultWritebackPolicy();
 
   if (!fs.existsSync(policyPath)) {
     return fallback;
@@ -64,46 +81,61 @@ function loadEvolutionPolicy(projectDir) {
   }
 }
 
-function buildAideReviewCandidate(item) {
+function buildGovernanceReviewCandidate(item, governancePolicy) {
+  const governanceLevel = normalizeGovernanceLevel(item.level || "G2");
+  const summary = compactText(item.issue || item.note || "Pending governance review.", 160);
   return {
-    id: `aide-review:${item.id}`,
-    sourceType: "aide_review",
+    id: `governance-review:${item.id}`,
+    sourceType: "governance_review",
     status: "queued",
-    severity: normalizeGovernanceSeverity(item.severity || "L2"),
-    capability: String(item.capability || "investigation").trim().toLowerCase() || "investigation",
     taskId: item.taskId || null,
     planPath: item.planPath || null,
     taskTitle: null,
-    routeTarget: item.routeTarget || null,
     signalIds: [item.id],
-    summary: compactText(item.note || "Pending Aide review.", 160)
+    summary,
+    issue: item.issue || summary,
+    level: governanceLevel,
+    impact: item.impact || "Governance follow-up required.",
+    authority_target: authorityTargetForCandidate({
+      authorityTarget:
+        item.authority_target ||
+        item.governance_candidates?.[0]?.authority_target ||
+        null,
+      planPath: item.planPath || null
+    }),
+    recommended_action: item.recommended_action || "review and decide next step",
+    disposition: item.disposition || governanceDisposition(governancePolicy, governanceLevel),
+    note: item.note || "",
+    governance_candidates: Array.isArray(item.governance_candidates) ? item.governance_candidates : []
   };
 }
 
-function buildLearningQueueCandidate(item) {
+function buildGovernanceQueueCandidate(item, governancePolicy) {
   const triggerCount = Number.isFinite(item.triggerCount) ? item.triggerCount : 0;
-  const routeTarget = Array.isArray(item.suggestedRoute)
-    ? item.suggestedRoute.join(", ")
-    : String(item.suggestedRoute || "").trim() || null;
+  const governanceLevel = normalizeGovernanceLevel(item.level || "G2");
+  const summary = compactText(item.issue || `Queued governance item: ${item.category || "unknown"} x${triggerCount || 1}.`, 160);
 
   return {
-    id: `learning-queue:${item.id}`,
-    sourceType: "learning_queue",
+    id: `governance-queue:${item.id}`,
+    sourceType: "governance_queue",
     status: "queued",
-    severity: triggerCount >= 4 ? "L4" : triggerCount >= 2 ? "L3" : "L2",
-    capability: "writeback",
     taskId: item.taskId || item.source || null,
     planPath: item.planPath || null,
     taskTitle: null,
-    routeTarget,
     category: item.category || null,
     triggerCount,
-    lesson: item.lesson || "",
     signalIds: [item.id],
-    summary: compactText(
-      `Queued lesson candidate: ${item.category || "unknown"} x${triggerCount || 1}. ${item.lesson || ""}`,
-      160
-    )
+    summary,
+    issue: item.issue || summary,
+    level: governanceLevel,
+    impact: item.impact || `Governance queue item triggered ${triggerCount || 1} time(s).`,
+    authority_target: authorityTargetForCandidate({
+      authorityTarget: item.authority_target || null,
+      planPath: item.planPath || null
+    }),
+    recommended_action: item.recommended_action || "review and decide next step",
+    disposition: item.disposition || governanceDisposition(governancePolicy, governanceLevel, "queue"),
+    note: item.note || item.recommended_action || ""
   };
 }
 
@@ -112,7 +144,7 @@ function relatedSignalsForTask(task, candidates) {
     return candidates.filter((item) => item.taskId === task.id);
   }
 
-  return candidates.filter((item) => item.sourceType === "aide_review" && !item.taskId);
+  return candidates.filter((item) => item.sourceType === "governance_review" && !item.taskId);
 }
 
 function upsertCandidate(registry, entry, now) {
@@ -280,8 +312,8 @@ function applyGuidanceWriteback(projectDir, target, guidance) {
   };
 }
 
-function enrichLearningCandidateFromPolicy(candidate, policy) {
-  if (candidate.sourceType !== "learning_queue") {
+function enrichGovernanceCandidateFromPolicy(candidate, policy, governancePolicy) {
+  if (candidate.sourceType !== "governance_queue") {
     return candidate;
   }
 
@@ -291,16 +323,23 @@ function enrichLearningCandidateFromPolicy(candidate, policy) {
     ? policy.auto_apply.allowed_targets
     : [];
   const autoApplyEnabled = Boolean(policy?.auto_apply?.enabled);
-  const target = categoryPolicy?.target || candidate.routeTarget || null;
+  const allowedGovernanceLevels = Array.isArray(governancePolicy?.auto_fix_levels)
+    ? governancePolicy.auto_fix_levels.map((item) => String(item || "").trim().toUpperCase()).filter(Boolean)
+    : ["G1"];
+  const target = categoryPolicy?.target || candidate.authority_target || null;
+  const governanceLevel = normalizeGovernanceLevel(candidate.level || "G2");
   const canAutoApply =
     autoApplyEnabled &&
     categoryPolicy?.mode === "append_guidance" &&
     candidate.triggerCount >= minTriggerCount &&
-    allowedTargets.includes(target);
+    allowedTargets.includes(target) &&
+    allowedGovernanceLevels.includes(governanceLevel);
 
   return {
     ...candidate,
-    routeTarget: target,
+    level: governanceLevel,
+    authority_target: authorityTargetForCandidate({ authorityTarget: target, planPath: candidate.planPath || null }),
+    disposition: governanceDisposition(governancePolicy, governanceLevel, "queue"),
     automation: {
       target,
       mode: categoryPolicy?.mode || null,
@@ -370,9 +409,9 @@ function sortAndTrimRegistry(registry) {
       return statusWeight(left.status) - statusWeight(right.status);
     }
 
-    const severityOrder = compareGovernanceSeverity(left.severity, right.severity);
-    if (severityOrder !== 0) {
-      return severityOrder;
+    const levelOrder = compareGovernanceLevel(left.level, right.level);
+    if (levelOrder !== 0) {
+      return levelOrder;
     }
 
     return candidateTimestamp(right) - candidateTimestamp(left);
@@ -390,7 +429,7 @@ async function main() {
   const projectDir = project.projectDir;
   const logger = startRuntimeInvocationLogging({
     projectDir,
-    scriptName: "aide-evolution.mjs",
+    scriptName: "aide-writeback.mjs",
     input,
     rawInput: envelope.raw,
     metadata: {
@@ -404,33 +443,36 @@ async function main() {
     const trigger = String(input.trigger || "startup").trim().toLowerCase() || "startup";
     const background = Boolean(input.background);
     const quiet = Boolean(input.quiet);
-    const policy = loadEvolutionPolicy(projectDir);
+    const policy = loadWritebackPolicy(projectDir);
+    const governancePolicy = loadAideGovernancePolicy(projectDir);
     const profile = loadProjectProfileState(projectDir);
     const runtimeState = loadRuntimeState(projectDir);
     const taskRegistry = syncTaskRegistry(projectDir, {
       profile,
       runtimeState
     });
-    const evolutionRegistry = loadEvolutionRegistry(projectDir);
+    const governanceRegistry = loadGovernanceRegistry(projectDir);
     const existingCandidateMap = new Map(
-      (Array.isArray(evolutionRegistry.candidates) ? evolutionRegistry.candidates : []).map((item) => [item.id, item])
+      (Array.isArray(governanceRegistry.candidates) ? governanceRegistry.candidates : []).map((item) => [item.id, item])
     );
 
-    const pendingAideReviews = (Array.isArray(runtimeState.pendingActions) ? runtimeState.pendingActions : []).filter(
-      (item) => item.type === "aide_review"
+    const pendingGovernanceReviews = (Array.isArray(runtimeState.pendingActions) ? runtimeState.pendingActions : []).filter(
+      (item) => item.type === "governance_review"
     );
-    const queuedLessons = (Array.isArray(runtimeState.learningQueue) ? runtimeState.learningQueue : []).filter(
+    const queuedGovernanceItems = (Array.isArray(runtimeState.governanceQueue) ? runtimeState.governanceQueue : []).filter(
       (item) => String(item.status || "queued").trim().toLowerCase() === "queued"
     );
 
     const activeCandidates = [
-      ...pendingAideReviews.map(buildAideReviewCandidate),
-      ...queuedLessons.map(buildLearningQueueCandidate).map((item) => enrichLearningCandidateFromPolicy(item, policy))
+      ...pendingGovernanceReviews.map((item) => buildGovernanceReviewCandidate(item, governancePolicy)),
+      ...queuedGovernanceItems
+        .map((item) => buildGovernanceQueueCandidate(item, governancePolicy))
+        .map((item) => enrichGovernanceCandidateFromPolicy(item, policy, governancePolicy))
     ].filter((item) => existingCandidateMap.get(item.id)?.status !== "applied");
     const activeCandidateIds = new Set(activeCandidates.map((item) => item.id));
 
     activeCandidates.forEach((entry) => {
-      upsertCandidate(evolutionRegistry, entry, now);
+      upsertCandidate(governanceRegistry, entry, now);
     });
 
     const settledTasks = listTaskRegistryTasks(taskRegistry, (task) => {
@@ -442,7 +484,7 @@ async function main() {
     let newTaskCandidates = 0;
 
     for (const task of settledTasks) {
-      if (hasSettledTaskReview(evolutionRegistry, task)) {
+      if (hasSettledTaskReview(governanceRegistry, task)) {
         continue;
       }
 
@@ -453,9 +495,9 @@ async function main() {
       const note =
         outcome === "signals-present"
           ? `Settled task still has ${taskCandidateCount} governance signal(s) worth reviewing before archival.`
-          : "Settled task reviewed with no durable evolution signal.";
+          : "Settled task reviewed with no durable governance signal.";
 
-      upsertSettledTaskReview(evolutionRegistry, {
+      upsertSettledTaskReview(governanceRegistry, {
         taskKey: reviewedSettledTaskKey(task),
         taskId: task.id,
         taskTitle: task.title || "Untitled task",
@@ -475,53 +517,56 @@ async function main() {
         continue;
       }
 
-      const routeTargets = Array.from(new Set(relatedSignals.map((item) => item.routeTarget).filter(Boolean)));
+      const authorityTargets = Array.from(new Set(relatedSignals.map((item) => item.authority_target).filter(Boolean)));
       const taskCandidate = {
         id: `task-settled:${task.id}`,
         sourceType: "task_settled",
         status: "queued",
-        severity: highestGovernanceSeverity(
-          relatedSignals.map((item) => item.severity),
-          "L1"
+        level: highestGovernanceLevel(
+          relatedSignals.map((item) => item.level),
+          "G2"
         ),
-        capability:
-          relatedSignals.find((item) => item.capability === "writeback")?.capability ||
-          relatedSignals.find((item) => item.capability === "audit")?.capability ||
-          relatedSignals[0]?.capability ||
-          "investigation",
         planPath: task.planPath || null,
         taskId: task.id,
         taskTitle: task.title || "Untitled task",
-        routeTarget: routeTargets.join(", ") || "Aide review",
         signalIds: relatedSignalIds,
         summary: compactText(
           `Task settled: ${task.title || "Untitled task"}. Review whether ${taskCandidateCount} active governance signal(s) should write back before archival.`,
           160
         )
       };
+      taskCandidate.issue = taskCandidate.summary;
+      taskCandidate.authority_target = authorityTargetForCandidate({
+        authorityTarget: authorityTargets.join(", ") || ".codex/policies/aide-governance-policy.md",
+        planPath: task.planPath || null
+      });
+      taskCandidate.impact = "The task is settled but active governance signals still need disposition before archival.";
+      taskCandidate.recommended_action = "Review the remaining governance signals and keep only durable writeback candidates.";
+      taskCandidate.disposition = governanceDisposition(governancePolicy, taskCandidate.level, "queue");
+      taskCandidate.note = taskCandidate.summary;
 
-      upsertCandidate(evolutionRegistry, taskCandidate, now);
+      upsertCandidate(governanceRegistry, taskCandidate, now);
       activeCandidateIds.add(taskCandidate.id);
       newTaskCandidates += 1;
     }
 
-    const autoAppliedCount = applyAutomaticWritebacks(projectDir, evolutionRegistry, now);
-    resolveStaleCandidates(evolutionRegistry, activeCandidateIds, now);
-    sortAndTrimRegistry(evolutionRegistry);
-    evolutionRegistry.lastSweep = {
+    const autoAppliedCount = applyAutomaticWritebacks(projectDir, governanceRegistry, now);
+    resolveStaleCandidates(governanceRegistry, activeCandidateIds, now);
+    sortAndTrimRegistry(governanceRegistry);
+    governanceRegistry.lastSweep = {
       checkedAt: now,
       trigger,
       background,
-      candidateCount: evolutionRegistry.candidates.filter((item) => item.status === "queued").length,
+      candidateCount: governanceRegistry.candidates.filter((item) => item.status === "queued").length,
       settledTaskCount: reviewedSettledTaskCount,
       note:
         reviewedSettledTaskCount > 0
           ? `Reviewed ${reviewedSettledTaskCount} settled task(s); ${newTaskCandidates} new task-level candidate(s); ${autoAppliedCount} auto-applied writeback(s).`
-          : `No newly settled tasks required review. Auto-applied writeback(s): ${autoAppliedCount}.`
+          : `No newly settled tasks required governance review. Auto-applied writeback(s): ${autoAppliedCount}.`
     };
-    evolutionRegistry.updatedAt = now;
+    governanceRegistry.updatedAt = now;
 
-    saveEvolutionRegistry(projectDir, evolutionRegistry);
+    saveGovernanceRegistry(projectDir, governanceRegistry);
 
     if (quiet) {
       logger.finalize({
@@ -529,16 +574,16 @@ async function main() {
         metadata: {
           trigger,
           quiet: true,
-          queuedCandidateCount: evolutionRegistry.candidates.filter((item) => item.status === "queued").length,
+          queuedCandidateCount: governanceRegistry.candidates.filter((item) => item.status === "queued").length,
           autoAppliedCount
         }
       });
       return;
     }
 
-    const queuedCandidates = evolutionRegistry.candidates.filter((item) => item.status === "queued");
+    const queuedCandidates = governanceRegistry.candidates.filter((item) => item.status === "queued");
     const lines = [
-      "Aide evolution sweep:",
+      "Aide writeback sweep:",
       `- Trigger: ${trigger}`,
       `- Active candidates: ${queuedCandidates.length}`,
       `- Newly reviewed settled tasks: ${reviewedSettledTaskCount}`,
@@ -546,7 +591,7 @@ async function main() {
     ];
 
     queuedCandidates.slice(0, 5).forEach((item) => {
-      lines.push(`- [${item.severity}] ${item.summary}`);
+      lines.push(`- [${item.level || "G2"}] ${item.summary}`);
     });
 
     process.stdout.write(`${lines.join("\n")}\n`);
@@ -555,12 +600,12 @@ async function main() {
       metadata: {
         trigger,
         quiet: false,
-        queuedCandidateCount: queuedCandidates.length,
-        autoAppliedCount
-      }
-    });
+          queuedCandidateCount: queuedCandidates.length,
+          autoAppliedCount
+        }
+      });
   } catch (error) {
-    process.stderr.write(`aide-evolution error: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(`aide-writeback error: ${error instanceof Error ? error.message : String(error)}\n`);
     logger.finalize({
       status: "error",
       error

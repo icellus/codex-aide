@@ -54,7 +54,7 @@ async function main() {
         input: normalizeStepInput(input, projectDir)
       },
       {
-        scriptName: "aide-evolution.mjs",
+        scriptName: "aide-writeback.mjs",
         input: normalizeStepInput(input, projectDir, { trigger })
       },
       {

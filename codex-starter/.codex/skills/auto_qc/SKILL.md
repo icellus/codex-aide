@@ -61,7 +61,7 @@ If QC fails:
 After each QC failure:
 
 - update the current plan or task entry with a `QC retry pattern`
-- add repeated categories to the `Learning Queue`
+- add repeated categories to the `Governance Queue`
 - decide during the retrospective whether a durable lesson should be written back through `/Aide`
 
 Recommended categories:

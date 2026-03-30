@@ -8,7 +8,7 @@
       ".codex/agents/coder.toml"
     ],
     "notes": [
-      "Automatic evolution is limited to low-risk text guidance updates in known authority files.",
+      "Automatic governance writeback is limited to low-risk text guidance updates in known authority files.",
       "Routing policy, runtime scripts, validation baselines, and shared workflow docs still require explicit /Aide review."
     ]
   },

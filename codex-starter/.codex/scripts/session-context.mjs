@@ -2,7 +2,7 @@
 
 import {
   basenameLabel,
-  compareGovernanceSeverity,
+  compareGovernanceLevel,
   findProgressFile,
   getProjectContext,
   isTaskSettled,
@@ -32,22 +32,22 @@ function summarizeBlockedActions(state) {
   return state.pendingActions.filter((item) => item.type === "blocked_review");
 }
 
-function summarizeQueuedLessons(state) {
-  return state.learningQueue.filter((item) => item.status === "queued");
+function summarizeGovernanceQueue(state) {
+  return state.governanceQueue.filter((item) => item.status === "queued");
 }
 
-function summarizeAideReviews(state, currentTask) {
+function summarizeGovernanceReviews(state, currentTask) {
   const activeTaskId = currentTask?.id || null;
-  const items = state.pendingActions.filter((item) => item.type === "aide_review");
+  const items = state.pendingActions.filter((item) => item.type === "governance_review");
 
   if (activeTaskId) {
     const matching = items.filter((item) => item.taskId === activeTaskId || !item.taskId);
     if (matching.length > 0) {
-      return matching.sort((left, right) => compareGovernanceSeverity(left.severity, right.severity)).slice(0, 2);
+      return matching.sort((left, right) => compareGovernanceLevel(left.level, right.level)).slice(0, 2);
     }
   }
 
-  return items.sort((left, right) => compareGovernanceSeverity(left.severity, right.severity)).slice(0, 2);
+  return items.sort((left, right) => compareGovernanceLevel(left.level, right.level)).slice(0, 2);
 }
 
 function summarizeRetrospectiveActions(state, currentTask) {
@@ -115,8 +115,8 @@ async function main() {
     const pendingQcPool = currentTask ? pendingQcForCurrent : pendingQC;
     const pendingSubmitPool = currentTask ? pendingSubmitForCurrent : pendingSubmit;
     const retrospectiveActions = summarizeRetrospectiveActions(state, currentTask);
-    const queuedLessons = summarizeQueuedLessons(state);
-    const aideReviews = summarizeAideReviews(state, currentTask);
+    const governanceQueue = summarizeGovernanceQueue(state);
+    const governanceReviews = summarizeGovernanceReviews(state, currentTask);
 
     if (
       isTaskSettled(profile) &&
@@ -125,8 +125,8 @@ async function main() {
       pendingQcPool.length === 0 &&
       pendingSubmitPool.length === 0 &&
       retrospectiveActions.length === 0 &&
-      queuedLessons.length === 0 &&
-      aideReviews.length === 0
+      governanceQueue.length === 0 &&
+      governanceReviews.length === 0
     ) {
       const changed = Boolean(state.sessionContext.lastReminderText);
       if (state.sessionContext.lastReminderText) {
@@ -197,7 +197,7 @@ async function main() {
       );
     }
 
-    if (retrospectiveActions.length > 0 || queuedLessons.length > 0) {
+    if (retrospectiveActions.length > 0 || governanceQueue.length > 0) {
       for (const item of retrospectiveActions) {
         pushReminder(
           40,
@@ -208,21 +208,21 @@ async function main() {
         }
       }
 
-      if (queuedLessons.length > 0) {
-        const preview = queuedLessons
+      if (governanceQueue.length > 0) {
+        const preview = governanceQueue
           .slice(-3)
           .map((item) => `${item.category} x${item.triggerCount}`)
           .join(", ");
-        pushReminder(30, `- Candidate lessons: ${queuedLessons.length} queued for retrospective (${preview})`);
+        pushReminder(30, `- Governance queue: ${governanceQueue.length} item(s) pending review (${preview})`);
       }
     }
 
-    for (const item of aideReviews) {
+    for (const item of governanceReviews) {
       pushReminder(
         80,
-        `- Aide review pending [${String(item.severity || "L2").toUpperCase()} ${item.capability || "investigation"}]${
+        `- Governance review pending [${String(item.level || "G2").toUpperCase()}]${
           item.taskId ? ` for ${item.taskId}` : ""
-        }: ${item.note || "review the shared workflow and decide on writeback."}`
+        }: ${item.issue || item.note || "review the shared workflow and decide next step."}`
       );
     }
 
