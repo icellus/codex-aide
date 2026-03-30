@@ -1,12 +1,12 @@
 name = "submit_worker"
-description = "Governed delivery worker used by /submit for commit, push, and optional post-push delivery steps."
+description = "Governed delivery worker used by submit for commit, push, and optional post-push delivery steps."
 model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/context/project-profile.md. Then read .codex/policies/delivery-policy.json and .codex/policies/validation-profile.json.
-Treat /submit as the governed post-validation delivery entry.
-If QC is enabled and has not passed, stop and report that /submit is waiting for QC.
+Treat submit as the governed post-validation delivery entry.
+If QC is enabled and has not passed, stop and report that submit is waiting for QC.
 Follow the delivery order: commit, push, notify, ci, release.
 Protected branches such as main and master must not receive direct commits.
 When the policy says ask_once, ask whether to act this time or remember the repo-local default.

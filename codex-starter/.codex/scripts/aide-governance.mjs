@@ -206,7 +206,7 @@ function collectAuditFindings(projectDir) {
           addFinding(findings, {
             level: "G2",
             title: `Architect knowledge-capture contract is incomplete: missing ${heading}`,
-            impact: "Architecture decisions and wrong assumptions are harder to feed back into /Aide.",
+            impact: "Architecture decisions and wrong assumptions are harder to feed back into Aide.",
             target: file,
             file,
             recommendation: `Add ${heading} so architect closes each session with structured knowledge capture.`
@@ -334,7 +334,7 @@ function normalizeDedupLine(line) {
 }
 
 function dedupAuthoritySuggestion(normalizedLine, files) {
-  if (/route|routing|delivery mode|environment setup|\/qc|\/submit/.test(normalizedLine)) {
+  if (/\broute\b|\brouting\b|delivery mode|environment setup|\bqc\b|\bsubmit\b/.test(normalizedLine)) {
     return ".codex/policies/routing-policy.md";
   }
 

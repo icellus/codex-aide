@@ -119,7 +119,7 @@ Role-specific additions:
 
 ## Runtime Rules
 
-- use `node .codex/scripts/task-overview.mjs` at `/Aide` startup or when user asks for status/history
+- use `node .codex/scripts/task-overview.mjs` at `Aide` startup or when user asks for status/history
 - start `node .codex/scripts/aide-writeback.mjs` at startup as low-cost background sweep when helper automation is available
 - use `node .codex/scripts/aide-governance.mjs` when governance triggers or dedup checks matter
 - use `node .codex/scripts/session-context.mjs` when resuming routed work and reminder refresh helps

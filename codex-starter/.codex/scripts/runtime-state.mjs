@@ -1280,7 +1280,7 @@ function processQcOutcome(state, taskId, profile, message, deliveryPolicy, workf
         upsertSessionRetrospective(state, taskId, {
           trigger: "qc_pass_after_retries",
           categories: Array.from(new Set(queuedForTask.map((item) => item.category))),
-          note: `QC passed for ${taskId}, but queued lesson candidates remain. Decide in the retrospective which ones should route through /Aide.`
+          note: `QC passed for ${taskId}, but queued governance candidates remain. Decide in the retrospective which ones should route through Aide.`
         });
       }
     }
@@ -1487,7 +1487,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         phase: role,
         taskId: scopedTaskId,
         note: missingBriefByContract
-          ? `${contract.reason} Stop downstream tester/qc/submit and route back through technical_manager. If user clarification is required, technical_manager should collect it via Aide -> user.`
+          ? `${contract.reason} Stop downstream tester, qc, and submit progression and route back through technical_manager. If user clarification is required, technical_manager should collect it via Aide -> user.`
           : `${contract.reason} Route back through technical_manager before retrying this handoff.`
       });
 
@@ -1655,7 +1655,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
     const blockedNote = isAmbiguousBlockedScope
       ? `Recent ${role} blockage detected, but active task ownership is ambiguous. Resolve ownership (currentTaskId/cwd/worktree/branch) before resuming.`
       : missingImplementationBrief
-        ? `Recent ${role} blockage detected: Implementation Brief (任务实施说明) is missing or unreadable. Stop downstream tester/qc/submit and route back through technical_manager. If user clarification is needed, technical_manager should collect it via Aide -> user.`
+        ? `Recent ${role} blockage detected: Implementation Brief (任务实施说明) is missing or unreadable. Stop downstream tester, qc, and submit progression and route back through technical_manager. If user clarification is needed, technical_manager should collect it via Aide -> user.`
       : `Recent ${role} blockage detected. Route back through technical_manager and review the structured handoff before continuing.`;
     const reviewNote = isAmbiguousBlockedScope
       ? `A ${role} handoff blocked while multiple active plans were unresolved. Investigate task ownership first, then route fixes to the correct task chain.`
@@ -1772,7 +1772,7 @@ function recordSessionEnd(input, state, activePlans, taskRegistry, projectDir, p
   if (taskId && isLongRunningProfile(profile)) {
     upsertSessionRetrospective(state, taskId, {
       trigger: "session_close",
-      note: `Session paused around ${taskId}. Capture key decisions, broken assumptions, and whether any queued lesson should write back through /Aide.`
+      note: `Session paused around ${taskId}. Capture key decisions, broken assumptions, and whether any queued governance item should write back through Aide.`
     });
   }
 
@@ -1792,7 +1792,7 @@ function recordTaskSettled(input, state, activePlans, taskRegistry, projectDir, 
   if (taskId && isLongRunningProfile(profile)) {
     upsertSessionRetrospective(state, taskId, {
       trigger: "task_settled",
-      note: `Task settled for ${taskId}. Before archival, capture durable decisions, wrong assumptions, and whether any lesson should route through /Aide.`
+      note: `Task settled for ${taskId}. Before archival, capture durable decisions, wrong assumptions, and whether any governance item should route through Aide.`
     });
   }
 

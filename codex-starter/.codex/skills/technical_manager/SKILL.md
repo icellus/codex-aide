@@ -16,7 +16,7 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 - repository understanding depth needed for safe assignment
 - production and refresh of `任务实施说明`
 - environment setup decisions and preparation
-- staged chain management across `architect`, `coder`, `tester`, optional `/qc`, and optional `/submit`
+- staged chain management across `architect`, `coder`, `tester`, optional `qc`, and optional `submit`
 - conflict control across write-capable roles
 - progress ownership under `.codex/progress/**` for `current.md` + `history/*.md` sync
 
@@ -51,10 +51,10 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 - `coder` and `tester` execute only against the latest `任务实施说明`
 - once `coder` participates, downstream `tester` handoff is mandatory before settlement or submit
 - `coder` / `tester` / `qc` report only to `technical_manager` on the execution chain
-- after required `tester` handoff in coder-involved work, you decide whether to run `/qc` or skip it
-- when `coder`/`tester` is blocked by missing `任务实施说明`, stop downstream tester/qc/submit progression until you resolve the brief gap
-- `/qc` is optional and cannot replace required `tester`
-- `/submit` runs only after validation gates are satisfied
+- after required `tester` handoff in coder-involved work, you decide whether to run `qc` or skip it
+- when `coder` or `tester` is blocked by missing `任务实施说明`, stop downstream tester, qc, and submit progression until you resolve the brief gap
+- `qc` is optional and cannot replace required `tester`
+- `submit` runs only after validation gates are satisfied
 - if scope/ownership mismatch prevents technical continuation, escalate to `Aide`; do not route directly to `product_manager` or `product_assistant`
 
 ## Progress Write Rules (Mandatory)

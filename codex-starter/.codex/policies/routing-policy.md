@@ -41,7 +41,7 @@ Plain-language intent should map to the same routes.
 - `qc` is optional by risk or explicit audit need, and cannot replace `tester`.
 - `submit` is the governed delivery step after required validation gates.
 - Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
-- blocked handoff from missing `任务实施说明` must stop tester/qc/submit continuation until `technical_manager` resolves it.
+- blocked handoff from missing `任务实施说明` must stop tester, qc, and submit continuation until `technical_manager` resolves it.
 - if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
 - for long-running technical tasks, `technical_manager` owns `.codex/progress/**` writes and keeps `history` + `current.md` synchronized.
 - progress trigger events are fixed: `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, `completed`.

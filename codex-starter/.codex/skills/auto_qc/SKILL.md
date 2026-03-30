@@ -1,6 +1,6 @@
 ---
 name: auto_qc
-description: Internal automation skill for queueing /qc after required tester completion when QC is enabled.
+description: Internal automation skill for queueing qc after required tester completion when QC is enabled.
 ---
 
 You are an internal automation helper for optional QC follow-up.
@@ -26,7 +26,7 @@ Use this only when the current task explicitly enables QC and a required `tester
 Trigger only when all of these are true:
 
 1. a required `tester` completion report was received
-2. `.codex/context/project-profile.md` sets `QC policy` to `enabled` or `required`, or `Enabled modules` explicitly includes `/qc`
+2. `.codex/context/project-profile.md` sets `QC policy` to `enabled` or `required`, or `Enabled modules` explicitly includes `qc`
 3. the input is not just a progress update, request for help, or incomplete status
 
 Do not trigger when:
@@ -34,21 +34,21 @@ Do not trigger when:
 - the current task does not enable QC
 - `coder` completed but required tester handoff has not completed yet
 - the subagent report is blocked, partial, or only a progress sync
-- the user is already running `/qc` manually
+- the user is already running `qc` manually
 
 ## Triggered Behavior
 
 After `tester` completes, the internal equivalent is:
 
 ```text
-/qc --phase=tester
+qc --phase=tester
 ```
 
 ## Result Handling
 
 If QC passes:
 
-- after a `tester` audit passes, `technical_manager` decides whether to move into `/submit`, manual review, or explicit git actions
+- after a `tester` audit passes, `technical_manager` decides whether to move into `submit`, manual review, or explicit git actions
 
 If QC fails:
 
@@ -62,7 +62,7 @@ After each QC failure:
 
 - update the current plan or task entry with a `QC retry pattern`
 - add repeated categories to the `Governance Queue`
-- decide during the retrospective whether a durable lesson should be written back through `/Aide`
+- decide during the retrospective whether a durable lesson should be written back through `Aide`
 
 Recommended categories:
 
@@ -75,9 +75,9 @@ Recommended categories:
 - `shared-protocol`
 - `environment-mismatch`
 
-## Compared With Manual `/qc`
+## Compared With Manual `qc`
 
-| Scenario | auto_qc | manual `/qc` |
+| Scenario | auto_qc | manual `qc` |
 | --- | --- | --- |
 | Trigger | conditional technical-manager-routed automation | explicit user request |
 | Requires QC to be enabled | yes | no |

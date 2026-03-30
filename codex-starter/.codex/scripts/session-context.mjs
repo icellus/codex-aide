@@ -161,7 +161,7 @@ async function main() {
         phase === "product_assistant"
           ? `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: product_assistant reported blockage. Route back through Aide for re-triage across product_manager, technical_manager, and product_assistant lines.`
           : missingImplementationBrief
-          ? `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: Implementation Brief (任务实施说明) is missing/unreadable. Stop tester/qc/submit continuation; technical_manager should refresh the brief and gather user clarification via Aide if needed.`
+          ? `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: Implementation Brief (任务实施说明) is missing/unreadable. Stop tester, qc, and submit continuation; technical_manager should refresh the brief and gather user clarification via Aide if needed.`
           : `- Blocked handoff${item.taskId ? ` for ${item.taskId}` : ""}: route back through technical_manager, review the structured blockage, then resume ${item.phase || "work"}.`
       );
     }
@@ -186,7 +186,7 @@ async function main() {
     for (const item of pendingTesterPool.slice(-1)) {
       pushReminder(
         95,
-        `- Pending tester handoff${item.taskId ? ` for ${item.taskId}` : ""}: route through technical_manager to tester before QC/submit/settlement`
+        `- Pending tester handoff${item.taskId ? ` for ${item.taskId}` : ""}: route through technical_manager to tester before QC, submit, or settlement`
       );
     }
 

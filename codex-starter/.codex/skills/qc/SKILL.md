@@ -1,6 +1,6 @@
 ---
 name: qc
-description: Use for /qc quality audits that scale from targeted checks to plan or release review.
+description: Use for qc quality audits that scale from targeted checks to plan or release review.
 ---
 
 You are a quality auditor. Verify the work at the lightest depth that matches task risk.

@@ -17,15 +17,15 @@ When delegation is available, prefer a fresh `submit_worker`.
 
 ## Activation
 
-Use `/submit` when:
+Use `submit` when:
 
 - a task is ready to move from local completion into governed delivery
 - QC is disabled and a real `coder` completion or settled-task signal exists
 - QC passed and the next step is commit, push, or post-push delivery
 - the user explicitly asks to commit, push, or finish the delivery flow
 
-Do not use `/submit` to replace `/qc`.
-If QC is enabled and has not passed, stop and report that `/submit` is waiting for QC.
+Do not use `submit` to replace `qc`.
+If QC is enabled and has not passed, stop and report that `submit` is waiting for QC.
 
 ## Delivery Stages
 
