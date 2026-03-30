@@ -336,7 +336,7 @@ function collectPendingAideReviews(state) {
 
 function renderPendingReviews(lines, state, limit) {
   const reviews = collectPendingAideReviews(state);
-  lines.push("Pending /Aide reviews:");
+  lines.push("Pending Aide reviews:");
 
   if (reviews.length === 0) {
     lines.push("- none");

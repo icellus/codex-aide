@@ -3,12 +3,12 @@
 This file is the routing authority.
 
 `Aide` owns outer coordination: user-facing intake, governance, and closeout.
-`technical_manager` is the technical-manager layer for delivery.
-Once a task needs durable artifacts or execution ownership, it must enter `technical_manager` before any execution role is activated.
+`technical_manager` is the technical-manager layer for staged delivery routing.
+When a task enters staged delivery routing, it must pass through `technical_manager` before any downstream execution role is activated.
 `.codex/state/task-context.json` records current route and checkpoints.
 
-`/Aide`, `/qc`, and `/submit` are route aliases only when the client supports custom slash commands.
-Otherwise, plain-language intent should map to the same routes.
+Named route labels such as `Aide`, `qc`, and `submit` are optional affordances.
+Plain-language intent should map to the same routes.
 
 ## Core Rules
 
@@ -16,7 +16,7 @@ Otherwise, plain-language intent should map to the same routes.
 - Keep `lightweight` as the default for small, local, low-risk work.
 - Keep discussion, Q&A, option comparison, and non-delivery analysis in `Aide`.
 - `Aide` must not directly manage `coder`, `tester`, `/qc`, or `/submit`.
-- For any concrete repo change or durable artifact workflow, route to `technical_manager` first.
+- Use `technical_manager` as the execution-entry owner when the task needs staged execution, environment/setup decisions, task-level validation ownership, durable handoffs, or governed delivery.
 - `technical_manager` owns execution entry, precondition checks, repository understanding depth, environment readiness, `任务实施说明`, and staged handoff management.
 - Treat repository exploration and environment setup as actions/capabilities, not primary role expansion points.
 - `technical_manager` produces and refreshes `任务实施说明`, which is the only execution input for `coder` and `tester`.
@@ -73,7 +73,7 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 
 ## Upgrade Triggers
 
-- enter `technical_manager` when the task needs any execution workflow or durable artifact handoff
+- enter `technical_manager` when the task needs staged execution, environment/setup decisions, task-level validation ownership, durable artifact handoff, or governed delivery
 - enable `product_manager` when scope, MVP, or success criteria are unstable
 - if `product_manager` path is active, require `architect` as the next step
 - if `product_manager` path is inactive, enable `architect` when interfaces, boundaries, or integration design are unstable

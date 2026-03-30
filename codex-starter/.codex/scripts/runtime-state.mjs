@@ -424,7 +424,7 @@ function recordArchitectRetrospective(state, taskId, message) {
     capability: preferredGovernanceCapability(candidates, "investigation"),
     severity: highestGovernanceSeverity(candidates.map((item) => item.severity), "L2"),
     issueType: "role_learning",
-    routeTarget: "/Aide writeback",
+    routeTarget: "Aide writeback",
     note: `Architect completed with ${candidates.length} writeback candidate(s). Review the shared workflow before the next similar task.`,
     decisions,
     wrongAssumptions,
@@ -487,7 +487,7 @@ function recordProductAssistantReview(state, taskId, status, message) {
       capability: "investigation",
       severity: "L2",
       issueType: "workflow_break",
-      routeTarget: "/Aide investigate",
+      routeTarget: "Aide investigate",
       note: "A product_assistant task blocked. Review the chat record to decide whether the user input was incomplete, the task was misunderstood, or the route should switch to coding."
     });
     return;
@@ -530,7 +530,7 @@ function recordProductAssistantReview(state, taskId, status, message) {
     capability: reviewCapabilityForProductResult(candidates, openGaps),
     severity: reviewSeverityForProductResult(candidates, openGaps, memoryUpdates, templateChanges),
     issueType: "product_review",
-    routeTarget: "/Aide review",
+    routeTarget: "Aide review",
     note: `Review the completed product_assistant result against the chat record before accepting long-term writeback${noteParts.length > 0 ? ` (${noteParts.join("; ")})` : ""}.`
   });
 }
@@ -1099,7 +1099,7 @@ function maybeQueueSubmitForSettledTask(state, taskId, profile, message, deliver
     return;
   }
 
-  queueSubmit(state, taskId, "Task is settled and ready for governed delivery. Run /submit.", trigger);
+  queueSubmit(state, taskId, "Task is settled and ready for governed delivery. Enter the submit path.", trigger);
 }
 
 function shouldBlockSettlementForMissingTester(state, taskId, message, workflow) {
@@ -1169,7 +1169,7 @@ function processQcOutcome(state, taskId, profile, message, deliveryPolicy, workf
       queueSubmit(
         state,
         taskId,
-        "QC passed for a deliverable handoff. Run /submit.",
+        "QC passed for a deliverable handoff. Enter the submit path.",
         phase === "tester" ? "qc_pass_after_tester" : "task_settled_after_qc"
       );
     }
@@ -1262,7 +1262,7 @@ function processQcOutcome(state, taskId, profile, message, deliveryPolicy, workf
             "L3"
           ),
           issueType: "workflow_break",
-          routeTarget: "/Aide audit",
+          routeTarget: "Aide audit",
           note: `Repeated QC failure categories detected: ${escalatedCategories
             .map((item) => `${item.category} x${item.triggerCount}`)
             .join(", ")}. Review shared prompts and handoff rules instead of only patching the latest output.`
@@ -1273,7 +1273,7 @@ function processQcOutcome(state, taskId, profile, message, deliveryPolicy, workf
         upsertSessionRetrospective(state, taskId, {
           trigger: "qc_failure",
           categories,
-          note: `QC failure categories detected for ${taskId}. Capture the wrong assumption, the corrective decision, and whether any lesson is durable enough for /Aide.`
+          note: `QC failure categories detected for ${taskId}. Capture the wrong assumption, the corrective decision, and whether any lesson is durable enough for Aide governance review.`
         });
       }
     }
@@ -1313,7 +1313,7 @@ function processSubmitOutcome(state, taskId, profile, message, status, workflow)
       capability: "investigation",
       severity: "L2",
       issueType: "workflow_break",
-      routeTarget: "/Aide investigate",
+      routeTarget: "Aide investigate",
       note: "A submit step blocked the delivery flow. Review branch policy, remotes, permissions, or delivery configuration."
     });
   }
@@ -1392,7 +1392,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
           capability: "investigation",
           severity: "L3",
           issueType: "workflow_break",
-          routeTarget: "/Aide investigate",
+          routeTarget: "Aide investigate",
           note: `${contract.reason} Runtime rejected the handoff to prevent silent workflow break in the technical_manager-owned chain.`
         });
       }
@@ -1516,7 +1516,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         type: "run_qc",
         phase: role,
         taskId: scopedTaskId,
-        note: `Recent ${role} completion detected. Route through technical_manager to decide QC, then run /qc --phase=${role} if approved.`
+        note: `Recent ${role} completion detected. Route through technical_manager to decide QC, then enter the qc review path for phase=${role} if approved.`
       });
     } else {
       removePendingActions(
@@ -1527,7 +1527,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         queueSubmit(
           state,
           scopedTaskId,
-          `Recent ${role} completion detected. Run /submit.`,
+          `Recent ${role} completion detected. Enter the submit path.`,
           "tester_complete_without_qc"
         );
       }
@@ -1577,7 +1577,7 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
         capability: "investigation",
         severity: "L3",
         issueType: "workflow_break",
-        routeTarget: "/Aide investigate",
+        routeTarget: "Aide investigate",
         note: reviewNote
       });
     }

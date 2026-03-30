@@ -21,6 +21,7 @@ Repository-level maintenance guidance for this repo.
 
 - Reply to the user in Chinese by default.
 - Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
+- Changes to `codex-starter/AGENTS.md`, `.codex/policies/**`, `.codex/skills/**`, `.codex/agents/**`, or `.codex/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
 - Legacy repo-level test scripts under `tests/codex-starter/` have been removed; do not assume a fixed runner exists.
 - Validation should use the smallest task-relevant command or script available in the current repo state.
 - If no reliable automated validation exists for the current task, record that explicitly instead of inventing coverage.

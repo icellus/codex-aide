@@ -76,7 +76,7 @@ function buildAideReviewCandidate(item) {
     taskTitle: null,
     routeTarget: item.routeTarget || null,
     signalIds: [item.id],
-    summary: compactText(item.note || "Pending /Aide review.", 160)
+    summary: compactText(item.note || "Pending Aide review.", 160)
   };
 }
 
@@ -492,7 +492,7 @@ async function main() {
         planPath: task.planPath || null,
         taskId: task.id,
         taskTitle: task.title || "Untitled task",
-        routeTarget: routeTargets.join(", ") || "/Aide review",
+        routeTarget: routeTargets.join(", ") || "Aide review",
         signalIds: relatedSignalIds,
         summary: compactText(
           `Task settled: ${task.title || "Untitled task"}. Review whether ${taskCandidateCount} active governance signal(s) should write back before archival.`,

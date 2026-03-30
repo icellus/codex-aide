@@ -176,7 +176,7 @@ async function main() {
     for (const item of pendingQcPool.slice(-1)) {
       pushReminder(
         90,
-        `- Pending QC decision${item.taskId ? ` for ${item.taskId}` : ""}: route through technical_manager, then run /qc --phase=${item.phase} if approved`
+        `- Pending QC decision${item.taskId ? ` for ${item.taskId}` : ""}: route through technical_manager, then enter the qc review path for phase=${item.phase} if approved`
       );
     }
 
@@ -190,7 +190,7 @@ async function main() {
     for (const item of pendingSubmitPool.slice(-1)) {
       pushReminder(
         85,
-        `- Pending submit${item.taskId ? ` for ${item.taskId}` : ""}: run /submit`
+        `- Pending submit${item.taskId ? ` for ${item.taskId}` : ""}: enter the submit path`
       );
     }
 
@@ -217,7 +217,7 @@ async function main() {
     for (const item of aideReviews) {
       pushReminder(
         80,
-        `- /Aide review pending [${String(item.severity || "L2").toUpperCase()} ${item.capability || "investigation"}]${
+        `- Aide review pending [${String(item.severity || "L2").toUpperCase()} ${item.capability || "investigation"}]${
           item.taskId ? ` for ${item.taskId}` : ""
         }: ${item.note || "review the shared workflow and decide on writeback."}`
       );
