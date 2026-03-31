@@ -115,7 +115,7 @@ Choose `long-running` when:
 For `exploration`, `analysis`, and discussion-shaped work with no durable artifact:
 
 - default owner: `Aide`
-- default state behavior: no durable state write
+- default coordination behavior: do not update durable coordination files
 - escalate only when the task turns into delivery workflow, validation ownership, or artifact output
 
 ## Upgrade Triggers
@@ -156,16 +156,18 @@ Do not upgrade discussion-only turns into execution routes merely because the to
 
 Environment setup decisions and preparation belong to `technical_manager`.
 
-## Durable State
+## Durable Coordination Files
 
 - `.codex/state/task-context.json`: hot task state
+- `.codex/state/submit-preferences.json`: repo-local submit preferences
+- `.codex/state/*.demo.json`: versioned structure examples for runtime state files
 - `.codex/policies/delivery-policy.json`: commit, push, notification, CI, release, and fallback policy
 - `.codex/policies/validation-profile.json`: validation commands and constraints
 - `.codex/progress/active/<task-id>/current.md`: primary long-running snapshot per active task
 - `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only long-running progress events
 - `.codex/progress/archive/<task-id>/...`: archived progress records for completed/closed tasks
 - `PROGRESS.md`: legacy optional note only, never the primary runtime progress source
-- `.codex/context/project-profile.md`: human summary only
+- `.codex/context/project-profile.md`: human-readable repository summary and durable notes for people
 
 ## QC Gate
 

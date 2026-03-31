@@ -9,11 +9,12 @@ When delegation is available, prefer a fresh read-only `qc_reviewer` with minima
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
+1. `.codex/state/task-context.json` when it exists
 2. `.codex/policies/validation-profile.json`
-3. current task context
-4. changed files and the nearest relevant tests
-5. implementation plan or handoff only when the selected audit mode needs it
+3. `.codex/context/project-profile.md` when repo facts or human summary are needed
+4. current task context
+5. changed files and the nearest relevant tests
+6. implementation plan or handoff only when the selected audit mode needs it
 
 ## Audit Modes
 

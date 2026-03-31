@@ -74,12 +74,13 @@ Hard boundaries:
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
+1. `.codex/state/task-context.json` when it exists
 2. `.codex/policies/routing-policy.md`
 3. `.codex/policies/aide-governance-policy.md` when governance judgment matters
 4. `.codex/policies/validation-profile.json`
-5. the user's goal
-6. only repo files needed for classification or direct answer
+5. `.codex/context/project-profile.md` when repo facts or human summary are needed
+6. the user's goal
+7. only repo files needed for classification or direct answer
 
 README and docs are explanation only, not runtime authority.
 
@@ -137,6 +138,9 @@ Maintain `.codex/state/task-context.json` with:
 - QC and submit policy
 - open questions and collaboration preferences
 
+Treat `.codex/state/*.demo.json` as structure examples only.
+Use `.codex/state/*.json` as runtime state and `.codex/context/project-profile.md` as repo summary context.
+
 For discussion turns with no durable artifact or execution handoff:
 
 - prefer no durable state write
@@ -155,6 +159,9 @@ Keep task-level validation ownership with `tester`.
 - only `G1` governance items may auto-fix; `G2` and `G3` require user decision
 
 ## Routing Output
+
+Maintain `.codex/context/project-profile.md` as human-readable repo summary only.
+Keep task routing, task status, and submit preference state in `.codex/state/*.json`.
 
 Persist full route in state, but user-facing reply returns only:
 

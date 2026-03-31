@@ -27,7 +27,7 @@ Project-level runtime contract for repositories that install `codex-starter`.
 - `qc` is the audit path for explicit review or risk-based verification.
 - `submit` is the governed delivery path for commit, push, and post-push follow-through.
 - Named route labels are optional affordances. Users do not need to type a special command when plain-language intent is clear.
-- If no explicit route intent is present, consult `.codex/state/task-context.json`, `.codex/policies/routing-policy.md`, and `.codex/policies/validation-profile.json`.
+- If no explicit route intent is present, consult `.codex/state/task-context.json` when it exists, then `.codex/policies/routing-policy.md` and `.codex/policies/validation-profile.json`.
 
 ## Authority Map
 
@@ -38,8 +38,10 @@ Project-level runtime contract for repositories that install `codex-starter`.
 - Repository validation baseline -> `.codex/policies/validation-profile.json`
 - Governed delivery rules -> `.codex/policies/delivery-policy.json`
 - Human-readable project summary -> `.codex/context/project-profile.md`
+- Task runtime authority -> `.codex/state/task-context.json`
+- Submit preference runtime authority -> `.codex/state/submit-preferences.json`
+- Runtime state demos -> `.codex/state/*.demo.json`
 - Role behavior, read order, and output contract -> `.codex/skills/*/SKILL.md` and `.codex/agents/*.toml`
-- Runtime state -> `.codex/state/*.json`
 - Long-running progress records -> `.codex/progress/**`
 
 Do not duplicate lower-level role contracts or detailed route steps in this file.

@@ -9,11 +9,13 @@ When delegation is available, prefer a fresh `submit_worker`.
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
+1. `.codex/state/task-context.json` when it exists
 2. `.codex/policies/delivery-policy.json`
-3. `.codex/policies/validation-profile.json`
-4. current git status, branch, remotes, upstream, and changed files
-5. the user's explicit request
+3. `.codex/state/submit-preferences.json` when it exists
+4. `.codex/policies/validation-profile.json`
+5. `.codex/context/project-profile.md` when repo facts or human summary are needed
+6. current git status, branch, remotes, upstream, and changed files
+7. the user's explicit request
 
 ## Activation
 
@@ -43,7 +45,9 @@ Disabled or unconfigured stages should return `skipped`, not `blocked`.
 
 - obey `.codex/policies/delivery-policy.json`
 - protected branches such as `main` and `master` must not receive direct commits
-- when the policy says `ask_once`, ask whether to act this time or remember the repo-local default
+- when the policy says `ask_once`, consult `.codex/state/submit-preferences.json`
+- if no repo-local commit preference exists yet, ask whether automatic commit should be allowed for this repository and remember the answer by writing `.codex/state/submit-preferences.json`
+- `.codex/state/*.demo.json` documents the state file structure
 - if the policy requires a work branch, ask before creating it
 - default to one automatic commit per task; if another commit is needed, ask again
 - do not auto-amend unless the policy explicitly allows it
@@ -51,8 +55,9 @@ Disabled or unconfigured stages should return `skipped`, not `blocked`.
 ## Push Rules
 
 - never push before a successful commit when commit is required
-- respect allowed remotes and upstream settings from `.codex/policies/delivery-policy.json`
-- when the push preference is still `ask_once`, ask whether to push now or remember the repo-local default
+- when the push preference is still `ask_once`, consult `.codex/state/submit-preferences.json`
+- push preferences are tracked per remote, not by a central remote whitelist
+- if no repo-local preference exists for the target remote yet, ask whether automatic push should be allowed for that remote and remember the answer by writing `.codex/state/submit-preferences.json`
 - if no upstream exists, ask before setting it
 - if push is skipped or blocked, stop there and report the remaining post-push stages as `skipped`
 

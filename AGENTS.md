@@ -30,9 +30,16 @@ Repository-level maintenance guidance for this repo.
 ## Context And Token Discipline
 
 - Prefer minimal complete task briefs for subagents.
-- Do not default to `fork_context: true`; only use it when inherited thread context is genuinely required.
+- When a subtask is clear, bounded, and independent, prefer `fork_context: false` to keep execution focused and reliable.
 - When a subagent owns a clear write set, pass the owned files and state the intended validation boundary explicitly.
 - Do not assume one repository-wide validation entrypoint exists after the legacy test-script cleanup.
+
+## Authority Drift Prevention
+
+- For `codex-starter` runtime-boundary changes, define the boundary first in the owner set: `codex-starter/AGENTS.md`, `codex-starter/.codex/policies/routing-policy.md`, and the owned runtime artifact.
+- Prefer positive authority statements such as `runtime authority lives in X` over repeated negative warnings in downstream skills or agents.
+- Repeat a boundary in downstream skills or agents only when it changes executable read order or write ownership.
+- Keep demo/example files semantically distinct from live files through naming and owner-file documentation; introduce fallback semantics only when a shipped script really implements them.
 
 ## Review Timing In Host Maintenance
 

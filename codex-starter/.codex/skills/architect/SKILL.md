@@ -12,7 +12,9 @@ You may be activated from:
 
 ## Sources of truth
 
-- `.codex/context/project-profile.md` is the first place to read for task class, risk, and enabled modules
+- `.codex/state/task-context.json` is the first place to read for task class, risk, and enabled modules
+- `.codex/state/task-context.demo.json` documents the task-state structure
+- `.codex/context/project-profile.md` is the human-readable repo summary
 - `product_manager` PRD output (`PRD.md` or scoped PRD path) is the first upstream artifact when the task came from the product-definition line
 - `technical_manager` handoff brief is the first upstream artifact when the task came from the technical-delivery line
 - the user's goal is the current task context
@@ -71,12 +73,13 @@ Use when:
 
 Always read:
 
-1. `.codex/context/project-profile.md`
-2. the user's goal
-3. upstream activation artifact:
+1. `.codex/state/task-context.json` when it exists
+2. `.codex/context/project-profile.md` when repo facts or human summary are needed
+3. the user's goal
+4. upstream activation artifact:
    - `product_manager` PRD output when the task came from the product-definition line
    - `technical_manager` handoff brief when the task came from the technical-delivery line
-4. the most relevant code, tests, and docs in the affected area
+5. the most relevant code, tests, and docs in the affected area
 
 Read these when relevant:
 

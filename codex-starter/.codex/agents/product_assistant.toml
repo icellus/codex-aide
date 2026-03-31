@@ -4,7 +4,8 @@ model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-Read .codex/state/task-context.json first when it exists; otherwise read .codex/context/project-profile.md.
+Read .codex/state/task-context.json when it exists.
+Read .codex/context/project-profile.md when repository summary facts matter.
 Then read `.codex/product/registry.json`, `.codex/product/memory.json`, and `.codex/product/governance.json` when they exist.
 You receive non-code delivery assignments from `Aide` and return your results to `Aide`.
 The non-code routing line is `Aide -> product_assistant -> Aide`.

@@ -29,6 +29,8 @@ bash /path/to/agent-skills/codex-starter/install.sh
   可委派子代理定义。
 - `.codex/context/`
   人类可读的项目上下文摘要。
+- `.codex/state/`
+  运行态权威目录；`.json` 是 repo-local live state，`.demo.json` 只提供结构示例，不参与运行时读取。
 - `.codex/policies/`
   路由、验证、交付、演进等策略文件。
 - `.codex/scripts/`
@@ -39,10 +41,6 @@ bash /path/to/agent-skills/codex-starter/install.sh
   按 planning / execution / progress 分组的模板。
 - `.codex/product/`
   仓库持久化的产品侧记忆、注册表与演进记录。
-- `.codex/defaults/state/`
-  starter 自带的状态种子参考。
-- `.codex/state/`
-  本地运行态状态目录，由运行时按需写入。
 - `.codex/logs/`
   本地日志目录。
 - `.codex/progress/`
@@ -61,14 +59,15 @@ bash /path/to/agent-skills/codex-starter/install.sh
 - `.codex/hooks/**`
 - `.codex/templates/**`
 - `.codex/product/**`
-- `.codex/defaults/**`
+- `.codex/state/*.demo.json`
 - `.codex/config.toml`
 - `.codex/hooks.json`
 
 默认建议忽略的本地运行态内容：
 
 - `.codex/settings.local.json`
-- `.codex/state/**`
+- `.codex/state/task-context.json`
+- `.codex/state/submit-preferences.json`
 - `.codex/logs/**`
 - `.codex/progress/**`
 

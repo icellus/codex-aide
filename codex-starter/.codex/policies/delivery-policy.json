@@ -34,8 +34,6 @@
   },
   "push": {
     "mode": "ask_once",
-    "allowed_remotes": ["origin"],
-    "default_remote": "origin",
     "set_upstream": "ask",
     "create_remote_branch_when_missing": "ask",
     "stop_on_rejection": true

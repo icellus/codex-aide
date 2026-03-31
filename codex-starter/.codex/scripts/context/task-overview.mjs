@@ -19,14 +19,6 @@ function compactText(value, maxLength = 80) {
   return `${normalized.slice(0, maxLength - 3)}...`;
 }
 
-function basenameLabel(value) {
-  if (!value) {
-    return "unknown";
-  }
-
-  return path.basename(String(value).replace(/\\/g, "/"));
-}
-
 function readJsonFile(filePath) {
   if (!fs.existsSync(filePath)) {
     return null;
@@ -39,59 +31,32 @@ function readJsonFile(filePath) {
   }
 }
 
-function readProfileField(text, label) {
-  const prefix = `- ${label}:`;
-  const line = String(text || "")
-    .split(/\r?\n/)
-    .find((entry) => entry.startsWith(prefix));
-  if (!line) {
-    return "";
-  }
-
-  return line.slice(prefix.length).trim();
-}
-
 function loadCurrentTask(projectDir) {
-  const taskContextPath = path.join(projectDir, ".codex", "state", "task-context.json");
-  const taskContext = readJsonFile(taskContextPath);
+  const runtimePath = path.join(projectDir, ".codex", "state", "task-context.json");
+  const runtimeState = readJsonFile(runtimePath);
 
-  if (taskContext?.task && typeof taskContext.task === "object") {
-    const task = taskContext.task;
-    const title = normalizeText(task.current_task);
-    if (title) {
-      return {
-        title,
-        status: normalizeText(task.status) || "unknown",
-        deliveryMode: normalizeText(task.delivery_mode) || "",
-        routeRationale: normalizeText(task.route_rationale) || "",
-        openQuestions: Array.isArray(task.open_questions)
-          ? task.open_questions.map((item) => normalizeText(item)).filter(Boolean)
-          : []
-      };
-    }
-  }
-
-  const profilePath = path.join(projectDir, ".codex", "context", "project-profile.md");
-  if (!fs.existsSync(profilePath)) {
+  if (!runtimeState) {
     return null;
   }
 
-  const profileText = fs.readFileSync(profilePath, "utf8");
-  const title = normalizeText(readProfileField(profileText, "Current task")).replace(/^`|`$/g, "");
+  const task = runtimeState?.task && typeof runtimeState.task === "object" ? runtimeState.task : null;
+  if (!task) {
+    return null;
+  }
+
+  const title = normalizeText(task.current_task);
   if (!title) {
     return null;
   }
 
   return {
     title,
-    status: normalizeText(readProfileField(profileText, "Task status")).replace(/^`|`$/g, "") || "unknown",
-    deliveryMode:
-      normalizeText(readProfileField(profileText, "Selected delivery mode")).replace(/^`|`$/g, "") || "",
-    routeRationale: normalizeText(readProfileField(profileText, "Route rationale")),
-    openQuestions: normalizeText(readProfileField(profileText, "Open questions"))
-      .split(",")
-      .map((item) => normalizeText(item))
-      .filter(Boolean)
+    status: normalizeText(task.status) || "unknown",
+    deliveryMode: normalizeText(task.delivery_mode) || "",
+    routeRationale: normalizeText(task.route_rationale) || "",
+    openQuestions: Array.isArray(task.open_questions)
+      ? task.open_questions.map((item) => normalizeText(item)).filter(Boolean)
+      : []
   };
 }
 

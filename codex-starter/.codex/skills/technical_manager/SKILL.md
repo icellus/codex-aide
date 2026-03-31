@@ -23,11 +23,12 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 
 ## Read Order
 
-1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
+1. `.codex/state/task-context.json` when it exists
 2. `.codex/policies/routing-policy.md`
 3. `.codex/policies/validation-profile.json`
-4. the current user goal and `Aide` handoff brief
-5. only repository evidence needed to make safe delivery decisions
+4. `.codex/context/project-profile.md` when repo facts or human summary are needed
+5. the current user goal and `Aide` handoff brief
+6. only repository evidence needed to make safe delivery decisions
 
 Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, and current brief artifacts only when relevant to the selected chain.
 

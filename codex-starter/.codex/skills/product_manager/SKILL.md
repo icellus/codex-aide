@@ -14,7 +14,9 @@ Product-definition line:
 ## Sources of truth
 
 - the user goal and `Aide` handoff brief are the starting point
-- `.codex/context/project-profile.md` is the first place to read for task class, risk, and enabled modules
+- `.codex/state/task-context.json` is the first place to read for task class, risk, and enabled modules
+- `.codex/state/task-context.demo.json` documents the task-state structure
+- `.codex/context/project-profile.md` is the human-readable repo summary
 - repository context helps you understand existing product shape, integrations, and constraints
 - existing docs such as `README.md`, `docs/`, or prior `PRD.md` files are supporting evidence
 
@@ -69,9 +71,10 @@ Use when:
 
 Always read:
 
-1. `.codex/context/project-profile.md`
-2. the user's goal
-3. the most relevant repository docs or implementation areas for this feature
+1. `.codex/state/task-context.json` when it exists
+2. `.codex/context/project-profile.md` when repo facts or human summary are needed
+3. the user's goal
+4. the most relevant repository docs or implementation areas for this feature
 
 Read these when relevant:
 

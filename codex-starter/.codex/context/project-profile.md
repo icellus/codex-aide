@@ -1,10 +1,12 @@
 # Project Profile
 
 Human-readable summary for the starter.
+This file is not runtime authority.
 
-Hot runtime files:
+Related runtime files:
 
 - `.codex/state/task-context.json`
+- `.codex/state/submit-preferences.json`
 - `.codex/policies/validation-profile.json`
 
 Routing policy lives in `.codex/policies/routing-policy.md`.
@@ -22,29 +24,8 @@ Routing policy lives in `.codex/policies/routing-policy.md`.
 - Validation signals:
 - Notes:
 
-## Collaboration Preferences
-
-- Preferred address: Boss
-- Greeting style: warm
-- First startup greeting completed: no
-
-## Current Task
-
-- Current task:
-- Task status: `idle`
-- Task class: `unknown`
-- Risk level: `unknown`
-- Selected delivery mode: `lightweight`
-- Route rationale:
-- Active routing overrides: none
-- Enabled roles: `Aide`, main agent
-- Enabled modules: intake triage, direct answer or routed delivery
-- QC policy: `disabled`
-- Submit policy: `enabled`
-- Validation profile status: `not-set`
-- Open questions:
-
 ## Summary
 
 - Keep this file short.
-- Prefer updating the JSON state files above during active work.
+- Keep this file limited to repo facts, human-readable notes, and durable summary context.
+- Runtime task and submit state lives in `.codex/state/*.json`; `.codex/state/*.demo.json` documents file structure.

@@ -4,7 +4,7 @@ model = "gpt-5.3-codex"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
-Read .codex/state/task-context.json first when it exists; otherwise read .codex/context/project-profile.md. Then read .codex/policies/validation-profile.json.
+Read .codex/state/task-context.json when it exists. Use .codex/context/project-profile.md only for repository summary facts. Then read .codex/policies/validation-profile.json.
 Before implementation, obtain the latest `Implementation Brief` path from `technical_manager`.
 Treat that brief as the only execution input artifact for task scope and acceptance.
 If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding.
