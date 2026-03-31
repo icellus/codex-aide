@@ -109,7 +109,7 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 
 ## Capability Rules
 
-- treat repository exploration as a short-lived action when ownership, boundaries, or entrypoints are unclear
+- perform short-lived read-only repository exploration yourself when ownership, boundaries, or entrypoints are unclear
 - treat environment setup as execution capability under `technical_manager`, not as independent role semantics
 - avoid activating extra modules if the task can be finished safely without them
 - if work is non-technical artifact delivery, escalate back to `Aide` for non-code routing

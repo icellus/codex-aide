@@ -176,7 +176,7 @@ Do not upgrade discussion-only turns into execution routes merely because the to
 - For product-definition routing, activate `product_manager` first.
 - For technical-delivery routing, activate `technical_manager` first, then activate downstream technical roles through `technical_manager`.
 - For non-code routing, activate `product_assistant` directly from `Aide`.
-- Use repository exploration as a short-lived action inside routing/execution when ownership, entrypoints, or boundaries are unclear.
+- When ownership, entrypoints, or boundaries are unclear, let `technical_manager` perform a short-lived read-only repository scan inside routing/execution.
 - Keep one focused write-capable execution role at a time unless `technical_manager` explicitly stages a safe handoff.
 - If uncertainty resolves, drop unnecessary roles immediately.
 
