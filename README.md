@@ -23,17 +23,24 @@ bash /path/to/agent-skills/codex-starter/install.sh
 - [install.sh](/workspace/agent-skills/codex-starter/install.sh)
 - [codex-starter/AGENTS.md](/workspace/agent-skills/codex-starter/AGENTS.md)
 
-维护入口：
+贡献入口：
 
 - [CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
 - [TESTING.md](/workspace/agent-skills/TESTING.md)
-- [discussion/codex-starter-refactor/CONTEXT.md](/workspace/agent-skills/discussion/codex-starter-refactor/CONTEXT.md)
-- [discussion/codex-starter-refactor/PLAN.md](/workspace/agent-skills/discussion/codex-starter-refactor/PLAN.md)
+
+## 目录结构
+
+- [codex-starter](/workspace/agent-skills/codex-starter): 对外发布的 starter 产品内容
+- [scripts](/workspace/agent-skills/scripts): 仓库维护脚本与开发校验入口
+- [standards](/workspace/agent-skills/standards): 开发校验使用的规则数据
+- [fixtures](/workspace/agent-skills/fixtures): 开发校验的最小反例资产
+- [.githooks](/workspace/agent-skills/.githooks): 本地 Git hook 接线
+- [.github](/workspace/agent-skills/.github): 仓库自动化配置
 
 说明：
 
 - 旧的 `tests/codex-starter/` 测试脚本已移除，不再作为仓库默认验证入口
-- 通用宿主仓维护仍以任务相关的最小验证或明确记录“未验证”为准
+- 通用仓库维护仍以任务相关的最小验证或明确记录“未验证”为准
 - `codex-starter` 开发校验遵循 [TESTING.md](/workspace/agent-skills/TESTING.md)
 
 `claude-starter` 已从本仓库迁出，归档说明见：[CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md)
