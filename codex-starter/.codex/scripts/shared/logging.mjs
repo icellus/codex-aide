@@ -238,7 +238,7 @@ function appendRuntimeLog(projectDir, entry, options = {}) {
       options?.logFilePath || runtimeLogPath(projectDir, timestamp, Buffer.byteLength(serialized, "utf8"));
     fs.appendFileSync(targetPath, serialized, "utf8");
   } catch {
-    // 日志写入不应中断运行时主流程。
+    // Logging failure must not interrupt the runtime control path.
   }
 }
 

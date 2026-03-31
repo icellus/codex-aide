@@ -8,21 +8,21 @@
         {
           "path": "codex-starter/.codex/policies/routing-policy.md",
           "all_of": [
-            "`technical_manager` produces and refreshes `任务实施说明`, which is the execution input for `coder` and `tester`.",
-            "If `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`."
+            "`technical_manager` produces and refreshes the `Implementation Brief`, which is the execution input for `coder` and `tester`.",
+            "If `coder` or `tester` lacks a readable `Implementation Brief`, they must return `blocked` to `technical_manager`."
           ]
         },
         {
           "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
           "all_of": [
-            "production and refresh of `任务实施说明`",
-            "if `coder` or `tester` is active, you must produce the latest `任务实施说明` before their work starts"
+            "production and refresh of the `Implementation Brief`",
+            "if `coder` or `tester` is active, you must produce the latest `Implementation Brief` before their work starts"
           ]
         },
         {
           "path": "codex-starter/.codex/agents/coder.toml",
           "all_of": [
-            "Before implementation, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.",
+            "Before implementation, obtain the latest `Implementation Brief` path from `technical_manager`.",
             "If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding."
           ],
           "none_of": [
@@ -32,7 +32,7 @@
         {
           "path": "codex-starter/.codex/agents/tester.toml",
           "all_of": [
-            "Before validation, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.",
+            "Before validation, obtain the latest `Implementation Brief` path from `technical_manager`.",
             "If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding."
           ],
           "none_of": [
@@ -122,6 +122,55 @@
           "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
           "all_of": [
             "`technical_manager` is the only execution role that writes `.codex/progress/**`."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "implementation_brief_path_convention",
+      "intent": "Keep Implementation Brief examples and handoff paths slugged, space-free, and clearly separated from the document title.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/templates/execution/implementation-brief.md",
+          "all_of": [
+            "**Suggested Path**: `plans/<task-slug>-implementation-brief.md`",
+            "`Implementation Brief` is the document type/title, not the literal filename",
+            "The file path must stay slugged and space-free, for example `plans/<task-slug>-implementation-brief.md`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/templates/execution/validation-handoff.md",
+          "all_of": [
+            "**Execution Input Path**: `plans/<task-slug>-implementation-brief.md`",
+            "**Execution Input Type**: `Implementation Brief`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/templates/planning/architecture.md",
+          "all_of": [
+            "**Downstream Implementation Brief Path**: `[plans/<task-slug>-implementation-brief.md or N/A]`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "`Implementation Brief` is the document type, not the literal filename",
+            "keep the brief path slugged and space-free, for example `plans/<task-slug>-implementation-brief.md`",
+            "downstream roles should exchange the actual path through `brief_path`, never infer a filename from the title alone"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/coder.toml",
+          "all_of": [
+            "\"brief_path\": \"plans/<task-slug>-implementation-brief.md\"",
+            "Use a slugged, space-free path such as `plans/<task-slug>-implementation-brief.md`."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/tester.toml",
+          "all_of": [
+            "\"brief_path\": \"plans/<task-slug>-implementation-brief.md\"",
+            "Use a slugged, space-free path such as `plans/<task-slug>-implementation-brief.md`."
           ]
         }
       ]

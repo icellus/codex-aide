@@ -34,12 +34,12 @@ Skip `architect` when:
 
 - the task is a small bugfix with a clear local fix
 - the feature follows an obvious existing pattern with minimal system impact
-- `technical_manager` can safely produce `任务实施说明` without inventing system-level design
+- `technical_manager` can safely produce the `Implementation Brief` without inventing system-level design
 
 ## Core principles
 
 - Architecture = HOW at system level, not WHAT/WHY and not file-by-file execution steps
-- architecture output goes directly to `technical_manager` to produce `Implementation Brief` (`任务实施说明`)
+- architecture output goes directly to `technical_manager` to produce the `Implementation Brief`
 - reuse existing repository patterns before inventing new structures
 - document only the design decisions that implementation will rely on
 - keep the artifact lightweight and scoped to the task

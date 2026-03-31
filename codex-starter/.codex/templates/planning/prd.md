@@ -48,7 +48,7 @@
 ## 7. Handoff Notes for Architect
 
 - [Unstable areas requiring architecture clarification]
-- [Decisions that must be preserved downstream in `Implementation Brief` (`任务实施说明`)]
+- [Decisions that must be preserved downstream in the `Implementation Brief`]
 
 ## 8. Open Questions (Optional)
 

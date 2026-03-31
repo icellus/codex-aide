@@ -298,12 +298,12 @@ function recordSubagentResult(input, state, activePlans, taskRegistry, projectDi
     const blockedNote = isAmbiguousBlockedScope
       ? `Recent ${role} blockage detected, but active task ownership is ambiguous. Resolve ownership (currentTaskId/cwd/worktree/branch) before resuming.`
       : missingImplementationBrief
-        ? `Recent ${role} blockage detected: Implementation Brief (任务实施说明) is missing or unreadable. Stop downstream tester, qc, and submit progression and route back through technical_manager. If user clarification is needed, technical_manager should collect it via Aide -> user.`
+        ? `Recent ${role} blockage detected: Implementation Brief is missing or unreadable. Stop downstream tester, qc, and submit progression and route back through technical_manager. If user clarification is needed, technical_manager should collect it via Aide -> user.`
         : `Recent ${role} blockage detected. Route back through technical_manager and review the structured handoff before continuing.`;
     const reviewNote = isAmbiguousBlockedScope
       ? `A ${role} handoff blocked while multiple active plans were unresolved. Investigate task ownership first, then route fixes to the correct task chain.`
       : missingImplementationBrief
-        ? `A ${role} handoff was blocked because Implementation Brief (任务实施说明) was missing or unreadable. Resume only after technical_manager refreshes the brief; if user clarification is required, route via technical_manager -> Aide -> user.`
+        ? `A ${role} handoff was blocked because the Implementation Brief was missing or unreadable. Resume only after technical_manager refreshes the brief; if user clarification is required, route via technical_manager -> Aide -> user.`
         : `A ${role} handoff blocked the workflow. Investigate whether execution entry, technical_manager brief ownership, role boundaries, or shared guidance caused the break.`;
 
     upsertPendingAction(state, {

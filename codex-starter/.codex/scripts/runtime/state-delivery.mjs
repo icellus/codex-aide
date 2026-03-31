@@ -121,11 +121,8 @@ export function detectMissingTaskImplementationBrief(role, message, structured =
   }
 
   const text = textParts.join("\n");
-  const mentionsBrief = /implementation brief|任务实施说明|execution brief|execution input|brief_path|brief path/i.test(text);
-  const missingSignal =
-    /missing|not found|unreadable|cannot read|unable to read|not provided|empty|缺失|缺少|不存在|未提供|无法读取|不可读|为空|没给/i.test(
-      text
-    );
+  const mentionsBrief = /implementation brief|execution brief|execution input|brief_path|brief path/i.test(text);
+  const missingSignal = /missing|not found|unreadable|cannot read|unable to read|not provided|empty|blank/i.test(text);
 
   return mentionsBrief && missingSignal;
 }

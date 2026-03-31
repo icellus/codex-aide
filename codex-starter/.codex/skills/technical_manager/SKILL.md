@@ -14,7 +14,7 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 - technical-delivery entry and route design
 - precondition checks and blocker identification
 - repository understanding depth needed for safe assignment
-- production and refresh of `任务实施说明`
+- production and refresh of the `Implementation Brief`
 - repository validation-baseline fact gathering and refresh proposals for `.codex/policies/validation-profile.json`
 - environment setup decisions and preparation
 - staged chain management across `architect`, `coder`, `tester`, optional `qc`, and optional `submit`
@@ -31,14 +31,20 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 
 Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, and current brief artifacts only when relevant to the selected chain.
 
+## Brief Artifact Convention
+
+- `Implementation Brief` is the document type, not the literal filename
+- keep the brief path slugged and space-free, for example `plans/<task-slug>-implementation-brief.md`
+- downstream roles should exchange the actual path through `brief_path`, never infer a filename from the title alone
+
 ## What You Decide
 
 - task class and delivery mode
 - active modules and staged order
 - whether technical prerequisites are satisfied for safe execution
 - whether `architect` is required for unstable system-level HOW inside the technical-delivery line
-- whether you must produce or refresh `任务实施说明`
-- when `coder`/`tester` is blocked by missing `任务实施说明`, whether to refresh the brief, re-route the chain, or collect user clarification through `Aide`
+- whether you must produce or refresh the `Implementation Brief`
+- when `coder`/`tester` is blocked by a missing `Implementation Brief`, whether to refresh the brief, re-route the chain, or collect user clarification through `Aide`
 - `environment setup`: `skip`, `current-workspace`, or `isolated-workspace`
 - conflict status and safe write ordering
 - validation boundary, hard gates, and environment constraints for the active task
@@ -51,15 +57,15 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 
 - execution work must flow through `technical_manager`; do not bypass directly to `coder`/`tester`
 - in product-definition routes, you receive technical input from `product_manager` when outcome is `skip`, or from `architect` when outcome is `product`
-- if `coder` or `tester` is active, you must produce the latest `任务实施说明` before their work starts
-- `coder` and `tester` execute only against the latest `任务实施说明`
+- if `coder` or `tester` is active, you must produce the latest `Implementation Brief` before their work starts
+- `coder` and `tester` execute only against the latest `Implementation Brief`
 - when repository scan finds `.codex/policies/validation-profile.json` still `not-set`, prepare the initial baseline proposal against its current structure and return it to `Aide`
 - evaluate tester baseline refresh feedback from task execution and decide whether it changes the repository validation baseline
 - when repository validation facts need baseline refresh, prepare the proposal against the current `.codex/policies/validation-profile.json` structure and return it to `Aide`
 - once `coder` participates, downstream `tester` handoff is mandatory before settlement or submit
 - `coder` / `tester` / `qc` report only to `technical_manager` on the execution chain
 - after required `tester` handoff in coder-involved work, you decide whether to run `qc` or skip it
-- when `coder` or `tester` is blocked by missing `任务实施说明`, stop downstream tester, qc, and submit progression until you resolve the brief gap
+- when `coder` or `tester` is blocked by a missing `Implementation Brief`, stop downstream tester, qc, and submit progression until you resolve the brief gap
 - `qc` is optional and cannot replace required `tester`
 - `submit` runs only after validation gates are satisfied
 - if scope/ownership mismatch prevents technical continuation, escalate to `Aide`; do not route directly to `product_manager` or `product_assistant`
@@ -99,7 +105,7 @@ Return:
 - selected delivery mode
 - activated modules and staged order
 - `environment setup` decision
-- `任务实施说明` path/status (`required|ready|needs-refresh`)
+- `Implementation Brief` path/status (`required|ready|needs-refresh`)
 - validation baseline initialization status for `.codex/policies/validation-profile.json` (`none|proposed`)
 - tester baseline refresh feedback status (`none|reported`)
 - validation baseline refresh proposal status for `.codex/policies/validation-profile.json` (`none|proposed`)

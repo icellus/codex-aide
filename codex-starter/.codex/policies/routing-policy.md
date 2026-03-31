@@ -33,8 +33,8 @@ Plain-language intent should map to the same routes.
 - `technical_manager` must not directly route to `product_manager`.
 - `product_assistant` receives non-code delivery work from `Aide` and returns results to `Aide`.
 - `product_assistant` should not auto-enter the submit path; only explicit user intent enables governed submit for non-code work.
-- `technical_manager` produces and refreshes `任务实施说明`, which is the execution input for `coder` and `tester`.
-- If `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`.
+- `technical_manager` produces and refreshes the `Implementation Brief`, which is the execution input for `coder` and `tester`.
+- If `coder` or `tester` lacks a readable `Implementation Brief`, they must return `blocked` to `technical_manager`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or submit.
 - `coder` / `tester` / `qc` report only to `technical_manager` in the technical-delivery line.
 - `.codex/policies/validation-profile.json` stays the single repository validation-baseline structure.
@@ -46,7 +46,7 @@ Plain-language intent should map to the same routes.
 - `qc` is optional by risk or explicit audit need, and cannot replace `tester`.
 - `submit` is the governed delivery step after required validation gates.
 - Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
-- blocked handoff from missing `任务实施说明` must stop tester, qc, and submit continuation until `technical_manager` resolves it.
+- blocked handoff from a missing `Implementation Brief` must stop tester, qc, and submit continuation until `technical_manager` resolves it.
 - if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
 - for long-running technical tasks, `technical_manager` owns `.codex/progress/**` writes and keeps `history` + `current.md` synchronized.
 - progress trigger events are fixed: `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, `completed`.
@@ -64,15 +64,15 @@ Plain-language intent should map to the same routes.
 ### Technical-Delivery Line
 
 1. `Aide`, `product_manager` `skip`, or upstream `architect` output enters `technical_manager`.
-2. `technical_manager`: preconditions, conflict scan, and `任务实施说明`.
+2. `technical_manager`: preconditions, conflict scan, and the `Implementation Brief`.
 3. if `.codex/policies/validation-profile.json` is still `not-set`, `technical_manager` returns the initial baseline proposal to `Aide`.
-4. `coder`: implement against the latest `任务实施说明`.
-5. `tester`: validate against the same `任务实施说明`.
+4. `coder`: implement against the latest `Implementation Brief`.
+5. `tester`: validate against the same `Implementation Brief`.
 6. if tester reports baseline refresh feedback, `technical_manager` decides whether to return a refresh proposal to `Aide`.
 7. optional `qc`: independent audit when risk/policy requires.
 8. optional `submit`: governed commit/push/follow-through.
 
-Do not skip `任务实施说明` production when `coder` or `tester` is active.
+Do not skip `Implementation Brief` production when `coder` or `tester` is active.
 
 ### Non-Code Delivery Line
 
@@ -126,7 +126,7 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 - enter `technical_manager` when the task needs code/config/runtime changes, implementation ownership, task-level validation ownership, durable technical handoff, or governed delivery
 - if `technical_manager` cannot proceed because ownership is not technical or product scope is still unstable, escalate to `Aide` for re-triage
 - if interfaces, boundaries, or integration design are unstable inside the technical-delivery line, `technical_manager` may enable `architect`
-- require `technical_manager` to produce or refresh `任务实施说明` before any `coder`/`tester` work
+- require `technical_manager` to produce or refresh the `Implementation Brief` before any `coder`/`tester` work
 - enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `coder` for implementation ownership, followed by required downstream `tester`
 - enable `long-running` mode and `.codex/progress/active/<task-id>/current.md` when work is multi-step, cross-session, blocked, or release-shaped

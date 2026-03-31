@@ -4,7 +4,7 @@
 **Date**: [YYYY-MM-DD]
 **Upstream PRD**: `[PRD.md or N/A]`
 **Downstream Owner**: `technical_manager`
-**Downstream Implementation Brief**: `[plans/[slug].md or N/A]`
+**Downstream Implementation Brief Path**: `[plans/<task-slug>-implementation-brief.md or N/A]`
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## 7. Briefing Notes for Implementation Brief
 
-- [What technical_manager must preserve in Implementation Brief (`任务实施说明`)]
+- [What technical_manager must preserve in the `Implementation Brief`]
 - [What can stay implementation-flexible]
 
 ## 8. Open Questions (Optional)

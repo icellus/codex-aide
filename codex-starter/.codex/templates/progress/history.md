@@ -22,7 +22,7 @@
 
 ## Brief and Ownership
 
-- `任务实施说明`: `[path/status change or unchanged]`
+- `Implementation Brief`: `[path/status change or unchanged]`
 - Handoff: `[from -> to or N/A]`
 
 ## Evidence

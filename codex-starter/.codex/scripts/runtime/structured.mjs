@@ -72,15 +72,11 @@ export function extractStructuredResult(message) {
       return false;
     }
 
-    if (
-      /^(example(?:\s+output|\s+result)?|sample(?:\s+output|\s+result)?|for example|e\.g\.|示例(?:输出|结果)?|样例(?:输出|结果)?|例如|参考示例)\s*[:：]?$/i.test(
-        normalized
-      )
-    ) {
+    if (/^(example(?:\s+output|\s+result)?|sample(?:\s+output|\s+result)?|for example|e\.g\.)\s*:?\s*$/i.test(normalized)) {
       return true;
     }
 
-    return /(?:example output|sample output|示例输出|样例输出|示例结果|样例结果)/i.test(normalized);
+    return /(?:example output|sample output)/i.test(normalized);
   };
 
   const parseCandidates = (candidates = []) => {
@@ -199,6 +195,21 @@ function normalizeStructuredBriefPath(structured) {
   return "";
 }
 
+const IMPLEMENTATION_BRIEF_PATH_PATTERN = /^plans\/[a-z0-9]+(?:-[a-z0-9]+)*-implementation-brief\.md$/;
+
+function isValidImplementationBriefPath(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  return IMPLEMENTATION_BRIEF_PATH_PATTERN.test(normalized);
+}
+
 export function validateStructuredResultContract(role, message) {
   const normalizedRole = normalizeStructuredRole(role);
   if (normalizedRole !== "coder" && normalizedRole !== "tester") {
@@ -280,11 +291,22 @@ export function validateStructuredResultContract(role, message) {
     };
   }
 
-  if (status === "complete" && !normalizeStructuredBriefPath(structured)) {
+  const briefPath = normalizeStructuredBriefPath(structured);
+
+  if (status === "complete" && !briefPath) {
     return {
       ok: false,
       code: "missing_structured_result_brief_path",
-      reason: `${normalizedRole} structured result must include a non-empty brief_path to the active Implementation Brief (任务实施说明).`,
+      reason: `${normalizedRole} structured result must include a non-empty brief_path to the active Implementation Brief.`,
+      structured
+    };
+  }
+
+  if (briefPath && !isValidImplementationBriefPath(briefPath)) {
+    return {
+      ok: false,
+      code: "invalid_structured_result_brief_path_format",
+      reason: `${normalizedRole} structured result brief_path must use a slugged repo-relative path like "plans/<task-slug>-implementation-brief.md".`,
       structured
     };
   }
@@ -306,13 +328,11 @@ export function detectSubagentStatus(agentType, message) {
     return explicitStatus;
   }
 
-  if (/blocked|阻塞|需要帮助|human intervention/i.test(text)) {
+  if (/blocked|needs help|help needed|human intervention/i.test(text)) {
     return "blocked";
   }
 
-  if (
-    /Implementation Complete|实现完成|tests written|testing complete|测试编写完成|已完成测试|Submit complete|delivery complete|交付完成|推送完成/i.test(text)
-  ) {
+  if (/implementation complete|tests written|testing complete|tests complete|submit complete|delivery complete|push complete/i.test(text)) {
     return "complete";
   }
 
@@ -329,7 +349,7 @@ export function detectQcPass(message) {
   if (!/\bQC\b|Overall Verdict:/i.test(text)) {
     return false;
   }
-  return /QC 检查通过|QC passed|QC pass|Overall Verdict:\s*PASS(?: WITH WARNINGS)?\b/i.test(text);
+  return /QC passed|QC pass|Overall Verdict:\s*PASS(?: WITH WARNINGS)?\b/i.test(text);
 }
 
 export function detectQcFail(message) {
@@ -341,7 +361,7 @@ export function detectQcFail(message) {
   if (!/\bQC\b|Overall Verdict:/i.test(text)) {
     return false;
   }
-  return /QC 检查失败|QC failure|QC failed|QC fail|Overall Verdict:\s*FAIL\b/i.test(text);
+  return /QC failure|QC failed|QC fail|Overall Verdict:\s*FAIL\b/i.test(text);
 }
 
 export function detectQcPhase(message) {
@@ -358,7 +378,7 @@ export function detectQcPhase(message) {
 
 export function detectTaskCompletionMessage(message) {
   const text = normalizeText(message);
-  return /(?:task status:\s*done|final status:\s*done|task complete|task completed|completed the task|任务完成|已完成当前任务)/i.test(text);
+  return /(?:task status:\s*done|final status:\s*done|task complete|task completed|completed the task)/i.test(text);
 }
 
 export function detectFailureCategories(message) {
@@ -383,22 +403,22 @@ export function detectFailureCategories(message) {
   if (/TODO|FIXME|placeholder/i.test(keywordText)) {
     categories.add("placeholder");
   }
-  if (/假测试|FAKE TEST|fake test/i.test(keywordText)) {
+  if (/FAKE TEST|fake test/i.test(keywordText)) {
     categories.add("fake-test");
   }
-  if (/缺失测试|MISSING TEST/i.test(keywordText)) {
+  if (/MISSING TEST/i.test(keywordText)) {
     categories.add("missing-test");
   }
-  if (/未实现|NOT IMPLEMENTED|missing implementation/i.test(keywordText)) {
+  if (/NOT IMPLEMENTED|missing implementation/i.test(keywordText)) {
     categories.add("missing-implementation");
   }
-  if (/Plan 对齐问题|plan mismatch|plan align|Implementation Plan mismatch/i.test(keywordText)) {
+  if (/plan mismatch|plan align|Implementation Plan mismatch/i.test(keywordText)) {
     categories.add("plan-mismatch");
   }
-  if (/错误处理|error handling/i.test(keywordText)) {
+  if (/error handling/i.test(keywordText)) {
     categories.add("error-handling");
   }
-  if (/shared protocol|交接协议|interface between roles/i.test(keywordText)) {
+  if (/shared protocol|handoff protocol|interface between roles/i.test(keywordText)) {
     categories.add("shared-protocol");
   }
   if (/environment mismatch|connection refused|postgres service|CI missing/i.test(keywordText)) {

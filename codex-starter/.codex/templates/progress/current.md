@@ -25,7 +25,7 @@ If release checkpoints are primary, use `.codex/templates/progress/release.md` f
 
 ## Scope and Brief
 
-- Implementation Brief: `[path/to/implementation-brief.md or N/A]`
+- Implementation Brief: `[plans/<task-slug>-implementation-brief.md or N/A]`
 - Scope:
   - [intended outcome]
   - [key files, modules, or surfaces]

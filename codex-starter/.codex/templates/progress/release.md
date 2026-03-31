@@ -27,7 +27,7 @@ This file is the task-local `current.md` snapshot, not a root-level aggregate pr
 - Scope: [what is being released]
 - Target: [environment, channel, or audience]
 - Related Briefs / Docs:
-  - `[path/to/implementation-brief.md or related doc or N/A]`
+  - `[plans/<task-slug>-implementation-brief.md or related doc or N/A]`
 - Rollback or Recovery Note: [short note or N/A]
 
 ## Checkpoint Status

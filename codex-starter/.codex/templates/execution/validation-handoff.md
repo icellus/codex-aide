@@ -1,7 +1,8 @@
 # Task Validation Handoff
 
 **Owner**: `tester`
-**Execution Input**: `plans/[slug].md` (`任务实施说明`)
+**Execution Input Path**: `plans/<task-slug>-implementation-brief.md`
+**Execution Input Type**: `Implementation Brief`
 **Scope**: [task, feature, or brief item]
 **Status**: ready-for-qc|ready-for-technical-manager|blocked
 **Workflow Chain ID**: [workflow_chain_id from active workflow, or `none` when not applicable]

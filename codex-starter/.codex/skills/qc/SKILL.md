@@ -27,7 +27,7 @@ If QC is not justified and the user did not explicitly ask for it, return `NOT N
 
 - treat `.codex/policies/validation-profile.json` as repository validation baseline only
 - in coder-involved chains, QC is considered only after required tester handoff, and that routing decision belongs to `technical_manager`
-- for `Phase: tester`, read the latest `任务实施说明` path from `technical_manager`; if missing/unreadable, return `FAIL` and route back through `technical_manager`
+- for `Phase: tester`, read the latest `Implementation Brief` path from `technical_manager`; if missing/unreadable, return `FAIL` and route back through `technical_manager`
 - when tester evidence exists, audit whether tester chose an appropriate task-level validation plan
 - when a tester handoff exists, verify it names validation targets, selected checks, coverage rationale, and remaining gaps
 - choose the nearest useful command from the baseline first

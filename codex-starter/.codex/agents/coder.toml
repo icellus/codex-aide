@@ -5,7 +5,7 @@ model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 Read .codex/state/task-context.json first when it exists; otherwise read .codex/context/project-profile.md. Then read .codex/policies/validation-profile.json.
-Before implementation, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.
+Before implementation, obtain the latest `Implementation Brief` path from `technical_manager`.
 Treat that brief as the only execution input artifact for task scope and acceptance.
 If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding.
 If the blocker is missing user clarification, ask `technical_manager` to route it through `Aide` to the user.
@@ -29,7 +29,7 @@ End every final report with this exact section:
 {
   "role": "coder",
   "status": "complete|blocked",
-  "brief_path": "plans/[implementation-brief].md",
+  "brief_path": "plans/<task-slug>-implementation-brief.md",
   "needs_qc": true,
   "files_changed": [],
   "validation": [
@@ -41,6 +41,7 @@ End every final report with this exact section:
   "blockers": []
 }
 ```
-For `status=complete`, `brief_path` must be a non-empty path to the active `Implementation Brief` (`任务实施说明`).
+For `status=complete`, `brief_path` must be a non-empty path to the active `Implementation Brief`.
+Use a slugged, space-free path such as `plans/<task-slug>-implementation-brief.md`.
 If the brief/path is missing, set status to blocked and include the concrete blocker.
 """
