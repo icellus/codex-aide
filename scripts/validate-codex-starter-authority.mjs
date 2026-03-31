@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
-const specPath = path.join(repoRoot, "standards", "codex-starter-authority-map.json");
+const defaultRepoRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -35,15 +35,48 @@ function listFilesRecursive(rootDir, predicate = () => true) {
   return results.sort();
 }
 
-function relativeRepoPath(filePath) {
+function relativeRepoPath(repoRoot, filePath) {
   return path.relative(repoRoot, filePath).replace(/\\/g, "/");
+}
+
+function displayPath(repoRoot, filePath) {
+  const relativePath = relativeRepoPath(repoRoot, filePath);
+  return relativePath && !relativePath.startsWith("..") ? relativePath : filePath;
 }
 
 function startsWithAny(target, prefixes) {
   return prefixes.some((prefix) => target.startsWith(prefix));
 }
 
-function collectAuthorityFiles() {
+function loadJsonFile(repoRoot, filePath, errors) {
+  if (!fileExists(filePath)) {
+    errors.push(`${displayPath(repoRoot, filePath)}: file not found`);
+    return null;
+  }
+
+  try {
+    return readJson(filePath);
+  } catch (error) {
+    errors.push(`${displayPath(repoRoot, filePath)}: invalid JSON (${error.message})`);
+    return null;
+  }
+}
+
+function loadTextFile(repoRoot, filePath, errors) {
+  if (!fileExists(filePath)) {
+    errors.push(`${displayPath(repoRoot, filePath)}: file not found`);
+    return null;
+  }
+
+  try {
+    return readText(filePath);
+  } catch (error) {
+    errors.push(`${displayPath(repoRoot, filePath)}: unreadable file (${error.message})`);
+    return null;
+  }
+}
+
+function collectAuthorityFiles(repoRoot) {
   const files = [];
   const starterRoot = path.join(repoRoot, "codex-starter");
   const include = [
@@ -71,13 +104,16 @@ function collectAuthorityFiles() {
   return files.sort();
 }
 
-function validateAllowedSections(owner, errors) {
+function validateAllowedSections(repoRoot, owner, errors) {
   if (!owner.allowed_sections) {
     return;
   }
 
   const filePath = path.join(repoRoot, owner.path);
-  const text = readText(filePath);
+  const text = loadTextFile(repoRoot, filePath, errors);
+  if (text === null) {
+    return;
+  }
   const found = Array.from(text.matchAll(/^##\s+(.+)$/gm)).map((match) => match[1].trim());
 
   for (const heading of found) {
@@ -87,13 +123,16 @@ function validateAllowedSections(owner, errors) {
   }
 }
 
-function validateForbidden(owner, errors) {
+function validateForbidden(repoRoot, owner, errors) {
   if (!owner.path) {
     return;
   }
 
   const filePath = path.join(repoRoot, owner.path);
-  const text = readText(filePath);
+  const text = loadTextFile(repoRoot, filePath, errors);
+  if (text === null) {
+    return;
+  }
 
   for (const pattern of owner.forbidden_patterns || []) {
     if (text.includes(pattern)) {
@@ -109,7 +148,7 @@ function validateForbidden(owner, errors) {
   }
 }
 
-function validateRequired(owner, errors) {
+function validateRequired(repoRoot, owner, errors) {
   const targets = [];
 
   if (owner.path) {
@@ -117,12 +156,20 @@ function validateRequired(owner, errors) {
   }
 
   if (owner.path_prefix) {
-    targets.push(...listFilesRecursive(path.join(repoRoot, owner.path_prefix)));
+    const prefixPath = path.join(repoRoot, owner.path_prefix);
+    if (!fileExists(prefixPath)) {
+      errors.push(`${owner.path_prefix}: path not found`);
+      return;
+    }
+    targets.push(...listFilesRecursive(prefixPath));
   }
 
   for (const filePath of targets) {
-    const rel = relativeRepoPath(filePath);
-    const text = readText(filePath);
+    const rel = relativeRepoPath(repoRoot, filePath);
+    const text = loadTextFile(repoRoot, filePath, errors);
+    if (text === null) {
+      continue;
+    }
 
     for (const term of owner.required_terms || []) {
       if (!text.includes(term)) {
@@ -141,9 +188,9 @@ function validateRequired(owner, errors) {
   }
 }
 
-function validateDuplicateRules(spec, authorityFiles, errors) {
+function validateDuplicateRules(repoRoot, spec, authorityFiles, errors) {
   const relativeFiles = authorityFiles.map((filePath) => ({
-    path: relativeRepoPath(filePath),
+    path: relativeRepoPath(repoRoot, filePath),
     text: readText(filePath)
   }));
 
@@ -173,9 +220,9 @@ function validateDuplicateRules(spec, authorityFiles, errors) {
   }
 }
 
-function validateAuthorityKeywords(spec, authorityFiles, errors) {
+function validateAuthorityKeywords(repoRoot, spec, authorityFiles, errors) {
   const relativeFiles = authorityFiles.map((filePath) => ({
-    path: relativeRepoPath(filePath),
+    path: relativeRepoPath(repoRoot, filePath),
     text: readText(filePath)
   }));
 
@@ -192,29 +239,93 @@ function validateAuthorityKeywords(spec, authorityFiles, errors) {
   }
 }
 
-function main() {
-  const spec = readJson(specPath);
+function validateAuthority({
+  repoRoot = defaultRepoRoot,
+  specPath = path.join(repoRoot, "standards", "codex-starter-authority-map.json")
+} = {}) {
   const errors = [];
+  const spec = loadJsonFile(repoRoot, specPath, errors);
 
-  for (const owner of spec.owners || []) {
-    validateAllowedSections(owner, errors);
-    validateForbidden(owner, errors);
-    validateRequired(owner, errors);
+  if (spec === null) {
+    return {
+      ok: false,
+      errors,
+      checked_files: []
+    };
   }
 
-  const authorityFiles = collectAuthorityFiles();
-  validateDuplicateRules(spec, authorityFiles, errors);
-  validateAuthorityKeywords(spec, authorityFiles, errors);
+  for (const owner of spec.owners || []) {
+    validateAllowedSections(repoRoot, owner, errors);
+    validateForbidden(repoRoot, owner, errors);
+    validateRequired(repoRoot, owner, errors);
+  }
 
-  if (errors.length > 0) {
+  const authorityFiles = collectAuthorityFiles(repoRoot);
+  validateDuplicateRules(repoRoot, spec, authorityFiles, errors);
+  validateAuthorityKeywords(repoRoot, spec, authorityFiles, errors);
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    checked_files: authorityFiles.map((filePath) => relativeRepoPath(repoRoot, filePath))
+  };
+}
+
+function parseArgs(argv) {
+  const options = {};
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === "--repo-root") {
+      options.repoRoot = path.resolve(argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--spec") {
+      options.specPath = path.resolve(argv[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`unknown argument: ${arg}`);
+  }
+
+  return options;
+}
+
+function runCli(argv = process.argv.slice(2)) {
+  let options;
+
+  try {
+    options = parseArgs(argv);
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.stderr.write(
+      "Usage: node scripts/validate-codex-starter-authority.mjs [--repo-root <path>] [--spec <path>]\n"
+    );
+    return 2;
+  }
+
+  const result = validateAuthority(options);
+
+  if (result.errors.length > 0) {
     process.stderr.write("codex-starter authority validation failed:\n");
-    for (const error of errors) {
+    for (const error of result.errors) {
       process.stderr.write(`- ${error}\n`);
     }
-    process.exit(1);
+    return 1;
   }
 
   process.stdout.write("codex-starter authority validation passed\n");
+  return 0;
 }
 
-main();
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  process.exit(runCli());
+}
+
+export { validateAuthority };

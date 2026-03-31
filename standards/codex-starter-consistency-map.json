@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "brief_required_for_coder_and_tester",
+      "intent": "Keep the execution brief mandatory and consistently owned by technical_manager.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "`technical_manager` produces and refreshes `任务实施说明`, which is the execution input for `coder` and `tester`.",
+            "If `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "production and refresh of `任务实施说明`",
+            "if `coder` or `tester` is active, you must produce the latest `任务实施说明` before their work starts"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/coder.toml",
+          "all_of": [
+            "Before implementation, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.",
+            "If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding."
+          ],
+          "none_of": [
+            "plan_path"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/tester.toml",
+          "all_of": [
+            "Before validation, obtain the latest `任务实施说明` (`Implementation Brief`) path from `technical_manager`.",
+            "If the brief path is missing or the brief is unreadable, stop and return blocked to `technical_manager` instead of proceeding."
+          ],
+          "none_of": [
+            "plan_path"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tester_required_after_coder",
+      "intent": "Do not let coder-involved work bypass the required tester handoff.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "If `coder` is active, downstream `tester` handoff is mandatory before settlement or submit.",
+            "Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "once `coder` participates, downstream `tester` handoff is mandatory before settlement or submit"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/coder.toml",
+          "all_of": [
+            "If coder participates, a downstream tester handoff is mandatory before settlement; qc is optional and cannot replace tester."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/tester.toml",
+          "all_of": [
+            "Tester is the required downstream validation owner after coder in any coder-involved chain."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qc_optional_but_not_replacement",
+      "intent": "Keep QC risk-based and downstream of the required tester handoff.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "`qc` is optional by risk or explicit audit need, and cannot replace `tester`."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/coder.toml",
+          "all_of": [
+            "qc is optional and cannot replace tester."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/tester.toml",
+          "all_of": [
+            "QC remains risk-based optional and cannot replace this tester handoff."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/qc/SKILL.md",
+          "all_of": [
+            "in coder-involved chains, QC is considered only after required tester handoff, and that routing decision belongs to `technical_manager`"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "technical_manager_owns_progress_writes",
+      "intent": "Keep progress write ownership aligned across top-level guardrails and routing.",
+      "targets": [
+        {
+          "path": "codex-starter/AGENTS.md",
+          "all_of": [
+            "Only `technical_manager` may write `.codex/progress/**`."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "for long-running technical tasks, `technical_manager` owns `.codex/progress/**` writes and keeps `history` + `current.md` synchronized."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "`technical_manager` is the only execution role that writes `.codex/progress/**`."
+          ]
+        }
+      ]
+    }
+  ]
+}

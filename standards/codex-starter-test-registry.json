@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "budgets": {
+    "max_active_checks": 6,
+    "max_fixture_files": 8,
+    "max_fixture_bytes": 4096
+  },
+  "checks": [
+    {
+      "id": "authority-contract",
+      "type": "contract",
+      "rule_id": "authority-map",
+      "failure_mode": "authority-ownership-drift",
+      "source_paths": [
+        "standards/codex-starter-authority-map.json"
+      ],
+      "owner": "scripts/validate-codex-starter-authority.mjs",
+      "status": "active",
+      "executor": "authority",
+      "proof_fixture_root": "fixtures/codex-starter-dev/authority-invalid",
+      "expected_error_patterns": [
+        "disallowed section heading"
+      ]
+    },
+    {
+      "id": "json-contract-files",
+      "type": "contract",
+      "rule_id": "structured-json-parse",
+      "failure_mode": "invalid-json",
+      "source_paths": [
+        "standards/codex-starter-authority-map.json",
+        "standards/codex-starter-consistency-map.json",
+        "standards/codex-starter-test-registry.json"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "json-parse"
+    },
+    {
+      "id": "consistency-core-rules",
+      "type": "consistency",
+      "rule_id": "core-delivery-consistency",
+      "failure_mode": "cross-file-rule-drift",
+      "source_paths": [
+        "standards/codex-starter-consistency-map.json"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "consistency",
+      "proof_fixture_root": "fixtures/codex-starter-dev/consistency-invalid",
+      "expected_error_patterns": [
+        "missing required pattern"
+      ]
+    },
+    {
+      "id": "meta-test-registry",
+      "type": "meta",
+      "rule_id": "test-registry-health",
+      "failure_mode": "stale-or-bloated-test-assets",
+      "source_paths": [
+        "standards/codex-starter-test-registry.json"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "meta"
+    }
+  ]
+}
