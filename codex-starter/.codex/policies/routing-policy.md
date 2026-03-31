@@ -37,8 +37,11 @@ Plain-language intent should map to the same routes.
 - If `coder` or `tester` lacks a readable `Implementation Brief`, they must return `blocked` to `technical_manager`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or submit.
 - `coder` / `tester` / `qc` report only to `technical_manager` in the technical-delivery line.
+- on first contact, if `.codex/state/repo-context.json` is missing, or `.codex/policies/validation-profile.json` is missing or still `not-set`, `Aide` runs an independent `technical_manager` repository scan and waits before normal routing continues.
+- if the user indicates the repository was initialized, reinitialized, replaced, or reset, `Aide` reruns that scan and replaces `.codex/state/repo-context.json` plus `.codex/policies/validation-profile.json`.
+- repository scan completes only when `technical_manager` returns `status=complete` with both `repo_context` and `validation_profile`.
 - `.codex/policies/validation-profile.json` stays the single repository validation-baseline structure.
-- if `technical_manager` completes repository scan while `.codex/policies/validation-profile.json` is still `not-set`, `technical_manager` returns the initial baseline proposal to `Aide`.
+- the first repository scan writes `.codex/policies/validation-profile.json` directly and moves `status` from `not-set` to `draft`.
 - `tester` completes task-level validation against repository reality, reports unfinished checks with reasons, and sends baseline refresh feedback to `technical_manager` only for reusable repository-level gaps in `.codex/policies/validation-profile.json`.
 - `technical_manager` evaluates tester baseline refresh feedback and decides whether a refresh proposal should be returned to `Aide` against the current `.codex/policies/validation-profile.json` structure.
 - `Aide` reviews `technical_manager` refresh proposals and writes approved repository-baseline updates to `.codex/policies/validation-profile.json`.
@@ -61,11 +64,17 @@ Plain-language intent should map to the same routes.
 4. if outcome is `product`, hand off to `architect`.
 5. `technical_manager`: enter technical-delivery line after `product_manager` `skip` or `architect` output.
 
+### Repository Initialization Scan
+
+1. `Aide`: on first contact if `.codex/state/repo-context.json` is missing, or `.codex/policies/validation-profile.json` is missing or still `not-set`, or if the user indicates repository initialization/reset semantics, launch the independent repository scan and wait.
+2. `technical_manager`: run the low-context repository scan and return `status` plus `repo_context` and `validation_profile`.
+3. `Aide`: treat the scan as complete only when `status=complete` and both artifacts exist, then immediately write `.codex/state/repo-context.json` and `.codex/policies/validation-profile.json`.
+
 ### Technical-Delivery Line
 
 1. `Aide`, `product_manager` `skip`, or upstream `architect` output enters `technical_manager`.
 2. `technical_manager`: preconditions, conflict scan, and the `Implementation Brief`.
-3. if `.codex/policies/validation-profile.json` is still `not-set`, `technical_manager` returns the initial baseline proposal to `Aide`.
+3. if repository initialization artifacts are missing, run the independent repository scan before coder/tester work begins.
 4. `coder`: implement against the latest `Implementation Brief`.
 5. `tester`: validate against the same `Implementation Brief`.
 6. if tester reports baseline refresh feedback, `technical_manager` decides whether to return a refresh proposal to `Aide`.
@@ -162,6 +171,7 @@ Environment setup decisions and preparation belong to `technical_manager`.
 - `.codex/state/submit-preferences.json`: repo-local submit preferences
 - `.codex/state/*.demo.json`: versioned structure examples for runtime state files
 - `.codex/policies/delivery-policy.json`: commit, push, notification, CI, release, and fallback policy
+- `.codex/state/repo-context.json`: repository initialization snapshot and cached repo facts
 - `.codex/policies/validation-profile.json`: validation commands and constraints
 - `.codex/progress/active/<task-id>/current.md`: primary long-running snapshot per active task
 - `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only long-running progress events

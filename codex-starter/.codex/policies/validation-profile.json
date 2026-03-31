@@ -19,6 +19,7 @@
     "baseline_refresh_feedback_reported_by": "tester",
     "notes": [
       "Aide maintains this file as the repository validation baseline and writes approved updates.",
+      "The first repository scan should write the initial baseline directly and move status from not-set to draft.",
       "technical_manager reads the current file structure, gathers repository validation facts, evaluates tester refresh feedback, and prepares refresh proposals against the same fields.",
       "tester chooses task-level feature validation from requirements and real repository evidence.",
       "tester completes the current task-level validation as far as repository reality allows, reports unfinished items with reasons, and sends baseline refresh feedback through technical_manager only for reusable repository-level gaps in this baseline.",

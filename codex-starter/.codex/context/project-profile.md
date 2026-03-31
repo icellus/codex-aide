@@ -6,6 +6,7 @@ This file is not runtime authority.
 Related runtime files:
 
 - `.codex/state/task-context.json`
+- `.codex/state/repo-context.json`
 - `.codex/state/submit-preferences.json`
 - `.codex/policies/validation-profile.json`
 
@@ -13,14 +14,18 @@ Routing policy lives in `.codex/policies/routing-policy.md`.
 
 ## Project Facts
 
+- Repo root:
+- Repo scan reason:
 - Repo scan status: not-scanned
 - Project type: Unknown
 - Scale: Unknown
 - Primary languages:
 - Frameworks:
 - Repo shape:
-- CI or deployment signals:
-- Release path:
+- Key paths:
+- Entrypoints:
+- CI signals:
+- Release signals:
 - Validation signals:
 - Notes:
 

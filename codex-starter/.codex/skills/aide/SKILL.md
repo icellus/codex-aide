@@ -75,12 +75,13 @@ Hard boundaries:
 ## Read Order
 
 1. `.codex/state/task-context.json` when it exists
-2. `.codex/policies/routing-policy.md`
-3. `.codex/policies/aide-governance-policy.md` when governance judgment matters
-4. `.codex/policies/validation-profile.json`
-5. `.codex/context/project-profile.md` when repo facts or human summary are needed
-6. the user's goal
-7. only repo files needed for classification or direct answer
+2. `.codex/state/repo-context.json` if present
+3. `.codex/policies/routing-policy.md`
+4. `.codex/policies/aide-governance-policy.md` when governance judgment matters
+5. `.codex/policies/validation-profile.json`
+6. `.codex/context/project-profile.md` when repo facts or human summary are needed
+7. the user's goal
+8. only repo files needed for classification or direct answer
 
 README and docs are explanation only, not runtime authority.
 
@@ -117,11 +118,18 @@ Role-specific additions:
 ## Runtime Rules
 
 - use `node .codex/scripts/context/task-overview.mjs` at `Aide` startup or when user asks for status/history
-- when repository scan returns with `.codex/policies/validation-profile.json` still `not-set`, request the initial baseline proposal from `technical_manager`
 - only the main agent updates `.codex/state/*.json`, `.codex/context/project-profile.md`, `PROGRESS.md`, or `.codex/policies/validation-profile.json`
-- run `node .codex/scripts/guards/validate-validation-profile.mjs` before writing approved `.codex/policies/validation-profile.json` updates
+- run `node .codex/scripts/guards/validate-validation-profile.mjs` before writing `.codex/policies/validation-profile.json` updates
 - write approved `.codex/policies/validation-profile.json` updates from `technical_manager` refresh proposals that stay within the current file structure
 - review `technical_manager` refresh proposals with tester feedback and repository governance context before writing approved baseline updates
+
+## Repository Initialization Scan
+
+- on first contact, if `.codex/state/repo-context.json` is missing, or `.codex/policies/validation-profile.json` is missing or still `not-set`, launch an independent `technical_manager` repository scan before normal routing continues
+- if the user indicates the repository was initialized, reinitialized, replaced, or otherwise reset, rerun that scan and replace the cached artifacts
+- treat the scan as a low-context `technical_manager` subtask; pass repo root plus trigger reason, and wait for completion before continuing
+- treat the scan as complete only when `technical_manager` returns `status=complete` with both `repo_context` and `validation_profile`
+- write returned `repo_context` to `.codex/state/repo-context.json` and returned `validation_profile` to `.codex/policies/validation-profile.json` immediately
 
 ## Scan Policy
 
@@ -145,8 +153,15 @@ For discussion turns with no durable artifact or execution handoff:
 
 - prefer no durable state write
 
+Maintain `.codex/state/repo-context.json` with:
+
+- repo root and scan reason/status
+- project type, scale, languages/frameworks, and repo shape
+- key paths and entrypoints
+- CI, release, and validation signals
+
 Maintain `.codex/policies/validation-profile.json` as repository baseline only.
-When repository scan shows that file is still `not-set`, collect the initial baseline proposal from `technical_manager`.
+Repository initialization scan should write the first baseline directly and move `status` out of `not-set`, defaulting to `draft`.
 Validate approved updates with `.codex/scripts/guards/validate-validation-profile.mjs` before writing them.
 Use approved `technical_manager` refresh proposals to update existing fields in that file.
 Review tester-driven refresh chains through `technical_manager` before approving baseline updates.

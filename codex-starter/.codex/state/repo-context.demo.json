@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "generated_at": null,
+  "repo_root": "",
+  "scan_reason": "",
+  "scan_status": "not-scanned",
+  "project_type": "Unknown",
+  "scale": "Unknown",
+  "primary_languages": [],
+  "frameworks": [],
+  "repo_shape": "",
+  "key_paths": [],
+  "entrypoints": [],
+  "ci_signals": [],
+  "release_signals": [],
+  "validation_signals": [],
+  "notes": []
+}
