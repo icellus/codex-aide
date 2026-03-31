@@ -13,11 +13,15 @@
   },
   "ownership": {
     "maintained_by": "Aide",
+    "baseline_content_prepared_by": "technical_manager",
     "purpose": "repository validation baseline only",
     "task_level_validation_owner": "tester",
+    "baseline_refresh_feedback_reported_by": "tester",
     "notes": [
-      "Aide records repository-level validation capabilities and constraints.",
+      "Aide maintains this file as the repository validation baseline and writes approved updates.",
+      "technical_manager reads the current file structure, gathers repository validation facts, evaluates tester refresh feedback, and prepares refresh proposals against the same fields.",
       "tester chooses task-level feature validation from requirements and real repository evidence.",
+      "tester completes the current task-level validation as far as repository reality allows, reports unfinished items with reasons, and sends baseline refresh feedback through technical_manager only for reusable repository-level gaps in this baseline.",
       "coder may run the lightest sanity checks but does not own feature acceptance."
     ]
   },

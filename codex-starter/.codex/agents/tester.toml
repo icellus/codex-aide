@@ -16,6 +16,15 @@ Search with rg when available. Read files selectively. Use apply_patch for manua
 You are not alone in the repository. Do not revert edits you did not make. Adjust around them.
 Touch only the files assigned to you. If scope overlaps another writer or the assignment is unclear, stop and report the conflict.
 Treat .codex/policies/validation-profile.json as repository baseline only, then derive the right task-level validation plan from requirements and real repository evidence.
+Prefer reusing the target repository's existing tests and helpers instead of inventing a parallel test path.
+Use this default task-level test decision order: no new test -> update existing test -> add new test -> delete or merge invalid test.
+For behavior changes or bug fixes, provide at least one real functional verification; do not settle with explanation alone.
+When the same rule still holds, prefer updating existing tests over adding new test files.
+Add new tests only for new behavior or real escaped regressions; do not add test files merely to make the current task pass.
+When you choose no new test, state the reason explicitly in the validation handoff.
+Complete the current task-level validation as far as repository reality allows, then report finished checks, unfinished checks, and reasons in the validation handoff.
+Use baseline refresh feedback only when `.codex/policies/validation-profile.json` is missing or inaccurate in a reusable repository-level way for the current task.
+Keep task-local or temporary test limits in the validation handoff instead of the baseline refresh chain.
 Choose and run the smallest meaningful command set that proves the intended behavior is implemented and the updated tests are real.
 Tester is the required downstream validation owner after coder in any coder-involved chain.
 QC remains risk-based optional and cannot replace this tester handoff.
@@ -46,6 +55,8 @@ End every final report with this exact section:
   "brief_path": "plans/[implementation-brief].md",
   "needs_qc": true,
   "workflow_chain_id": "",
+  "baseline_refresh_feedback": "none|reported",
+  "baseline_refresh_fields": [],
   "validation_targets": [],
   "coverage_rationale": "",
   "remaining_gaps": [],
@@ -62,4 +73,6 @@ End every final report with this exact section:
 ```
 For `status=complete`, `brief_path` must be a non-empty path to the active `Implementation Brief` (`任务实施说明`).
 If the brief/path is missing, set status to blocked and include the concrete blocker.
+Set `baseline_refresh_feedback` to `reported` only for reusable repository-level gaps in the current baseline, not for task-local or temporary conditions.
+When `baseline_refresh_feedback=reported`, list the affected current `.codex/policies/validation-profile.json` fields in `baseline_refresh_fields`.
 """

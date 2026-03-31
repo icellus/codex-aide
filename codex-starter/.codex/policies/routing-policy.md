@@ -37,6 +37,11 @@ Plain-language intent should map to the same routes.
 - If `coder` or `tester` lacks readable `任务实施说明`, they must return `blocked` to `technical_manager`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or submit.
 - `coder` / `tester` / `qc` report only to `technical_manager` in the technical-delivery line.
+- `.codex/policies/validation-profile.json` stays the single repository validation-baseline structure.
+- if `technical_manager` completes repository scan while `.codex/policies/validation-profile.json` is still `not-set`, `technical_manager` returns the initial baseline proposal to `Aide`.
+- `tester` completes task-level validation against repository reality, reports unfinished checks with reasons, and sends baseline refresh feedback to `technical_manager` only for reusable repository-level gaps in `.codex/policies/validation-profile.json`.
+- `technical_manager` evaluates tester baseline refresh feedback and decides whether a refresh proposal should be returned to `Aide` against the current `.codex/policies/validation-profile.json` structure.
+- `Aide` reviews `technical_manager` refresh proposals and writes approved repository-baseline updates to `.codex/policies/validation-profile.json`.
 - After required `tester` handoff in coder-involved work, `technical_manager` decides whether `qc` is needed.
 - `qc` is optional by risk or explicit audit need, and cannot replace `tester`.
 - `submit` is the governed delivery step after required validation gates.
@@ -60,10 +65,12 @@ Plain-language intent should map to the same routes.
 
 1. `Aide`, `product_manager` `skip`, or upstream `architect` output enters `technical_manager`.
 2. `technical_manager`: preconditions, conflict scan, and `任务实施说明`.
-3. `coder`: implement against the latest `任务实施说明`.
-4. `tester`: validate against the same `任务实施说明`.
-5. optional `qc`: independent audit when risk/policy requires.
-6. optional `submit`: governed commit/push/follow-through.
+3. if `.codex/policies/validation-profile.json` is still `not-set`, `technical_manager` returns the initial baseline proposal to `Aide`.
+4. `coder`: implement against the latest `任务实施说明`.
+5. `tester`: validate against the same `任务实施说明`.
+6. if tester reports baseline refresh feedback, `technical_manager` decides whether to return a refresh proposal to `Aide`.
+7. optional `qc`: independent audit when risk/policy requires.
+8. optional `submit`: governed commit/push/follow-through.
 
 Do not skip `任务实施说明` production when `coder` or `tester` is active.
 
