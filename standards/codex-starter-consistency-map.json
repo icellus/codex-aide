@@ -127,6 +127,73 @@
       ]
     },
     {
+      "id": "task_lifecycle_status_alignment",
+      "intent": "Keep hot-task lifecycle semantics aligned across routing, state shape, and long-running progress templates.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "Terminal task statuses are `completed` and `cancelled` only.",
+            "Do not infer completion from silence, missing follow-up, or session end.",
+            "If a session stops while task status is `active`, `handoff`, or `blocked`, runtime hooks should record an interruption timestamp instead of changing task status.",
+            "Starting a new hot task while another non-terminal task is still open should retire the previous hot task into `recent_tasks` by default as `paused`.",
+            "if `.codex/state/task-context.json` marks `sticky_owner=technical_manager`, same-task source-code follow-up should stay on the technical-delivery line by default even when phrased as Q&A.",
+            "sticky owner means role-line continuity, not a requirement to keep the same subagent process alive across turns.",
+            "`node .codex/scripts/context/task-reconcile.mjs` is the startup helper for interrupted hot-task review. It may suggest resume or settle, but must not auto-complete tasks.",
+            "`node .codex/scripts/context/task-progress-sync.mjs`: read-only helper that reports drift between hot task state and long-running `current.md`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/aide/SKILL.md",
+          "all_of": [
+            "use `node .codex/scripts/context/task-state.mjs` for routed-task lifecycle changes in `.codex/state/task-context.json`.",
+            "when the next action depends on explicit user clarification or choice, set `status=waiting_user` instead of `blocked`.",
+            "before final closeout of a tracked task, write `status=completed` or `status=cancelled`; do not let session end imply completion.",
+            "when the user clearly starts a new task, retire the previous open hot task into `recent_tasks` by default as `paused`.",
+            "when the current hot task carries `sticky_owner=technical_manager`, keep `Aide` user-facing but preserve technical follow-up ownership on the technical-delivery line.",
+            "use `node .codex/scripts/context/task-reconcile.mjs` at startup or resume to surface interrupted-task follow-up guidance without auto-settling the task."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "update `.codex/state/task-context.json` through `node .codex/scripts/context/task-state.mjs` when technical delivery starts, changes handoff owner, becomes blocked or `waiting_user`, resumes, or settles.",
+            "use `waiting_user` when the next move depends on user clarification or decision; reserve `blocked` for repository, environment, or execution constraints the system still owns.",
+            "before final technical closeout, set `completed` or `cancelled` explicitly; do not let session stop imply completion.",
+            "before switching the hot slot to another task, retire the current non-terminal task into `recent_tasks` by default as `paused`.",
+            "when the hot task is in source-code technical follow-up, keep `sticky_owner=technical_manager` until the task settles or re-triage moves ownership elsewhere.",
+            "when long-running tracking is active, use `node .codex/scripts/context/task-progress-sync.mjs` as the read-only drift check between hot task state and `.codex/progress/**`."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/state/task-context.demo.json",
+          "all_of": [
+            "\"task_id\": \"\"",
+            "\"checkpoint\": \"none\"",
+            "\"sticky_owner\": \"\"",
+            "\"sticky_reason\": \"\"",
+            "\"sticky_since\": null",
+            "\"waiting_on\": \"none\"",
+            "\"interrupted_at\": null",
+            "\"finished_at\": null",
+            "\"recent_tasks\": []"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/templates/progress/current.md",
+          "all_of": [
+            "- Status: `active|handoff|blocked|waiting_user|paused|parked|completed|cancelled`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/templates/progress/release.md",
+          "all_of": [
+            "- Status: `active|handoff|blocked|waiting_user|paused|parked|completed|cancelled`"
+          ]
+        }
+      ]
+    },
+    {
       "id": "implementation_brief_path_convention",
       "intent": "Keep Implementation Brief examples and handoff paths slugged, space-free, and clearly separated from the document title.",
       "targets": [

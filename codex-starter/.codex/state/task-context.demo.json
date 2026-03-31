@@ -8,6 +8,7 @@
   },
   "task": {
     "current_task": "",
+    "task_id": "",
     "status": "idle",
     "class": "unknown",
     "risk": "unknown",
@@ -19,6 +20,26 @@
     "qc_policy": "disabled",
     "submit_policy": "enabled",
     "validation_profile_status": "not-set",
-    "open_questions": []
-  }
+    "open_questions": [],
+    "checkpoint": "none",
+    "next_step": "",
+    "next_owner": "",
+    "sticky_owner": "",
+    "sticky_reason": "",
+    "sticky_since": null,
+    "waiting_on": "none",
+    "blocked_reason": "",
+    "completion_reason": "",
+    "implementation_brief_path": "",
+    "progress_path": "",
+    "created_at": null,
+    "started_at": null,
+    "updated_at": null,
+    "paused_at": null,
+    "interrupted_at": null,
+    "finished_at": null,
+    "last_event": "none",
+    "last_actor": ""
+  },
+  "recent_tasks": []
 }

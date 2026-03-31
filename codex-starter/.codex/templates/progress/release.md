@@ -17,7 +17,7 @@ This file is the task-local `current.md` snapshot, not a root-level aggregate pr
 - Task ID: `<task-id>`
 - Release Goal: [version, milestone, or deployment objective]
 - Delivery Mode: `long-running`
-- Status: `active|handoff|blocked|parked|completed`
+- Status: `active|handoff|blocked|waiting_user|paused|parked|completed|cancelled`
 - Current Checkpoint: `readiness|pre-release-checks|promote|follow-through|close`
 - Owner: `technical_manager`
 - Active Roles / Modules: `technical_manager`, [others or main agent]

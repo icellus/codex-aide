@@ -3,7 +3,7 @@
 This file is the routing authority.
 
 `Aide` role definition and triage semantics are owned by `.codex/skills/aide/SKILL.md`.
-`.codex/state/task-context.json` records current route and checkpoints.
+`.codex/state/task-context.json` records current route, lifecycle status, and checkpoints.
 
 Named route labels such as `Aide`, `qc`, and `submit` are optional affordances.
 Plain-language intent should map to the same routes.
@@ -24,6 +24,7 @@ Plain-language intent should map to the same routes.
 - Keep `lightweight` as the default for small, local, low-risk work.
 - Keep discussion, Q&A, option comparison, and recommendation-only analysis in `Aide`.
 - `Aide` selects first hop by deliverable type and scope stability.
+- `Aide` remains the user-facing integrator even when hot-task follow-up ownership is sticky to another role line.
 - `product_manager` is the product-definition owner; it does not route back to `Aide`.
 - In the product-definition line:
   - `skip` outcome continues to `technical_manager`.
@@ -33,6 +34,8 @@ Plain-language intent should map to the same routes.
 - `technical_manager` must not directly route to `product_manager`.
 - `product_assistant` receives non-code delivery work from `Aide` and returns results to `Aide`.
 - `product_assistant` should not auto-enter the submit path; only explicit user intent enables governed submit for non-code work.
+- if `.codex/state/task-context.json` marks `sticky_owner=technical_manager`, same-task source-code follow-up should stay on the technical-delivery line by default even when phrased as Q&A.
+- sticky owner means role-line continuity, not a requirement to keep the same subagent process alive across turns.
 - `technical_manager` produces and refreshes the `Implementation Brief`, which is the execution input for `coder` and `tester`.
 - If `coder` or `tester` lacks a readable `Implementation Brief`, they must return `blocked` to `technical_manager`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or submit.
@@ -53,6 +56,26 @@ Plain-language intent should map to the same routes.
 - if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
 - for long-running technical tasks, `technical_manager` owns `.codex/progress/**` writes and keeps `history` + `current.md` synchronized.
 - progress trigger events are fixed: `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, `completed`.
+
+## Task Lifecycle
+
+- `.codex/state/task-context.json` is the single hot-task lifecycle record.
+- `sticky_owner` records which role line should handle same-task follow-up by default.
+- Terminal task statuses are `completed` and `cancelled` only.
+- `idle` means no tracked routed task is currently open.
+- `active` means the current owner is working the task without an unresolved external dependency.
+- `handoff` means the next action belongs to another enabled role in the current chain.
+- `blocked` means repository, environment, or execution constraints prevent progress without internal resolution.
+- `waiting_user` means the next move depends on explicit user clarification or decision.
+- `paused` means the task was explicitly parked and should remain resumable outside the hot slot.
+- Do not infer completion from silence, missing follow-up, or session end.
+- If a session stops while task status is `active`, `handoff`, or `blocked`, runtime hooks should record an interruption timestamp instead of changing task status.
+- Starting a new hot task while another non-terminal task is still open should retire the previous hot task into `recent_tasks` by default as `paused`.
+- Use explicit retirement only when the previous hot task should instead be recorded as `completed` or `cancelled`.
+- `.codex/state/task-context.json` may keep a small bounded `recent_tasks` parking list for explicitly retired hot tasks; this is not a full historical registry.
+- `node .codex/scripts/context/task-reconcile.mjs` is the startup helper for interrupted hot-task review. It may suggest resume or settle, but must not auto-complete tasks.
+- Use `completed` only after the active route satisfies its required delivery and validation gates, or the requested non-code output is truly delivered.
+- Use `cancelled` only for explicit abandonment, supersession, or user cancellation.
 
 ## Delivery Chains
 
@@ -177,6 +200,7 @@ Environment setup decisions and preparation belong to `technical_manager`.
 - `.codex/progress/active/<task-id>/current.md`: primary long-running snapshot per active task
 - `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only long-running progress events
 - `.codex/progress/archive/<task-id>/...`: archived progress records for completed/closed tasks
+- `node .codex/scripts/context/task-progress-sync.mjs`: read-only helper that reports drift between hot task state and long-running `current.md`
 - `PROGRESS.md`: legacy optional note only, never the primary runtime progress source
 - `.codex/context/project-profile.md`: human-readable repository summary and durable notes for people
 

@@ -21,6 +21,7 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 - environment setup decisions and preparation
 - staged chain management across `architect`, `coder`, `tester`, optional `qc`, and optional `submit`
 - conflict control across write-capable roles
+- hot-task lifecycle updates for technical delivery
 - progress ownership under `.codex/progress/**` for `current.md` + `history/*.md` sync
 
 ## Read Order
@@ -64,6 +65,7 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 - whether tester refresh feedback indicates a repository-baseline update for `.codex/policies/validation-profile.json`
 - whether repository scan should produce the first `.codex/policies/validation-profile.json` baseline or refresh the current one
 - whether to escalate back to `Aide` for re-triage when ownership is not technical or scope is not execution-ready
+- whether same-task source-code follow-up should stay sticky on `technical_manager`
 
 ## Mandatory Chain Rules
 
@@ -85,6 +87,14 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 - `qc` is optional and cannot replace required `tester`
 - `submit` runs only after validation gates are satisfied
 - if scope/ownership mismatch prevents technical continuation, escalate to `Aide`; do not route directly to `product_manager` or `product_assistant`
+- update `.codex/state/task-context.json` through `node .codex/scripts/context/task-state.mjs` when technical delivery starts, changes handoff owner, becomes blocked or `waiting_user`, resumes, or settles.
+- use `waiting_user` when the next move depends on user clarification or decision; reserve `blocked` for repository, environment, or execution constraints the system still owns.
+- before final technical closeout, set `completed` or `cancelled` explicitly; do not let session stop imply completion.
+- before switching the hot slot to another task, retire the current non-terminal task into `recent_tasks` by default as `paused`.
+- use explicit retirement only when repository evidence justifies recording the previous hot task as `completed` or `cancelled`.
+- when the hot task is in source-code technical follow-up, keep `sticky_owner=technical_manager` until the task settles or re-triage moves ownership elsewhere.
+- treat sticky owner as role continuity, not a requirement to keep one long-lived subagent process alive.
+- when long-running tracking is active, use `node .codex/scripts/context/task-progress-sync.mjs` as the read-only drift check between hot task state and `.codex/progress/**`.
 
 ## Progress Write Rules (Mandatory)
 
@@ -94,6 +104,8 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 - on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md` in the same update cycle.
 - on `completed`, keep the final snapshot + history coherent, then move the task record to `.codex/progress/archive/<task-id>/...`.
 - `.codex/templates/progress/current.md` and `.codex/templates/progress/release.md` are `current.md` templates; `.codex/templates/progress/history.md` is the history-entry template.
+- if a session stops before an `active`, `handoff`, or `blocked` task is explicitly settled, expect runtime hooks to record interruption only; on the next session, either resume the same hot task or retire it explicitly before switching.
+- if startup reconcile suggests the hot task might already be completed externally, confirm the evidence and then settle the task explicitly; do not rely on the reconcile helper to auto-complete it.
 
 ## Capability Rules
 

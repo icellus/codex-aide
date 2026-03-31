@@ -105,6 +105,7 @@ Role-specific additions:
 ## Routing And Coordination
 
 - keep `Aide` as direct owner for lightweight discussion, Q&A, tradeoff analysis, and recommendation-only tasks
+- when the current hot task carries `sticky_owner=technical_manager`, keep `Aide` user-facing but preserve technical follow-up ownership on the technical-delivery line.
 - maintain a single active routing decision per checkpoint
 - re-triage when downstream ownership mismatch is reported
 - keep user-facing updates concise: next owner, next step, short reason
@@ -119,11 +120,15 @@ Role-specific additions:
 ## Runtime Rules
 
 - use `node .codex/scripts/context/task-overview.mjs` at `Aide` startup or when user asks for status/history
+- use `node .codex/scripts/context/task-reconcile.mjs` at startup or resume to surface interrupted-task follow-up guidance without auto-settling the task.
+- use `node .codex/scripts/context/task-progress-sync.mjs` as a read-only reminder when a long-running hot task may have drifted from `.codex/progress/**`.
+- use `node .codex/scripts/context/task-state.mjs` for routed-task lifecycle changes in `.codex/state/task-context.json`.
 - only the main agent updates `.codex/state/*.json`, `.codex/context/project-profile.md`, `PROGRESS.md`, or `.codex/policies/validation-profile.json`
 - run `node .codex/scripts/guards/validate-validation-profile.mjs` before writing `.codex/policies/validation-profile.json` updates
 - use `node .codex/scripts/governance/writeback.mjs` for accepted generic governance auto-fix attempts
 - write approved `.codex/policies/validation-profile.json` updates from `technical_manager` refresh proposals that stay within the current file structure
 - review `technical_manager` refresh proposals with tester feedback and repository governance context before writing approved baseline updates
+- before final closeout of a tracked task, write `status=completed` or `status=cancelled`; do not let session end imply completion.
 
 ## Repository Initialization Scan
 
@@ -147,6 +152,10 @@ Maintain `.codex/state/task-context.json` with:
 - active modules and roles
 - QC and submit policy
 - open questions and collaboration preferences
+- checkpoint, next step, next owner, and `waiting_on`
+- `sticky_owner`, `sticky_reason`, and `sticky_since` for same-task follow-up continuity
+- lifecycle timestamps plus blocker or completion reason when relevant
+- bounded `recent_tasks` entries for explicitly retired hot tasks only
 
 Treat `.codex/state/*.demo.json` as structure examples only.
 Use `.codex/state/*.json` as runtime state and `.codex/context/project-profile.md` as repo summary context.
@@ -154,6 +163,16 @@ Use `.codex/state/*.json` as runtime state and `.codex/context/project-profile.m
 For discussion turns with no durable artifact or execution handoff:
 
 - prefer no durable state write
+
+For routed or otherwise durable tasks:
+
+- when the next action depends on explicit user clarification or choice, set `status=waiting_user` instead of `blocked`.
+- when the task enters routed delivery, changes checkpoint/owner in a durable way, becomes blocked, or is settled, update `.codex/state/task-context.json` through `node .codex/scripts/context/task-state.mjs`.
+- if the session stops before an `active`, `handoff`, or `blocked` task is explicitly settled, the Stop hook should record interruption only; treat the next session as resume-or-retire, not auto-complete.
+- when startup reconcile suggests `review-if-completed`, ask for the shortest explicit confirmation needed to settle or continue the current task.
+- when the user clearly starts a new task, retire the previous open hot task into `recent_tasks` by default as `paused`.
+- only force an explicit retirement choice when you have repository evidence that the previous hot task should be recorded as `completed` or `cancelled` instead of silently parked.
+- treat `sticky_owner` as role continuity only. Do not assume the same physical subagent session must stay alive across turns.
 
 Maintain `.codex/state/repo-context.json` with:
 

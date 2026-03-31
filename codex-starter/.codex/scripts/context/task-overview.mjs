@@ -6,6 +6,7 @@ import path from "node:path";
 import { getProjectContext } from "../shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
+import { isTerminalTaskStatus, readTaskContext } from "../shared/task-context.mjs";
 
 function normalizeText(value) {
   return String(value || "").replace(/\r/g, "").trim();
@@ -19,64 +20,153 @@ function compactText(value, maxLength = 80) {
   return `${normalized.slice(0, maxLength - 3)}...`;
 }
 
-function readJsonFile(filePath) {
-  if (!fs.existsSync(filePath)) {
-    return null;
+function readProfileField(text, label) {
+  const prefix = `- ${label}:`;
+  const line = String(text || "")
+    .split(/\r?\n/)
+    .find((entry) => entry.startsWith(prefix));
+  if (!line) {
+    return "";
   }
 
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch {
-    return null;
-  }
+  return line.slice(prefix.length).trim();
 }
 
 function loadCurrentTask(projectDir) {
-  const runtimePath = path.join(projectDir, ".codex", "state", "task-context.json");
-  const runtimeState = readJsonFile(runtimePath);
+  const taskContext = readTaskContext(projectDir);
+  const task = taskContext?.task && typeof taskContext.task === "object" ? taskContext.task : null;
+  const title = normalizeText(task?.current_task);
+  if (!title) {
+    return {
+      currentTask: loadTaskFromProfile(projectDir),
+      recentTasks: Array.isArray(taskContext?.recent_tasks) ? taskContext.recent_tasks : []
+    };
+  }
 
-  if (!runtimeState) {
+  return {
+    currentTask: {
+      title,
+      status: normalizeText(task.status) || "unknown",
+      deliveryMode: normalizeText(task.delivery_mode) || "",
+      routeRationale: normalizeText(task.route_rationale) || "",
+      checkpoint: normalizeText(task.checkpoint) || "",
+      nextStep: normalizeText(task.next_step) || "",
+      nextOwner: normalizeText(task.next_owner) || "",
+      stickyOwner: normalizeText(task.sticky_owner) || "",
+      stickyReason: normalizeText(task.sticky_reason) || "",
+      waitingOn: normalizeText(task.waiting_on) || "",
+      blockedReason: normalizeText(task.blocked_reason) || "",
+      completionReason: normalizeText(task.completion_reason) || "",
+      interruptedAt: normalizeText(task.interrupted_at) || "",
+      openQuestions: Array.isArray(task.open_questions)
+        ? task.open_questions.map((item) => normalizeText(item)).filter(Boolean)
+        : []
+    },
+    recentTasks: Array.isArray(taskContext?.recent_tasks) ? taskContext.recent_tasks : []
+  };
+}
+
+function loadTaskFromProfile(projectDir) {
+  const profilePath = path.join(projectDir, ".codex", "context", "project-profile.md");
+  if (!fs.existsSync(profilePath)) {
     return null;
   }
 
-  const task = runtimeState?.task && typeof runtimeState.task === "object" ? runtimeState.task : null;
-  if (!task) {
-    return null;
-  }
-
-  const title = normalizeText(task.current_task);
+  const profileText = fs.readFileSync(profilePath, "utf8");
+  const title = normalizeText(readProfileField(profileText, "Current task")).replace(/^`|`$/g, "");
   if (!title) {
     return null;
   }
 
   return {
     title,
-    status: normalizeText(task.status) || "unknown",
-    deliveryMode: normalizeText(task.delivery_mode) || "",
-    routeRationale: normalizeText(task.route_rationale) || "",
-    openQuestions: Array.isArray(task.open_questions)
-      ? task.open_questions.map((item) => normalizeText(item)).filter(Boolean)
-      : []
+    status: normalizeText(readProfileField(profileText, "Task status")).replace(/^`|`$/g, "") || "unknown",
+    deliveryMode:
+      normalizeText(readProfileField(profileText, "Selected delivery mode")).replace(/^`|`$/g, "") || "",
+    routeRationale: normalizeText(readProfileField(profileText, "Route rationale")),
+    checkpoint: "",
+    nextStep: "",
+    nextOwner: "",
+    stickyOwner: "",
+    stickyReason: "",
+    waitingOn: "",
+    blockedReason: "",
+    completionReason: "",
+    openQuestions: normalizeText(readProfileField(profileText, "Open questions"))
+      .split(",")
+      .map((item) => normalizeText(item))
+      .filter(Boolean)
   };
 }
 
-function formatTaskLine(task) {
+function formatTaskLine(prefix, task) {
   const parts = [];
   const status = String(task.status || "unknown").toLowerCase();
-  parts.push(`Current task: ${task.title || "Untitled task"}`);
+  parts.push(`${prefix}: ${task.title || "Untitled task"}`);
   parts.push(`[${status}]`);
 
   if (task.deliveryMode) {
     parts.push(`mode=${task.deliveryMode}`);
   }
 
-  if (task.routeRationale) {
+  if (task.checkpoint) {
+    parts.push(`checkpoint=${task.checkpoint}`);
+  }
+
+  if (task.nextOwner) {
+    parts.push(`owner=${compactText(task.nextOwner, 40)}`);
+  }
+
+  if (task.stickyOwner && task.stickyOwner !== "Aide") {
+    parts.push(`followup=${task.stickyOwner}`);
+  }
+
+  if (task.nextStep && !isTerminalTaskStatus(task.status)) {
+    parts.push(`next=${compactText(task.nextStep, 80)}`);
+  }
+
+  if (task.waitingOn && task.waitingOn !== "none") {
+    parts.push(`wait=${task.waitingOn}`);
+  }
+
+  if (task.interruptedAt && !isTerminalTaskStatus(task.status)) {
+    parts.push(`interrupted=${task.interruptedAt}`);
+    parts.push("review=resume-or-retire");
+  }
+
+  if (task.blockedReason && status === "blocked") {
+    parts.push(`blocked=${compactText(task.blockedReason, 80)}`);
+  } else if (task.retireReason && (status === "paused" || status === "parked")) {
+    parts.push(`parked=${compactText(task.retireReason, 80)}`);
+  } else if (task.completionReason && isTerminalTaskStatus(task.status)) {
+    parts.push(`result=${compactText(task.completionReason, 80)}`);
+  } else if (task.routeRationale) {
     parts.push(`reason=${compactText(task.routeRationale, 80)}`);
   } else if (Array.isArray(task.openQuestions) && task.openQuestions.length > 0) {
     parts.push(`question=${compactText(task.openQuestions[0], 80)}`);
   }
 
   return `- ${parts.join(" ")}`;
+}
+
+function formatParkedTaskLine(task) {
+  return formatTaskLine("Parked task", {
+    title: normalizeText(task.current_task),
+    status: normalizeText(task.status) || "paused",
+    deliveryMode: normalizeText(task.delivery_mode) || "",
+    routeRationale: "",
+    checkpoint: normalizeText(task.checkpoint) || "",
+    nextStep: normalizeText(task.next_step) || "",
+    nextOwner: normalizeText(task.next_owner) || "",
+    stickyOwner: normalizeText(task.sticky_owner) || "",
+    stickyReason: normalizeText(task.sticky_reason) || "",
+    waitingOn: normalizeText(task.waiting_on) || "",
+    blockedReason: normalizeText(task.blocked_reason) || "",
+    completionReason: normalizeText(task.retire_reason || task.completion_reason) || "",
+    retireReason: normalizeText(task.retire_reason) || "",
+    interruptedAt: "",
+    openQuestions: []
+  });
 }
 
 async function main() {
@@ -97,13 +187,38 @@ async function main() {
 
   try {
     const requestedStatus = String(input.status || "").trim().toLowerCase();
-    const currentTask = loadCurrentTask(projectDir);
+    const { currentTask, recentTasks } = loadCurrentTask(projectDir);
+    const parkedTasks = recentTasks.filter((item) => String(item?.status || "").toLowerCase() === "paused");
 
     if (requestedStatus === "done" || requestedStatus === "completed") {
-      const lines = [
-        "Task history:",
-        "- Historical task registry is not maintained by the shipped scripts."
-      ];
+      const lines = ["Task history:"];
+      if (currentTask && isTerminalTaskStatus(currentTask.status)) {
+        lines.push(formatTaskLine("Latest settled task", currentTask));
+      } else {
+        const latestSettled = recentTasks.find((item) => isTerminalTaskStatus(item?.status));
+        if (latestSettled) {
+          lines.push(
+            formatTaskLine("Latest settled task", {
+              title: normalizeText(latestSettled.current_task),
+              status: normalizeText(latestSettled.status),
+              deliveryMode: normalizeText(latestSettled.delivery_mode),
+              routeRationale: "",
+              checkpoint: normalizeText(latestSettled.checkpoint),
+              nextStep: "",
+              nextOwner: "",
+              stickyOwner: normalizeText(latestSettled.sticky_owner),
+              stickyReason: normalizeText(latestSettled.sticky_reason),
+              waitingOn: normalizeText(latestSettled.waiting_on),
+              blockedReason: normalizeText(latestSettled.blocked_reason),
+              completionReason: normalizeText(latestSettled.completion_reason || latestSettled.retire_reason),
+              retireReason: "",
+              interruptedAt: "",
+              openQuestions: []
+            })
+          );
+        }
+      }
+      lines.push("- Historical task registry is not maintained by the shipped scripts.");
 
       process.stdout.write(`${lines.join("\n")}\n`);
       logger.finalize({
@@ -115,12 +230,41 @@ async function main() {
       return;
     }
 
+    if (requestedStatus === "parked" || requestedStatus === "paused") {
+      const lines = ["Parked tasks:"];
+      if (parkedTasks.length === 0) {
+        lines.push("- Parked tasks: none");
+      } else {
+        lines.push(`- Parked tasks: ${parkedTasks.length}`);
+        parkedTasks.slice(0, 3).forEach((task) => {
+          lines.push(formatParkedTaskLine(task));
+        });
+      }
+
+      process.stdout.write(`${lines.join("\n")}\n`);
+      logger.finalize({
+        status: "ok",
+        metadata: {
+          mode: "parked",
+          resultCount: parkedTasks.length
+        }
+      });
+      return;
+    }
+
     const lines = ["Task overview:"];
 
     if (currentTask) {
-      lines.push(formatTaskLine(currentTask));
+      lines.push(formatTaskLine("Current task", currentTask));
     } else {
       lines.push("- Current task: none");
+    }
+
+    if (parkedTasks.length > 0) {
+      lines.push(`- Parked tasks: ${parkedTasks.length}`);
+      parkedTasks.slice(0, 2).forEach((task) => {
+        lines.push(formatParkedTaskLine(task));
+      });
     }
 
     process.stdout.write(`${lines.join("\n")}\n`);

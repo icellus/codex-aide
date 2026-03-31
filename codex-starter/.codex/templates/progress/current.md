@@ -18,7 +18,7 @@ If release checkpoints are primary, use `.codex/templates/progress/release.md` f
 - Work Item: [short title]
 - Task Class: `bugfix|feature|product|refactor|exploration`
 - Delivery Mode: `long-running`
-- Status: `active|handoff|blocked|parked|completed`
+- Status: `active|handoff|blocked|waiting_user|paused|parked|completed|cancelled`
 - Current Checkpoint: `align|brief|implement|validate|handoff|close`
 - Owner: `technical_manager`
 - Active Roles / Modules: `technical_manager`, [others or main agent]
@@ -37,7 +37,7 @@ If release checkpoints are primary, use `.codex/templates/progress/release.md` f
 - Summary: [what changed since the previous history entry]
 - Next Step: [single next action]
 - Next Owner: [role]
-- Risks or Blockers: [none or short note]
+- Risks, Blockers, or Waiting User Note: [none or short note]
 
 ## Validation
 
