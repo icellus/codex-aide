@@ -3,7 +3,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ensureDir, getProjectContext, readJsonStdinEnvelope } from "../scripts/runtime-utils.mjs";
+import { ensureDir } from "../scripts/shared/logging.mjs";
+import { getProjectContext } from "../scripts/shared/project-context.mjs";
+import { readJsonStdinEnvelope } from "../scripts/shared/io.mjs";
 
 function cloneJson(value) {
   try {

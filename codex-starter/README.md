@@ -32,7 +32,7 @@ bash /path/to/agent-skills/codex-starter/install.sh
 - `.codex/policies/`
   路由、验证、交付、演进等策略文件。
 - `.codex/scripts/`
-  启动、治理、状态同步、日志分析等脚本。
+  启动任务概览、输入校验与共享运行时辅助脚本。
 - `.codex/hooks/` 与 `.codex/hooks.json`
   仓库级 hooks。
 - `.codex/templates/`

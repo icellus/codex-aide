@@ -75,15 +75,11 @@ Hard boundaries:
 ## Read Order
 
 1. `.codex/state/task-context.json` if present, else `.codex/context/project-profile.md`
-2. `.codex/state/task-registry.json` if present
-3. `.codex/state/governance-registry.json` if present
-4. `.codex/state/repo-context.json` if present
-5. `.codex/policies/routing-policy.md`
-6. `.codex/policies/aide-governance-policy.md` when governance judgment or writeback disposition matters
-7. `.codex/policies/aide-writeback-policy.json` when `G1` automatic guidance writeback thresholds matter
-8. `.codex/policies/validation-profile.json`
-9. the user's goal
-10. only repo files needed for classification or direct answer
+2. `.codex/policies/routing-policy.md`
+3. `.codex/policies/aide-governance-policy.md` when governance judgment matters
+4. `.codex/policies/validation-profile.json`
+5. the user's goal
+6. only repo files needed for classification or direct answer
 
 README and docs are explanation only, not runtime authority.
 
@@ -119,16 +115,12 @@ Role-specific additions:
 
 ## Runtime Rules
 
-- use `node .codex/scripts/task-overview.mjs` at `Aide` startup or when user asks for status/history
-- start `node .codex/scripts/aide-writeback.mjs` at startup as low-cost background sweep when helper automation is available
-- use `node .codex/scripts/aide-governance.mjs` when governance triggers or dedup checks matter
-- use `node .codex/scripts/session-context.mjs` when resuming routed work and reminder refresh helps
+- use `node .codex/scripts/context/task-overview.mjs` at `Aide` startup or when user asks for status/history
 - when repository scan returns with `.codex/policies/validation-profile.json` still `not-set`, request the initial baseline proposal from `technical_manager`
 - only the main agent updates `.codex/state/*.json`, `.codex/context/project-profile.md`, `PROGRESS.md`, or `.codex/policies/validation-profile.json`
 - run `node .codex/scripts/guards/validate-validation-profile.mjs` before writing approved `.codex/policies/validation-profile.json` updates
 - write approved `.codex/policies/validation-profile.json` updates from `technical_manager` refresh proposals that stay within the current file structure
 - review `technical_manager` refresh proposals with tester feedback and repository governance context before writing approved baseline updates
-- after durable outcomes, sync `node .codex/scripts/runtime-state.mjs`
 
 ## Scan Policy
 
@@ -148,21 +140,6 @@ Maintain `.codex/state/task-context.json` with:
 For discussion turns with no durable artifact or execution handoff:
 
 - prefer no durable state write
-- avoid creating registry entries unless the conversation clearly becomes a tracked task
-
-Maintain `.codex/state/task-registry.json` with:
-
-- one current active task at most
-- unfinished historical tasks
-- completed task history for lookup
-- reconciliation when user reports external/manual completion
-
-Maintain `.codex/state/repo-context.json` with:
-
-- scan status
-- languages/frameworks
-- repo shape
-- validation and release signals
 
 Maintain `.codex/policies/validation-profile.json` as repository baseline only.
 When repository scan shows that file is still `not-set`, collect the initial baseline proposal from `technical_manager`.

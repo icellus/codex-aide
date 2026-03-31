@@ -3,9 +3,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { getProjectContext } from "../shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
-import { getProjectContext } from "../shared/project-context.mjs";
 
 const allowedStatuses = new Set(["not-set", "draft", "verified", "needs-refresh"]);
 const baselineKeys = ["smoke", "lint", "typecheck", "build", "unit", "integration", "e2e"];

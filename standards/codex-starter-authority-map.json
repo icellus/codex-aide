@@ -18,16 +18,12 @@
         "## Output Contract",
         "## Structured Result",
         "## Runtime Entrypoints",
-        "startup-context.mjs",
-        "session-context.mjs",
-        "task-overview.mjs",
-        "aide-evolution.mjs",
-        "aide-governance.mjs",
-        "runtime-state.mjs",
-        "validate-git.mjs"
-      ],
-      "forbidden_terms": [
-        "workflow_chain_id"
+        "context/startup.mjs",
+        "context/session.mjs",
+        "context/task-overview.mjs",
+        "governance/writeback.mjs",
+        "governance/audit.mjs",
+        "runtime/state.mjs"
       ]
     },
     {

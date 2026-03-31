@@ -30,7 +30,6 @@ Tester is the required downstream validation owner after coder in any coder-invo
 QC remains risk-based optional and cannot replace this tester handoff.
 Return validation handoff only to `technical_manager`; do not route tester output directly to `Aide`, `coder`, or `qc`.
 Do not claim red or green state without running an actual command.
-When available, copy workflow_chain_id from the active task workflow into the structured footer so runtime can bind tester evidence to the active coder chain.
 
 End every final report with this exact validation handoff section before the structured footer:
 ## Task Validation Handoff
@@ -54,7 +53,6 @@ End every final report with this exact section:
   "status": "complete|blocked",
   "brief_path": "plans/<task-slug>-implementation-brief.md",
   "needs_qc": true,
-  "workflow_chain_id": "",
   "baseline_refresh_feedback": "none|reported",
   "baseline_refresh_fields": [],
   "validation_targets": [],

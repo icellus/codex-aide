@@ -5,7 +5,6 @@
 **Execution Input Type**: `Implementation Brief`
 **Scope**: [task, feature, or brief item]
 **Status**: ready-for-qc|ready-for-technical-manager|blocked
-**Workflow Chain ID**: [workflow_chain_id from active workflow, or `none` when not applicable]
 
 ---
 

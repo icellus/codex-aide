@@ -5,7 +5,6 @@ Human-readable summary for the starter.
 Hot runtime files:
 
 - `.codex/state/task-context.json`
-- `.codex/state/repo-context.json`
 - `.codex/policies/validation-profile.json`
 
 Routing policy lives in `.codex/policies/routing-policy.md`.
@@ -39,7 +38,7 @@ Routing policy lives in `.codex/policies/routing-policy.md`.
 - Route rationale:
 - Active routing overrides: none
 - Enabled roles: `Aide`, main agent
-- Enabled modules: intake triage and cached repo context, direct answer or routed delivery
+- Enabled modules: intake triage, direct answer or routed delivery
 - QC policy: `disabled`
 - Submit policy: `enabled`
 - Validation profile status: `not-set`

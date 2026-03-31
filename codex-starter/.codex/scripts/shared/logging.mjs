@@ -1,9 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 
-let activeRuntimeLogger = null;
-const migratedLegacyRuntimeLogs = new Set();
-
 export function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -42,10 +39,6 @@ function normalizeRuntimeLogChunk(chunk, encoding) {
   }
 
   return String(chunk ?? "");
-}
-
-function legacyRuntimeLogPath(projectDir) {
-  return path.join(projectDir, ".codex", "logs", "runtime-hooks.jsonl");
 }
 
 function runtimeLogDay(timestamp = new Date().toISOString()) {
@@ -140,102 +133,15 @@ function runtimeLogEntryKey(entry) {
     entry?.pid || ""
   ].join("::");
 }
-
-function migrateLegacyRuntimeLog(projectDir) {
-  const normalizedProjectDir = path.resolve(projectDir || process.cwd());
-  if (migratedLegacyRuntimeLogs.has(normalizedProjectDir)) {
-    return;
-  }
-
-  migratedLegacyRuntimeLogs.add(normalizedProjectDir);
-
-  const legacyPath = legacyRuntimeLogPath(normalizedProjectDir);
-  if (!fs.existsSync(legacyPath)) {
-    return;
-  }
-
+function appendRuntimeLog(projectDir, entry) {
   try {
-    const lines = fs
-      .readFileSync(legacyPath, "utf8")
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (lines.length === 0) {
-      fs.unlinkSync(legacyPath);
-      return;
-    }
-
-    const groupedEntries = new Map();
-    for (const line of lines) {
-      const parsed = JSON.parse(line);
-      const day = runtimeLogDay(parsed?.timestamp);
-      const group = groupedEntries.get(day) || [];
-      group.push({
-        line,
-        entry: parsed
-      });
-      groupedEntries.set(day, group);
-    }
-
-    for (const [day, entries] of groupedEntries.entries()) {
-      const existingKeys = new Set();
-      const partFiles = listRuntimeLogParts(normalizedProjectDir, day);
-
-      for (const partFile of partFiles) {
-        const existingLines = fs
-          .readFileSync(partFile.path, "utf8")
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter(Boolean);
-
-        for (const line of existingLines) {
-          try {
-            existingKeys.add(runtimeLogEntryKey(JSON.parse(line)));
-          } catch {
-            existingKeys.add(line);
-          }
-        }
-      }
-
-      const pendingLines = entries
-        .filter(({ entry, line }) => {
-          const key = runtimeLogEntryKey(entry);
-          if (existingKeys.has(key) || existingKeys.has(line)) {
-            return false;
-          }
-          existingKeys.add(key);
-          return true;
-        })
-        .map(({ entry }) => entry);
-
-      for (const entry of pendingLines) {
-        appendRuntimeLog(normalizedProjectDir, entry);
-      }
-    }
-
-    fs.unlinkSync(legacyPath);
-  } catch {
-    migratedLegacyRuntimeLogs.delete(normalizedProjectDir);
-  }
-}
-
-function runtimeRelativePath(projectDir, filePath) {
-  const relative = path.relative(projectDir, filePath).replace(/\\/g, "/");
-  return relative || path.basename(filePath);
-}
-
-function appendRuntimeLog(projectDir, entry, options = {}) {
-  try {
-    migrateLegacyRuntimeLog(projectDir);
     const timestamp = typeof entry?.timestamp === "string" && entry.timestamp ? entry.timestamp : new Date().toISOString();
     const payload = {
       ...entry,
       timestamp
     };
     const serialized = `${JSON.stringify(payload)}\n`;
-    const targetPath =
-      options?.logFilePath || runtimeLogPath(projectDir, timestamp, Buffer.byteLength(serialized, "utf8"));
+    const targetPath = runtimeLogPath(projectDir, timestamp, Buffer.byteLength(serialized, "utf8"));
     fs.appendFileSync(targetPath, serialized, "utf8");
   } catch {
     // Logging failure must not interrupt the runtime control path.
@@ -250,7 +156,6 @@ export function startRuntimeInvocationLogging({ projectDir, scriptName, input = 
   let stderrBuffer = "";
   let finished = false;
   let restoreStreams = null;
-  let logFilePath = null;
 
   const append = (entry) => {
     const timestamp = new Date().toISOString();
@@ -262,12 +167,7 @@ export function startRuntimeInvocationLogging({ projectDir, scriptName, input = 
       ...entry
     };
 
-    if (!logFilePath) {
-      const serialized = `${JSON.stringify(payload)}\n`;
-      logFilePath = runtimeLogPath(normalizedProjectDir, timestamp, Buffer.byteLength(serialized, "utf8"));
-    }
-
-    appendRuntimeLog(normalizedProjectDir, payload, { logFilePath });
+    appendRuntimeLog(normalizedProjectDir, payload);
   };
 
   append({
@@ -312,14 +212,6 @@ export function startRuntimeInvocationLogging({ projectDir, scriptName, input = 
     projectDir: normalizedProjectDir,
     scriptName,
     captureProcessStreams,
-    logFileWrite(filePath, content, details = {}) {
-      append({
-        type: "file_write",
-        target: runtimeRelativePath(normalizedProjectDir, filePath),
-        content: sanitizeLogValue(content),
-        details: sanitizeLogValue(details)
-      });
-    },
     finalize({ status = "ok", error = null, metadata: finalMetadata = {} } = {}) {
       if (finished) {
         return;
@@ -337,26 +229,8 @@ export function startRuntimeInvocationLogging({ projectDir, scriptName, input = 
         error: error ? serializeRuntimeError(error) : null,
         metadata: sanitizeLogValue(finalMetadata)
       });
-
-      if (activeRuntimeLogger === logger) {
-        activeRuntimeLogger = null;
-      }
     }
   };
 
-  activeRuntimeLogger = logger;
   return logger;
-}
-
-export function logRuntimeFileWrite(projectDir, filePath, content, details = {}) {
-  if (!activeRuntimeLogger) {
-    return;
-  }
-
-  const normalizedProjectDir = path.resolve(projectDir || process.cwd());
-  if (activeRuntimeLogger.projectDir !== normalizedProjectDir) {
-    return;
-  }
-
-  activeRuntimeLogger.logFileWrite(filePath, content, details);
 }

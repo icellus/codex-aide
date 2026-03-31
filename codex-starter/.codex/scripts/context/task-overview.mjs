@@ -1,47 +1,117 @@
 #!/usr/bin/env node
 
-import {
-  basenameLabel,
-  compactText,
-  findProgressFile,
-  getCurrentTaskRecord,
-  getProjectContext,
-  listTaskRegistryTasks,
-  loadProjectProfileState,
-  loadRuntimeState,
-  parseProgressTasks,
-  readJsonStdinEnvelope,
-  startRuntimeInvocationLogging,
-  syncTaskRegistry
-} from "../runtime/index.mjs";
+import fs from "node:fs";
+import path from "node:path";
 
-function formatTaskLine(prefix, task) {
+import { getProjectContext } from "../shared/project-context.mjs";
+import { readJsonStdinEnvelope } from "../shared/io.mjs";
+import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
+
+function normalizeText(value) {
+  return String(value || "").replace(/\r/g, "").trim();
+}
+
+function compactText(value, maxLength = 80) {
+  const normalized = normalizeText(value).replace(/\n+/g, " ");
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength - 3)}...`;
+}
+
+function basenameLabel(value) {
+  if (!value) {
+    return "unknown";
+  }
+
+  return path.basename(String(value).replace(/\\/g, "/"));
+}
+
+function readJsonFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function readProfileField(text, label) {
+  const prefix = `- ${label}:`;
+  const line = String(text || "")
+    .split(/\r?\n/)
+    .find((entry) => entry.startsWith(prefix));
+  if (!line) {
+    return "";
+  }
+
+  return line.slice(prefix.length).trim();
+}
+
+function loadCurrentTask(projectDir) {
+  const taskContextPath = path.join(projectDir, ".codex", "state", "task-context.json");
+  const taskContext = readJsonFile(taskContextPath);
+
+  if (taskContext?.task && typeof taskContext.task === "object") {
+    const task = taskContext.task;
+    const title = normalizeText(task.current_task);
+    if (title) {
+      return {
+        title,
+        status: normalizeText(task.status) || "unknown",
+        deliveryMode: normalizeText(task.delivery_mode) || "",
+        routeRationale: normalizeText(task.route_rationale) || "",
+        openQuestions: Array.isArray(task.open_questions)
+          ? task.open_questions.map((item) => normalizeText(item)).filter(Boolean)
+          : []
+      };
+    }
+  }
+
+  const profilePath = path.join(projectDir, ".codex", "context", "project-profile.md");
+  if (!fs.existsSync(profilePath)) {
+    return null;
+  }
+
+  const profileText = fs.readFileSync(profilePath, "utf8");
+  const title = normalizeText(readProfileField(profileText, "Current task")).replace(/^`|`$/g, "");
+  if (!title) {
+    return null;
+  }
+
+  return {
+    title,
+    status: normalizeText(readProfileField(profileText, "Task status")).replace(/^`|`$/g, "") || "unknown",
+    deliveryMode:
+      normalizeText(readProfileField(profileText, "Selected delivery mode")).replace(/^`|`$/g, "") || "",
+    routeRationale: normalizeText(readProfileField(profileText, "Route rationale")),
+    openQuestions: normalizeText(readProfileField(profileText, "Open questions"))
+      .split(",")
+      .map((item) => normalizeText(item))
+      .filter(Boolean)
+  };
+}
+
+function formatTaskLine(task) {
   const parts = [];
   const status = String(task.status || "unknown").toLowerCase();
-  parts.push(`${prefix}: ${task.title || "Untitled task"}`);
+  parts.push(`Current task: ${task.title || "Untitled task"}`);
   parts.push(`[${status}]`);
 
   if (task.deliveryMode) {
     parts.push(`mode=${task.deliveryMode}`);
   }
 
-  if (task.planPath) {
-    parts.push(`plan=${basenameLabel(task.planPath)}`);
-  }
-
-  if (task.nextStep) {
-    parts.push(`next=${compactText(task.nextStep, 80)}`);
-  } else if (task.reason) {
-    parts.push(`reason=${compactText(task.reason, 80)}`);
-  } else if (task.summary) {
-    parts.push(`summary=${compactText(task.summary, 80)}`);
+  if (task.routeRationale) {
+    parts.push(`reason=${compactText(task.routeRationale, 80)}`);
+  } else if (Array.isArray(task.openQuestions) && task.openQuestions.length > 0) {
+    parts.push(`question=${compactText(task.openQuestions[0], 80)}`);
   }
 
   return `- ${parts.join(" ")}`;
-}
-
-function taskStatus(task) {
-  return String(task?.status || "").toLowerCase();
 }
 
 async function main() {
@@ -61,75 +131,31 @@ async function main() {
   const restoreStreams = logger.captureProcessStreams();
 
   try {
-    const progressPath = findProgressFile(input.cwd || projectDir) || findProgressFile(projectDir);
-    const progressTasks = parseProgressTasks(progressPath);
-    const profile = loadProjectProfileState(projectDir);
-    const runtimeState = loadRuntimeState(projectDir);
-    const registry = syncTaskRegistry(projectDir, {
-      profile,
-      runtimeState,
-      progressPath,
-      progressTasks,
-      persist: false
-    });
-
     const requestedStatus = String(input.status || "").trim().toLowerCase();
-    const limit = Math.max(1, Math.min(20, Number.parseInt(String(input.limit || "5"), 10) || 5));
-    const currentTask = getCurrentTaskRecord(registry);
+    const currentTask = loadCurrentTask(projectDir);
 
     if (requestedStatus === "done" || requestedStatus === "completed") {
-      const completed = listTaskRegistryTasks(
-        registry,
-        (task) => taskStatus(task) === "done" || taskStatus(task) === "cancelled"
-      );
-
-      const lines = ["Task history:"];
-
-      if (completed.length === 0) {
-        lines.push("- Completed tasks: none recorded");
-      } else {
-        lines.push(`- Completed tasks: ${completed.length}`);
-        completed.slice(0, limit).forEach((task) => {
-          lines.push(formatTaskLine("Completed", task));
-        });
-      }
+      const lines = [
+        "Task history:",
+        "- Historical task registry is not maintained by the shipped scripts."
+      ];
 
       process.stdout.write(`${lines.join("\n")}\n`);
       logger.finalize({
         status: "ok",
         metadata: {
-          mode: "completed",
-          resultCount: completed.length
+          mode: "completed"
         }
       });
       return;
     }
 
-    const unfinished = listTaskRegistryTasks(
-      registry,
-      (task) =>
-        (taskStatus(task) === "active" ||
-          taskStatus(task) === "parked" ||
-          taskStatus(task) === "blocked" ||
-          taskStatus(task) === "queued") &&
-        task.id !== currentTask?.id
-    );
-
     const lines = ["Task overview:"];
 
     if (currentTask) {
-      lines.push(formatTaskLine("Current task", currentTask));
+      lines.push(formatTaskLine(currentTask));
     } else {
       lines.push("- Current task: none");
-    }
-
-    if (unfinished.length === 0) {
-      lines.push("- Historical unfinished tasks: none");
-    } else {
-      lines.push(`- Historical unfinished tasks: ${unfinished.length}`);
-      unfinished.slice(0, limit).forEach((task) => {
-        lines.push(formatTaskLine("Unfinished", task));
-      });
     }
 
     process.stdout.write(`${lines.join("\n")}\n`);
@@ -137,8 +163,7 @@ async function main() {
       status: "ok",
       metadata: {
         mode: "overview",
-        currentTaskId: currentTask?.id || null,
-        resultCount: unfinished.length
+        hasCurrentTask: Boolean(currentTask)
       }
     });
   } catch (error) {

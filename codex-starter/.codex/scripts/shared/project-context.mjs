@@ -10,36 +10,6 @@ function normalizeProjectDirCandidate(value) {
   return trimmed ? trimmed : null;
 }
 
-function projectDirCandidates(input = {}) {
-  const sources = [
-    ["input.projectDir", input.projectDir],
-    ["input.project_dir", input.project_dir],
-    ["input.repoRoot", input.repoRoot],
-    ["input.repo_root", input.repo_root],
-    ["input.repoPath", input.repoPath],
-    ["input.repo_path", input.repo_path],
-    ["input.workdir", input.workdir],
-    ["input.workspace", input.workspace],
-    ["input.cwd", input.cwd],
-    ["input.tool_input.projectDir", input.tool_input?.projectDir],
-    ["input.tool_input.project_dir", input.tool_input?.project_dir],
-    ["input.tool_input.repoRoot", input.tool_input?.repoRoot],
-    ["input.tool_input.repo_root", input.tool_input?.repo_root],
-    ["input.tool_input.repoPath", input.tool_input?.repoPath],
-    ["input.tool_input.repo_path", input.tool_input?.repo_path],
-    ["input.tool_input.workdir", input.tool_input?.workdir],
-    ["input.tool_input.workspace", input.tool_input?.workspace],
-    ["input.tool_input.cwd", input.tool_input?.cwd]
-  ];
-
-  return sources
-    .map(([source, value]) => ({
-      source,
-      value: normalizeProjectDirCandidate(value)
-    }))
-    .filter((entry) => entry.value);
-}
-
 function findProjectDir(start) {
   let current = path.resolve(start);
 
@@ -69,11 +39,22 @@ export function getProjectContext(input = {}) {
     };
   }
 
-  for (const candidate of projectDirCandidates(input)) {
-    const startPath = path.resolve(candidate.value);
+  const directProjectDir = normalizeProjectDirCandidate(input.projectDir);
+  if (directProjectDir) {
+    const startPath = path.resolve(directProjectDir);
     return {
       projectDir: findProjectDir(startPath) || startPath,
-      source: candidate.source,
+      source: "input.projectDir",
+      startPath
+    };
+  }
+
+  const cwd = normalizeProjectDirCandidate(input.cwd);
+  if (cwd) {
+    const startPath = path.resolve(cwd);
+    return {
+      projectDir: findProjectDir(startPath) || startPath,
+      source: "input.cwd",
       startPath
     };
   }

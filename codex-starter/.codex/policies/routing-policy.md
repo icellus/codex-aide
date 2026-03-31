@@ -160,14 +160,11 @@ Environment setup decisions and preparation belong to `technical_manager`.
 
 - `.codex/state/task-context.json`: hot task state
 - `.codex/policies/delivery-policy.json`: commit, push, notification, CI, release, and fallback policy
-- `.codex/state/task-registry.json`: cold task registry for current and unfinished task management
-- `.codex/state/repo-context.json`: cached repo facts
 - `.codex/policies/validation-profile.json`: validation commands and constraints
 - `.codex/progress/active/<task-id>/current.md`: primary long-running snapshot per active task
 - `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only long-running progress events
 - `.codex/progress/archive/<task-id>/...`: archived progress records for completed/closed tasks
 - `PROGRESS.md`: legacy optional note only, never the primary runtime progress source
-- `.codex/state/runtime-state.json`: reminders, QC follow-up, and runtime memory
 - `.codex/context/project-profile.md`: human summary only
 
 ## QC Gate
