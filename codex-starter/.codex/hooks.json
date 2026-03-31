@@ -31,6 +31,10 @@
           {
             "type": "command",
             "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/hooks/log-event.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/hooks/ingest-governance.mjs\"'"
           }
         ]
       }

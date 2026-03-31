@@ -73,6 +73,7 @@
       "keyword": "validation-profile.json",
       "authoritative_paths": [
         "codex-starter/AGENTS.md",
+        "codex-starter/.codex/policies/aide-governance-policy.md",
         "codex-starter/.codex/policies/routing-policy.md",
         "codex-starter/.codex/skills/",
         "codex-starter/.codex/agents/",

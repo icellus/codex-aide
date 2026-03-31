@@ -1,13 +1,18 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { validateAuthority } from "./validate-codex-starter-authority.mjs";
+import { validateGovernanceTarget } from "../codex-starter/.codex/scripts/guards/validate-governance-target.mjs";
 
 const defaultRepoRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const defaultCheckManifest = Object.freeze([
   { id: "authority-contract", layer: "contract" },
   { id: "json-contract-files", layer: "contract" },
+  { id: "governance-target-contract", layer: "contract" },
+  { id: "governance-flow-contract", layer: "contract" },
   { id: "consistency-core-rules", layer: "consistency" },
   { id: "meta-test-registry", layer: "meta" }
 ]);
@@ -174,6 +179,210 @@ function validateConsistency({
   return { ok: errors.length === 0, errors };
 }
 
+function validateGovernanceContracts({ repoRoot = defaultRepoRoot } = {}) {
+  const errors = [];
+  const projectDir = path.join(repoRoot, "codex-starter");
+  const targets = [
+    "AGENTS.md",
+    ".codex/policies/routing-policy.md",
+    ".codex/policies/aide-governance-policy.md",
+    ".codex/context/project-profile.md"
+  ];
+
+  for (const targetPath of targets) {
+    const result = validateGovernanceTarget({ projectDir, targetPath });
+    if (!result.ok) {
+      for (const error of result.errors || []) {
+        errors.push(`${targetPath}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function writeStructuredTranscript(filePath, structuredResult) {
+  const entry = {
+    type: "response_item",
+    payload: {
+      type: "message",
+      role: "assistant",
+      content: [
+        {
+          type: "output_text",
+          text: `Governance check\n\n## Structured Result\n\`\`\`json\n${JSON.stringify(structuredResult, null, 2)}\n\`\`\`\n`
+        }
+      ]
+    }
+  };
+
+  fs.writeFileSync(filePath, `${JSON.stringify(entry)}\n`, "utf8");
+}
+
+function runNodeJsonScript(scriptPath, projectDir, input) {
+  const result = spawnSync(process.execPath, [scriptPath], {
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      CODEX_PROJECT_DIR: projectDir
+    },
+    input: `${JSON.stringify(input)}\n`,
+    encoding: "utf8"
+  });
+
+  let parsed = null;
+  const stdout = String(result.stdout || "").trim();
+  if (stdout) {
+    try {
+      parsed = JSON.parse(stdout);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  return {
+    status: result.status ?? 1,
+    stdout,
+    stderr: String(result.stderr || "").trim(),
+    parsed
+  };
+}
+
+function applyGovernanceScenarioMutation(projectDir, mutation) {
+  const relativePath = mutation?.path;
+  if (!relativePath) {
+    throw new Error("scenario mutation.path is required");
+  }
+
+  const filePath = path.join(projectDir, relativePath);
+  if (!fileExists(filePath)) {
+    throw new Error(`${relativePath}: file not found for scenario mutation`);
+  }
+
+  if (mutation.type === "append-text") {
+    fs.appendFileSync(filePath, String(mutation.text || ""), "utf8");
+    return;
+  }
+
+  throw new Error(`unsupported scenario mutation type "${mutation?.type || "<missing>"}"`);
+}
+
+function loadGovernanceFlowScenarios(scenarioRoot) {
+  return listFilesRecursive(scenarioRoot, (filePath) => filePath.endsWith(".json")).map((filePath) => ({
+    filePath,
+    scenario: readJson(filePath)
+  }));
+}
+
+function validateGovernanceFlowScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-governance-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    for (const mutation of scenario.pre_mutations || []) {
+      applyGovernanceScenarioMutation(projectDir, mutation);
+    }
+
+    const expect = scenario.expect || {};
+    const targetPath = expect.target_path || scenario.candidate?.authority_target;
+    const targetFilePath = targetPath ? path.join(projectDir, targetPath) : null;
+    const beforeTargetText = targetFilePath && fileExists(targetFilePath) ? readText(targetFilePath) : null;
+    let invocation = null;
+
+    if (scenario.mode === "ingest") {
+      const transcriptPath = path.join(tempRoot, `${scenario.id || "scenario"}.jsonl`);
+      writeStructuredTranscript(transcriptPath, scenario.structured_result || {});
+      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "hooks", "ingest-governance.mjs"), projectDir, {
+        projectDir,
+        transcript_path: transcriptPath,
+        session_id: scenario.session_id || scenario.id || "scenario-session"
+      });
+    } else if (scenario.mode === "writeback") {
+      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "scripts", "governance", "writeback.mjs"), projectDir, {
+        projectDir,
+        actor_role: scenario.actor_role || "Aide",
+        candidate: scenario.candidate || {}
+      });
+    } else {
+      errors.push(`${scenario.id || "<unknown>"}: unsupported scenario mode "${scenario.mode || "<missing>"}"`);
+      return { ok: false, errors };
+    }
+
+    if (typeof expect.exit_status === "number" && invocation.status !== expect.exit_status) {
+      errors.push(`${scenario.id}: expected exit_status=${expect.exit_status}, got ${invocation.status}`);
+    }
+
+    if (expect.decision && invocation.parsed?.decision !== expect.decision) {
+      errors.push(`${scenario.id}: expected decision=${expect.decision}, got ${invocation.parsed?.decision || "<missing>"}`);
+    }
+
+    const afterTargetText = targetFilePath && fileExists(targetFilePath) ? readText(targetFilePath) : null;
+    const targetChanged = beforeTargetText !== afterTargetText;
+    if (typeof expect.target_changed === "boolean" && targetChanged !== expect.target_changed) {
+      errors.push(`${scenario.id}: expected target_changed=${expect.target_changed}, got ${targetChanged}`);
+    }
+
+    if (typeof expect.target_contains === "string" && !(afterTargetText || "").includes(expect.target_contains)) {
+      errors.push(`${scenario.id}: expected target to contain "${expect.target_contains}"`);
+    }
+
+    if (typeof expect.target_not_contains === "string" && (afterTargetText || "").includes(expect.target_not_contains)) {
+      errors.push(`${scenario.id}: expected target to remove "${expect.target_not_contains}"`);
+    }
+
+    const stateFilePath = path.join(projectDir, ".codex", "state", "governance-context.json");
+    const governanceStateExists = fileExists(stateFilePath);
+    if (typeof expect.governance_state_exists === "boolean" && governanceStateExists !== expect.governance_state_exists) {
+      errors.push(`${scenario.id}: expected governance_state_exists=${expect.governance_state_exists}, got ${governanceStateExists}`);
+    }
+
+    if (Array.isArray(expect.governance_statuses)) {
+      const state = governanceStateExists ? readJson(stateFilePath) : { items: [] };
+      const statuses = Array.isArray(state.items) ? state.items.map((item) => item.status).sort() : [];
+      const expectedStatuses = [...expect.governance_statuses].sort();
+      if (JSON.stringify(statuses) !== JSON.stringify(expectedStatuses)) {
+        errors.push(`${scenario.id}: expected governance_statuses=${expectedStatuses.join(",")}, got ${statuses.join(",")}`);
+      }
+    }
+
+    if (typeof expect.target_valid_after === "boolean" && targetPath) {
+      const validation = validateGovernanceTarget({
+        projectDir,
+        targetPath
+      });
+      if (validation.ok !== expect.target_valid_after) {
+        errors.push(`${scenario.id}: expected target_valid_after=${expect.target_valid_after}, got ${validation.ok}`);
+      }
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateGovernanceFlowContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "governance-flow-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadGovernanceFlowScenarios(scenarioRoot)) {
+    const result = validateGovernanceFlowScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 function validateRegistry({
   repoRoot = defaultRepoRoot,
   registryFilePath = getRegistryPath(repoRoot)
@@ -182,7 +391,7 @@ function validateRegistry({
   const registry = loadJsonFile(repoRoot, registryFilePath, errors);
   const validTypes = new Set(["contract", "consistency", "meta"]);
   const validStatuses = new Set(["active", "temporary", "deprecated"]);
-  const validExecutors = new Set(["authority", "json-parse", "consistency", "meta"]);
+  const validExecutors = new Set(["authority", "json-parse", "consistency", "meta", "governance", "governance-flow"]);
   const seenIds = new Set();
   const seenCoverageKeys = new Set();
 
@@ -248,7 +457,12 @@ function validateRegistry({
       errors.push(`${check.id}: temporary checks must declare remove_when`);
     }
 
-    if (check.executor === "authority" || check.executor === "consistency") {
+    if (
+      check.executor === "authority" ||
+      check.executor === "consistency" ||
+      check.executor === "governance" ||
+      check.executor === "governance-flow"
+    ) {
       if (!check.proof_fixture_root) {
         errors.push(`${check.id}: ${check.executor} checks must declare proof_fixture_root`);
       }
@@ -256,6 +470,10 @@ function validateRegistry({
       if (!Array.isArray(check.expected_error_patterns) || check.expected_error_patterns.length === 0) {
         errors.push(`${check.id}: ${check.executor} checks must declare expected_error_patterns`);
       }
+    }
+
+    if (check.executor === "governance" && !check.proof_target_path) {
+      errors.push(`${check.id}: governance checks must declare proof_target_path`);
     }
 
     if (check.proof_fixture_root && !fileExists(path.join(repoRoot, check.proof_fixture_root))) {
@@ -331,6 +549,17 @@ function runFailingProofs({ repoRoot = defaultRepoRoot, registry }) {
       result = validateAuthority({ repoRoot: proofRoot });
     } else if (check.executor === "consistency") {
       result = validateConsistency({ repoRoot: proofRoot });
+    } else if (check.executor === "governance") {
+      const proofProjectPath = path.join(proofRoot, check.proof_project_path || "codex-starter");
+      result = validateGovernanceTarget({
+        projectDir: proofProjectPath,
+        targetPath: check.proof_target_path
+      });
+    } else if (check.executor === "governance-flow") {
+      result = validateGovernanceFlowContracts({
+        repoRoot,
+        scenarioRoot: proofRoot
+      });
     } else {
       continue;
     }
@@ -341,7 +570,8 @@ function runFailingProofs({ repoRoot = defaultRepoRoot, registry }) {
     }
 
     for (const pattern of check.expected_error_patterns || []) {
-      const matched = result.errors.some((error) => error.includes(pattern));
+      const resultErrors = Array.isArray(result.errors) ? result.errors : [];
+      const matched = resultErrors.some((error) => error.includes(pattern));
       if (!matched) {
         errors.push(`${check.id}: failing proof did not produce expected error pattern "${pattern}"`);
       }
@@ -368,7 +598,9 @@ function validateMeta({
 function runContractLayer({ repoRoot = defaultRepoRoot } = {}) {
   const jsonResult = validateJsonContracts({ repoRoot });
   const authorityResult = validateAuthority({ repoRoot });
-  const errors = [...jsonResult.errors, ...authorityResult.errors];
+  const governanceResult = validateGovernanceContracts({ repoRoot });
+  const governanceFlowResult = validateGovernanceFlowContracts({ repoRoot });
+  const errors = [...jsonResult.errors, ...authorityResult.errors, ...governanceResult.errors, ...governanceFlowResult.errors];
 
   return { ok: errors.length === 0, errors };
 }
@@ -459,4 +691,4 @@ if (isMain) {
   process.exit(runCli());
 }
 
-export { validateConsistency, validateJsonContracts, validateMeta };
+export { validateConsistency, validateGovernanceFlowContracts, validateJsonContracts, validateMeta };

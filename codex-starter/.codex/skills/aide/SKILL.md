@@ -76,12 +76,13 @@ Hard boundaries:
 
 1. `.codex/state/task-context.json` when it exists
 2. `.codex/state/repo-context.json` if present
-3. `.codex/policies/routing-policy.md`
-4. `.codex/policies/aide-governance-policy.md` when governance judgment matters
-5. `.codex/policies/validation-profile.json`
-6. `.codex/context/project-profile.md` when repo facts or human summary are needed
-7. the user's goal
-8. only repo files needed for classification or direct answer
+3. `.codex/state/governance-context.json` when governance judgment matters
+4. `.codex/policies/routing-policy.md`
+5. `.codex/policies/aide-governance-policy.md` when governance judgment matters
+6. `.codex/policies/validation-profile.json`
+7. `.codex/context/project-profile.md` when repo facts or human summary are needed
+8. the user's goal
+9. only repo files needed for classification or direct answer
 
 README and docs are explanation only, not runtime authority.
 
@@ -120,6 +121,7 @@ Role-specific additions:
 - use `node .codex/scripts/context/task-overview.mjs` at `Aide` startup or when user asks for status/history
 - only the main agent updates `.codex/state/*.json`, `.codex/context/project-profile.md`, `PROGRESS.md`, or `.codex/policies/validation-profile.json`
 - run `node .codex/scripts/guards/validate-validation-profile.mjs` before writing `.codex/policies/validation-profile.json` updates
+- use `node .codex/scripts/governance/writeback.mjs` for accepted generic governance auto-fix attempts
 - write approved `.codex/policies/validation-profile.json` updates from `technical_manager` refresh proposals that stay within the current file structure
 - review `technical_manager` refresh proposals with tester feedback and repository governance context before writing approved baseline updates
 
@@ -160,6 +162,13 @@ Maintain `.codex/state/repo-context.json` with:
 - key paths and entrypoints
 - CI, release, and validation signals
 
+Maintain `.codex/state/governance-context.json` with:
+
+- active governance items only
+- issue, target owner path, evidence, note, and current disposition
+- active source roles for the current governance item
+- unresolved `ask-user` and `special-flow` items that still need action
+
 Maintain `.codex/policies/validation-profile.json` as repository baseline only.
 Repository initialization scan should write the first baseline directly and move `status` out of `not-set`, defaulting to `draft`.
 Validate approved updates with `.codex/scripts/guards/validate-validation-profile.mjs` before writing them.
@@ -172,6 +181,40 @@ Keep task-level validation ownership with `tester`.
 - governance rules are owned by `.codex/policies/aide-governance-policy.md`
 - use that policy for governance objects, triggers, levels, output shape, and disposition rules
 - only `G1` governance items may auto-fix; `G2` and `G3` require user decision
+- `Aide` is the only direct writer of `.codex/state/governance-context.json`
+- generic governance writeback requires an `Aide` decision, `G1`, one owner file, one safe diff type, and a passing target validator after the patch
+- treat `.codex/policies/validation-profile.json` as a special-flow target; do not send it through generic governance writeback
+
+## Governance Structured Result
+
+When a turn opens, updates, asks about, or auto-fixes a governance item, append this footer after the normal user-facing reply:
+
+## Structured Result
+```json
+{
+  "role": "Aide",
+  "status": "complete",
+  "governance_candidates": [
+    {
+      "source": "Aide|architect|product_assistant|technical_manager|tester|qc",
+      "source_roles": [],
+      "issue": "",
+      "level": "unset|G1|G2|G3",
+      "impact": "",
+      "authority_target": "",
+      "recommended_action": "",
+      "disposition": "auto-fix|ask-user|special-flow",
+      "note": "",
+      "evidence": [],
+      "operations": []
+    }
+  ]
+}
+```
+
+- append this footer only when `Aide` has reviewed the evidence and is intentionally opening/updating a governance action
+- downstream `governance_candidates` are input to `Aide`, not direct writeback authorization
+- keep `source` / `source_roles` aligned with the upstream evidence origin, even when the decision is made by `Aide`
 
 ## Routing Output
 

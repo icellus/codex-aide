@@ -2,7 +2,7 @@
   "version": 1,
   "budgets": {
     "max_active_checks": 6,
-    "max_fixture_files": 8,
+    "max_fixture_files": 9,
     "max_fixture_bytes": 4096
   },
   "checks": [
@@ -35,6 +35,45 @@
       "owner": "scripts/validate-codex-starter-dev.mjs",
       "status": "active",
       "executor": "json-parse"
+    },
+    {
+      "id": "governance-target-contract",
+      "type": "contract",
+      "rule_id": "governance-target-validator",
+      "failure_mode": "unsafe-governance-target-drift",
+      "source_paths": [
+        "codex-starter/.codex/scripts/guards/validate-governance-target.mjs",
+        "codex-starter/.codex/policies/aide-governance-policy.md"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "governance",
+      "proof_fixture_root": "fixtures/codex-starter-dev/authority-invalid",
+      "proof_project_path": "codex-starter",
+      "proof_target_path": "AGENTS.md",
+      "expected_error_patterns": [
+        "disallowed section heading"
+      ]
+    },
+    {
+      "id": "governance-flow-contract",
+      "type": "contract",
+      "rule_id": "governance-writeback-flow",
+      "failure_mode": "governance-decision-or-repair-regression",
+      "source_paths": [
+        "codex-starter/.codex/hooks/ingest-governance.mjs",
+        "codex-starter/.codex/scripts/governance/writeback.mjs",
+        "codex-starter/.codex/skills/aide/SKILL.md",
+        "fixtures/codex-starter-dev/governance-flow-pass",
+        "fixtures/codex-starter-dev/governance-flow-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "governance-flow",
+      "proof_fixture_root": "fixtures/codex-starter-dev/governance-flow-invalid",
+      "expected_error_patterns": [
+        "proof_non_aide_expectation"
+      ]
     },
     {
       "id": "consistency-core-rules",

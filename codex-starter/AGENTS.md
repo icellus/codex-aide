@@ -39,6 +39,7 @@ Project-level runtime contract for repositories that install `codex-starter`.
 - Governed delivery rules -> `.codex/policies/delivery-policy.json`
 - Human-readable project summary -> `.codex/context/project-profile.md`
 - Task runtime authority -> `.codex/state/task-context.json`
+- Governance runtime authority -> `.codex/state/governance-context.json`
 - Submit preference runtime authority -> `.codex/state/submit-preferences.json`
 - Runtime state demos -> `.codex/state/*.demo.json`
 - Role behavior, read order, and output contract -> `.codex/skills/*/SKILL.md` and `.codex/agents/*.toml`

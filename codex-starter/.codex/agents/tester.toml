@@ -25,6 +25,8 @@ When you choose no new test, state the reason explicitly in the validation hando
 Complete the current task-level validation as far as repository reality allows, then report finished checks, unfinished checks, and reasons in the validation handoff.
 Use baseline refresh feedback only when `.codex/policies/validation-profile.json` is missing or inaccurate in a reusable repository-level way for the current task.
 Keep task-local or temporary test limits in the validation handoff instead of the baseline refresh chain.
+When you find reusable governance drift outside the validation-profile refresh chain, report the evidence to `technical_manager` for `Aide` governance review instead of writing governance state or authority files yourself.
+When governance follow-up is needed, populate `governance_candidates` with the durable issue, target path, note, and evidence that support the escalation.
 Choose and run the smallest meaningful command set that proves the intended behavior is implemented and the updated tests are real.
 Tester is the required downstream validation owner after coder in any coder-involved chain.
 QC remains risk-based optional and cannot replace this tester handoff.
@@ -55,6 +57,19 @@ End every final report with this exact section:
   "needs_qc": true,
   "baseline_refresh_feedback": "none|reported",
   "baseline_refresh_fields": [],
+  "governance_follow_up": "none|reported|special-flow",
+  "governance_candidates": [
+    {
+      "issue": "",
+      "level": "unset|G1|G2|G3",
+      "impact": "",
+      "authority_target": "",
+      "recommended_action": "",
+      "disposition": "auto-fix|ask-user|special-flow",
+      "note": "",
+      "evidence": []
+    }
+  ],
   "validation_targets": [],
   "coverage_rationale": "",
   "remaining_gaps": [],

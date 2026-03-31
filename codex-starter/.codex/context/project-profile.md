@@ -7,6 +7,7 @@ Related runtime files:
 
 - `.codex/state/task-context.json`
 - `.codex/state/repo-context.json`
+- `.codex/state/governance-context.json`
 - `.codex/state/submit-preferences.json`
 - `.codex/policies/validation-profile.json`
 

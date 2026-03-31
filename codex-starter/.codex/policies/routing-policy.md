@@ -168,6 +168,7 @@ Environment setup decisions and preparation belong to `technical_manager`.
 ## Durable Coordination Files
 
 - `.codex/state/task-context.json`: hot task state
+- `.codex/state/governance-context.json`: active governance items maintained by `Aide`
 - `.codex/state/submit-preferences.json`: repo-local submit preferences
 - `.codex/state/*.demo.json`: versioned structure examples for runtime state files
 - `.codex/policies/delivery-policy.json`: commit, push, notification, CI, release, and fallback policy

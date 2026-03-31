@@ -61,8 +61,8 @@ If QC fails:
 After each QC failure:
 
 - update the current plan or task entry with a `QC retry pattern`
-- add repeated categories to the `Governance Queue`
-- decide during the retrospective whether a durable lesson should be written back through `Aide`
+- return repeated categories to `technical_manager` as governance evidence for `Aide`
+- decide during the retrospective whether `Aide` should open or update an active item in `.codex/state/governance-context.json`
 
 Recommended categories:
 

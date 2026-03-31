@@ -31,6 +31,8 @@ If QC is not justified and the user did not explicitly ask for it, return `NOT N
 - for `Phase: tester`, read the latest `Implementation Brief` path from `technical_manager`; if missing/unreadable, return `FAIL` and route back through `technical_manager`
 - when tester evidence exists, audit whether tester chose an appropriate task-level validation plan
 - when a tester handoff exists, verify it names validation targets, selected checks, coverage rationale, and remaining gaps
+- repeated QC categories are governance evidence for `Aide`; return them through `technical_manager` and do not write governance state directly
+- when a durable target path is clear, place the escalation in `governance_candidates`; otherwise keep the signal in findings and categories only
 - choose the nearest useful command from the baseline first
 - fall back to repo signals only when the validation profile is incomplete
 - do not pretend validation happened
@@ -69,7 +71,19 @@ Then append:
   "status": "complete",
   "phase": "tester|n/a",
   "verdict": "PASS|PASS WITH WARNINGS|FAIL|NOT NEEDED",
-  "categories": ["category-or-none"]
+  "categories": ["category-or-none"],
+  "governance_candidates": [
+    {
+      "issue": "",
+      "level": "unset|G1|G2|G3",
+      "impact": "",
+      "authority_target": "",
+      "recommended_action": "",
+      "disposition": "auto-fix|ask-user|special-flow",
+      "note": "",
+      "evidence": []
+    }
+  ]
 }
 ```
 ````

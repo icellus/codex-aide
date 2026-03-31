@@ -168,11 +168,13 @@ End every final report with this exact section:
   "governance_candidates": [
     {
       "issue": "",
-      "level": "G1|G2|G3",
+      "level": "unset|G1|G2|G3",
       "impact": "",
       "authority_target": "",
       "recommended_action": "",
-      "disposition": "auto-fix|ask-user|queue"
+      "disposition": "auto-fix|ask-user|special-flow",
+      "note": "",
+      "evidence": []
     }
   ],
   "technical_tradeoffs": [],

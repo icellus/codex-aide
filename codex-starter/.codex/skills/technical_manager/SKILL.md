@@ -17,6 +17,7 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 - independent repository initialization scan and production of `.codex/state/repo-context.json` content
 - production and refresh of the `Implementation Brief`
 - repository validation-baseline fact gathering plus initial/refresh output for `.codex/policies/validation-profile.json`
+- governance evidence escalation to `Aide` when technical delivery exposes reusable cross-file drift outside dedicated maintenance flows
 - environment setup decisions and preparation
 - staged chain management across `architect`, `coder`, `tester`, optional `qc`, and optional `submit`
 - conflict control across write-capable roles
@@ -75,6 +76,8 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 - `coder` and `tester` execute only against the latest `Implementation Brief`
 - evaluate tester baseline refresh feedback from task execution and decide whether it changes the repository validation baseline
 - when repository validation facts need baseline refresh, prepare the updated `.codex/policies/validation-profile.json` against the current structure and return it to `Aide`
+- when technical delivery reveals reusable governance drift outside the validation-profile special flow, return the evidence to `Aide` instead of writing governance state directly
+- when that drift is durable and has a clear owner file, include it in `governance_candidates` in the structured result
 - once `coder` participates, downstream `tester` handoff is mandatory before settlement or submit
 - `coder` / `tester` / `qc` report only to `technical_manager` on the execution chain
 - after required `tester` handoff in coder-involved work, you decide whether to run `qc` or skip it
@@ -128,9 +131,40 @@ For other technical-delivery tasks, return:
 - validation baseline initialization status for `.codex/policies/validation-profile.json` (`none|proposed`)
 - tester baseline refresh feedback status (`none|reported`)
 - validation baseline refresh proposal status for `.codex/policies/validation-profile.json` (`none|proposed`)
+- governance escalation status (`none|reported|special-flow`)
 - post-tester QC decision (`run-qc|skip-qc`)
 - next action owner
 - validation boundary and hard-gate summary
 - conflicts or blockers, if any
 - escalation-to-`Aide` decision (`yes|no`) and reason when `yes`
 - progress sync status and latest history path when long-running tracking is active
+
+End every final report with this exact section:
+## Structured Result
+```json
+{
+  "role": "technical_manager",
+  "status": "complete|failed|blocked",
+  "mode": "repository-scan|technical-delivery",
+  "repo_context": null,
+  "validation_profile": null,
+  "brief_status": "none|required|ready|needs-refresh",
+  "baseline_refresh_feedback": "none|reported",
+  "validation_profile_refresh": "none|proposed",
+  "governance_escalation": "none|reported|special-flow",
+  "governance_candidates": [
+    {
+      "issue": "",
+      "level": "unset|G1|G2|G3",
+      "impact": "",
+      "authority_target": "",
+      "recommended_action": "",
+      "disposition": "auto-fix|ask-user|special-flow",
+      "note": "",
+      "evidence": []
+    }
+  ],
+  "next_action_owner": "",
+  "blockers": []
+}
+```
