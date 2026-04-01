@@ -72,7 +72,7 @@ function slugifyTaskId(value) {
   return normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "";
 }
 
-function defaultTaskProgressPath(projectDir, taskId, deliveryMode) {
+function taskProgressDirectory(projectDir, taskId, deliveryMode, status = "active") {
   if (normalizeText(deliveryMode) !== "long-running") {
     return "";
   }
@@ -82,9 +82,33 @@ function defaultTaskProgressPath(projectDir, taskId, deliveryMode) {
     return "";
   }
 
+  const lane = isTerminalTaskStatus(status) ? "archive" : "active";
+
   return projectDir
-    ? path.join(projectDir, ".codex", "progress", "active", normalizedTaskId, "current.md")
-    : path.join(".codex", "progress", "active", normalizedTaskId, "current.md");
+    ? path.join(projectDir, ".codex", "progress", lane, normalizedTaskId)
+    : path.join(".codex", "progress", lane, normalizedTaskId);
+}
+
+function defaultTaskProgressPath(projectDir, taskId, deliveryMode, status = "active") {
+  const progressDir = taskProgressDirectory(projectDir, taskId, deliveryMode, status);
+  if (!progressDir) {
+    return "";
+  }
+
+  return path.join(progressDir, "current.md");
+}
+
+function isManagedTaskProgressPath(projectDir, value, taskId, deliveryMode) {
+  const normalized = normalizeRuntimePath(projectDir, value);
+  if (!normalized) {
+    return false;
+  }
+
+  return [
+    defaultTaskProgressPath(projectDir, taskId, deliveryMode, "active"),
+    defaultTaskProgressPath(projectDir, taskId, deliveryMode, "completed"),
+    defaultTaskProgressPath(projectDir, taskId, deliveryMode, "cancelled")
+  ].includes(normalized);
 }
 
 function defaultTaskState() {
@@ -311,6 +335,7 @@ export {
   WAITING_ON_VALUES,
   STICKY_OWNER_VALUES,
   defaultTaskContext,
+  isManagedTaskProgressPath,
   defaultTaskProgressPath,
   defaultRecentTask,
   defaultTaskState,
@@ -325,6 +350,7 @@ export {
   normalizeWaitingOn,
   readTaskContext,
   slugifyTaskId,
+  taskProgressDirectory,
   taskContextPath,
   writeTaskContext
 };

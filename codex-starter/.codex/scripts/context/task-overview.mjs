@@ -136,8 +136,8 @@ function formatTaskLine(prefix, task) {
 
   if (task.blockedReason && status === "blocked") {
     parts.push(`blocked=${compactText(task.blockedReason, 80)}`);
-  } else if (task.retireReason && (status === "paused" || status === "parked")) {
-    parts.push(`parked=${compactText(task.retireReason, 80)}`);
+  } else if (task.retireReason && status === "paused") {
+    parts.push(`paused=${compactText(task.retireReason, 80)}`);
   } else if (task.completionReason && isTerminalTaskStatus(task.status)) {
     parts.push(`result=${compactText(task.completionReason, 80)}`);
   } else if (task.routeRationale) {
@@ -149,8 +149,8 @@ function formatTaskLine(prefix, task) {
   return `- ${parts.join(" ")}`;
 }
 
-function formatParkedTaskLine(task) {
-  return formatTaskLine("Parked task", {
+function formatPausedTaskLine(task) {
+  return formatTaskLine("Paused task", {
     title: normalizeText(task.current_task),
     status: normalizeText(task.status) || "paused",
     deliveryMode: normalizeText(task.delivery_mode) || "",
@@ -188,7 +188,7 @@ async function main() {
   try {
     const requestedStatus = String(input.status || "").trim().toLowerCase();
     const { currentTask, recentTasks } = loadCurrentTask(projectDir);
-    const parkedTasks = recentTasks.filter((item) => String(item?.status || "").toLowerCase() === "paused");
+    const pausedTasks = recentTasks.filter((item) => String(item?.status || "").toLowerCase() === "paused");
 
     if (requestedStatus === "done" || requestedStatus === "completed") {
       const lines = ["Task history:"];
@@ -230,14 +230,14 @@ async function main() {
       return;
     }
 
-    if (requestedStatus === "parked" || requestedStatus === "paused") {
-      const lines = ["Parked tasks:"];
-      if (parkedTasks.length === 0) {
-        lines.push("- Parked tasks: none");
+    if (requestedStatus === "paused") {
+      const lines = ["Paused tasks:"];
+      if (pausedTasks.length === 0) {
+        lines.push("- Paused tasks: none");
       } else {
-        lines.push(`- Parked tasks: ${parkedTasks.length}`);
-        parkedTasks.slice(0, 3).forEach((task) => {
-          lines.push(formatParkedTaskLine(task));
+        lines.push(`- Paused tasks: ${pausedTasks.length}`);
+        pausedTasks.slice(0, 3).forEach((task) => {
+          lines.push(formatPausedTaskLine(task));
         });
       }
 
@@ -245,8 +245,8 @@ async function main() {
       logger.finalize({
         status: "ok",
         metadata: {
-          mode: "parked",
-          resultCount: parkedTasks.length
+          mode: "paused",
+          resultCount: pausedTasks.length
         }
       });
       return;
@@ -260,10 +260,10 @@ async function main() {
       lines.push("- Current task: none");
     }
 
-    if (parkedTasks.length > 0) {
-      lines.push(`- Parked tasks: ${parkedTasks.length}`);
-      parkedTasks.slice(0, 2).forEach((task) => {
-        lines.push(formatParkedTaskLine(task));
+    if (pausedTasks.length > 0) {
+      lines.push(`- Paused tasks: ${pausedTasks.length}`);
+      pausedTasks.slice(0, 2).forEach((task) => {
+        lines.push(formatPausedTaskLine(task));
       });
     }
 

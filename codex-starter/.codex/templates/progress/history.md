@@ -4,7 +4,7 @@
 **Archive Target**: `.codex/progress/archive/<task-slug>/history/<timestamp>-<slug>.md`
 **Timestamp**: YYYY-MM-DD HH:MM
 **Task ID**: `<task-id>`
-**Event**: `new-task|brief-refresh|handoff-switch|blocked|resume|completed`
+**Event**: `new-task|brief-refresh|handoff-switch|blocked|waiting-user|resume|paused|completed|cancelled`
 **Written By**: `technical_manager`
 
 ---

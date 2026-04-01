@@ -171,7 +171,7 @@ For routed or otherwise durable tasks:
 - if the session stops before an `active`, `handoff`, or `blocked` task is explicitly settled, the Stop hook should record interruption only; treat the next session as resume-or-retire, not auto-complete.
 - when startup reconcile suggests `review-if-completed`, ask for the shortest explicit confirmation needed to settle or continue the current task.
 - when the user clearly starts a new task, retire the previous open hot task into `recent_tasks` by default as `paused`.
-- only force an explicit retirement choice when you have repository evidence that the previous hot task should be recorded as `completed` or `cancelled` instead of silently parked.
+- only force an explicit retirement choice when you have repository evidence that the previous hot task should be recorded as `completed` or `cancelled` instead of silently pausing it.
 - treat `sticky_owner` as role continuity only. Do not assume the same physical subagent session must stay alive across turns.
 
 Maintain `.codex/state/repo-context.json` with:

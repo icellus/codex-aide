@@ -10,6 +10,7 @@ import {
   defaultRecentTask,
   defaultTaskState,
   hasTrackedTask,
+  isManagedTaskProgressPath,
   isInterruptibleTaskStatus,
   isTerminalTaskStatus,
   normalizeRecentTask,
@@ -20,6 +21,7 @@ import {
   slugifyTaskId,
   writeTaskContext
 } from "../shared/task-context.mjs";
+import { syncTaskProgressArtifacts } from "../shared/task-progress.mjs";
 import { absolutizeProjectPath } from "../shared/project-context.mjs";
 
 function normalizeText(value) {
@@ -161,7 +163,7 @@ function inferLastEvent({ explicitEvent, action, previousStatus, nextStatus, isN
   }
 
   if (nextStatus === "completed" || nextStatus === "cancelled") {
-    return "settled";
+    return nextStatus;
   }
 
   return "checkpoint";
@@ -432,8 +434,16 @@ function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEven
   if (patch.progress_path !== undefined) {
     nextTask.progress_path = patch.progress_path;
   }
-  if (!nextTask.progress_path) {
-    nextTask.progress_path = defaultTaskProgressPath(projectDir, nextTask.task_id, nextTask.delivery_mode);
+  const managedProgressPath = defaultTaskProgressPath(projectDir, nextTask.task_id, nextTask.delivery_mode, nextStatus);
+  if (patch.progress_path === undefined) {
+    if (
+      !nextTask.progress_path ||
+      isManagedTaskProgressPath(projectDir, nextTask.progress_path, nextTask.task_id, nextTask.delivery_mode)
+    ) {
+      nextTask.progress_path = managedProgressPath;
+    }
+  } else if (!nextTask.progress_path) {
+    nextTask.progress_path = managedProgressPath;
   }
   nextTask.interrupted_at = null;
   nextTask.waiting_on = deriveWaitingOn({ patch, previousTask, nextStatus });
@@ -616,7 +626,7 @@ function applyResumeTask({ projectDir, state, timestamp, actor, taskId, explicit
     return {
       error: {
         code: "task-not-found",
-        message: `no parked task found for task_id=${targetTaskId}`
+        message: `no paused task found for task_id=${targetTaskId}`
       }
     };
   }
@@ -626,7 +636,7 @@ function applyResumeTask({ projectDir, state, timestamp, actor, taskId, explicit
     return {
       error: {
         code: "task-not-resumable",
-        message: `task_id=${targetTaskId} is not parked as paused`,
+        message: `task_id=${targetTaskId} is not paused`,
         task: summarizeTask(target)
       }
     };
@@ -667,8 +677,11 @@ function applyResumeTask({ projectDir, state, timestamp, actor, taskId, explicit
   next.task.sticky_owner = normalizeStickyOwner(target.sticky_owner, "Aide") || "Aide";
   next.task.sticky_reason = normalizeText(target.sticky_reason) || defaultStickyReason(next.task.sticky_owner);
   next.task.sticky_since = target.sticky_since || timestamp;
-  if (!next.task.progress_path) {
-    next.task.progress_path = defaultTaskProgressPath(projectDir, next.task.task_id, next.task.delivery_mode);
+  if (
+    !next.task.progress_path ||
+    isManagedTaskProgressPath(projectDir, next.task.progress_path, next.task.task_id, next.task.delivery_mode)
+  ) {
+    next.task.progress_path = defaultTaskProgressPath(projectDir, next.task.task_id, next.task.delivery_mode, next.task.status);
   }
 
   if (!next.task.started_at) {
@@ -758,6 +771,11 @@ async function main() {
 
     if (result.changed) {
       writeTaskContext(projectDir, result.state);
+      syncTaskProgressArtifacts({
+        projectDir,
+        previousState: state,
+        nextState: result.state
+      });
     }
 
     const currentTask = result.state.task || defaultTaskState();

@@ -67,7 +67,7 @@ Plain-language intent should map to the same routes.
 - `handoff` means the next action belongs to another enabled role in the current chain.
 - `blocked` means repository, environment, or execution constraints prevent progress without internal resolution.
 - `waiting_user` means the next move depends on explicit user clarification or decision.
-- `paused` means the task was explicitly parked and should remain resumable outside the hot slot.
+- `paused` means the task was explicitly paused and should remain resumable outside the hot slot.
 - Do not infer completion from silence, missing follow-up, or session end.
 - If a session stops while task status is `active`, `handoff`, or `blocked`, runtime hooks should record an interruption timestamp instead of changing task status.
 - Starting a new hot task while another non-terminal task is still open should retire the previous hot task into `recent_tasks` by default as `paused`.
@@ -162,8 +162,9 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 - enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `coder` for implementation ownership, followed by required downstream `tester`
 - enable `long-running` mode and `.codex/progress/active/<task-slug>/current.md` when work is multi-step, cross-session, blocked, or release-shaped
-- during long-running mode, on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md`
-- when `completed` is emitted, archive the task record to `.codex/progress/archive/<task-slug>/...` after the final sync
+- during long-running mode, on state changes that materially update task progress, append one history entry and refresh `current.md` in the same update cycle
+- at minimum, treat `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `waiting-user`, `resume`, `paused`, `completed`, and `cancelled` as long-running sync events
+- when `completed` or `cancelled` is emitted, archive the task record to `.codex/progress/archive/<task-slug>/...` after the final sync
 - enable `qc` when risk is high, the user asks for audit, or release confidence needs it
 - enable `submit` when governed commit/push or post-push follow-through matters
 

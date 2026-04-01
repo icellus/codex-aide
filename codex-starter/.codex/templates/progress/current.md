@@ -4,7 +4,7 @@
 **Archive Target**: `.codex/progress/archive/<task-slug>/current.md`
 **Mode**: long-running (non-release)
 **Last Synced**: YYYY-MM-DD HH:MM
-**Latest Event**: `new-task|brief-refresh|handoff-switch|blocked|resume|completed`
+**Latest Event**: `new-task|brief-refresh|handoff-switch|blocked|waiting-user|resume|paused|completed|cancelled`
 **Latest History Entry**: `.codex/progress/active/<task-slug>/history/<timestamp>-<slug>.md`
 
 Use this template for long-running work where release promotion/deploy checkpoints are not the primary concern.
@@ -19,7 +19,7 @@ The path segment uses a slugified task identifier; keep the literal Task ID in t
 - Work Item: [short title]
 - Task Class: `bugfix|feature|product|refactor|exploration`
 - Delivery Mode: `long-running`
-- Status: `active|handoff|blocked|waiting_user|paused|parked|completed|cancelled`
+- Status: `active|handoff|blocked|waiting_user|paused|completed|cancelled`
 - Current Checkpoint: `align|brief|implement|validate|handoff|close`
 - Owner: `technical_manager`
 - Active Roles / Modules: `technical_manager`, [others or main agent]
@@ -51,4 +51,4 @@ The path segment uses a slugified task identifier; keep the literal Task ID in t
 
 - History Directory: `.codex/progress/active/<task-slug>/history/`
 - Latest History Entry: `[timestamp-slug.md]`
-- Sync Rule: on `new-task|brief-refresh|handoff-switch|blocked|resume|completed`, append history and refresh this file in the same update cycle.
+- Sync Rule: on material long-running state changes such as `new-task|brief-refresh|handoff-switch|blocked|waiting-user|resume|paused|completed|cancelled`, append history and refresh this file in the same update cycle.

@@ -495,6 +495,28 @@ function compareExpectedArrayFields({ actual, expected, baseLabel, errors }) {
   }
 }
 
+function readNestedValue(target, dottedPath) {
+  return String(dottedPath || "")
+    .split(".")
+    .filter(Boolean)
+    .reduce((current, segment) => (current && Object.prototype.hasOwnProperty.call(current, segment) ? current[segment] : undefined), target);
+}
+
+function compareExpectedNestedFields({ actual, expected, baseLabel, errors }) {
+  if (!expected || typeof expected !== "object" || Array.isArray(expected)) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(expected)) {
+    const actualValue = readNestedValue(actual, key);
+    if (JSON.stringify(actualValue) !== JSON.stringify(value)) {
+      errors.push(
+        `${baseLabel}.${key}=${JSON.stringify(value)}, got ${actualValue === undefined ? "<missing>" : JSON.stringify(actualValue)}`
+      );
+    }
+  }
+}
+
 function assertPresentFields({ actual, fields, label, errors }) {
   if (!Array.isArray(fields)) {
     return;
@@ -519,6 +541,15 @@ function readTaskContextState(projectDir) {
 
 function readRepoContextState(projectDir) {
   const stateFilePath = path.join(projectDir, ".codex", "state", "repo-context.json");
+  if (!fileExists(stateFilePath)) {
+    return null;
+  }
+
+  return readJson(stateFilePath);
+}
+
+function readSubmitPreferencesState(projectDir) {
+  const stateFilePath = path.join(projectDir, ".codex", "state", "submit-preferences.json");
   if (!fileExists(stateFilePath)) {
     return null;
   }
@@ -607,6 +638,10 @@ function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
       if (typeof expect.action === "string" && String(parsed?.action || "") !== expect.action) {
         errors.push(`${label}: expected action=${expect.action}, got ${parsed?.action || "<missing>"}`);
+      }
+
+      if (typeof expect.status === "string" && String(parsed?.status || "") !== expect.status) {
+        errors.push(`${label}: expected status=${expect.status}, got ${parsed?.status || "<missing>"}`);
       }
 
       if (typeof expect.changed === "boolean" && Boolean(parsed?.changed) !== expect.changed) {
@@ -710,6 +745,18 @@ function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
       for (const relativePath of expect.project_paths_absent || []) {
         if (fileExists(path.join(projectDir, relativePath))) {
           errors.push(`${label}: expected project path to be absent "${relativePath}"`);
+        }
+      }
+
+      const projectDirContains = expect.project_dir_contains && typeof expect.project_dir_contains === "object"
+        ? expect.project_dir_contains
+        : {};
+      for (const [relativeDir, expectedText] of Object.entries(projectDirContains)) {
+        const targetDir = path.join(projectDir, relativeDir);
+        const files = listFilesRecursive(targetDir, () => true);
+        const matched = files.some((filePath) => readText(filePath).includes(String(expectedText)));
+        if (!matched) {
+          errors.push(`${label}: expected some file under ${relativeDir} to contain ${JSON.stringify(expectedText)}`);
         }
       }
     });
@@ -1197,6 +1244,19 @@ function runShellSetup(command, cwd) {
   }
 }
 
+function runGit(cwd, args) {
+  const result = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8"
+  });
+
+  return {
+    ok: (result.status ?? 1) === 0,
+    stdout: String(result.stdout || "").trim(),
+    stderr: String(result.stderr || "").trim()
+  };
+}
+
 function validateGitScenario({ repoRoot = defaultRepoRoot, scenario }) {
   const errors = [];
   const sourceProjectDir = path.join(repoRoot, "codex-starter");
@@ -1328,6 +1388,201 @@ function validateTaskProgressSyncBehaviorContracts({
   return { ok: errors.length === 0, errors };
 }
 
+function validateSubmitDeliveryScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-submit-delivery-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    initGitRepo(projectDir);
+
+    for (const command of scenario.setup_commands || []) {
+      runShellSetup(String(command || ""), projectDir);
+    }
+
+    if (!Array.isArray(scenario.steps) || scenario.steps.length === 0) {
+      return {
+        ok: false,
+        errors: [`${scenario.id || "<unknown>"}: steps must be a non-empty array`]
+      };
+    }
+
+    scenario.steps.forEach((step, index) => {
+      const label = `${scenario.id || "<unknown>"} step ${index + 1}`;
+      const cwdRelative = typeof step.cwd_relative === "string" ? step.cwd_relative.trim() : "";
+      const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
+      fs.mkdirSync(stepCwd, { recursive: true });
+
+      for (const command of step.setup_commands || []) {
+        runShellSetup(String(command || ""), stepCwd);
+      }
+
+      const stepScript = String(step.script || "plan").trim().toLowerCase();
+      const scriptPath = path.join(
+        projectDir,
+        ".codex",
+        "scripts",
+        "submit",
+        stepScript === "execute" ? "execute-delivery.mjs" : "plan-delivery.mjs"
+      );
+      const invocation = runNodeJsonScript(scriptPath, projectDir, step.input || {}, {
+        cwd: stepCwd,
+        useProjectDirEnv: step.use_project_dir_env !== false,
+        extraEnv: step.env && typeof step.env === "object" ? step.env : {}
+      });
+      const parsed = invocation.parsed;
+      const expect = step.expect || {};
+
+      if (typeof expect.exit_status === "number" && invocation.status !== expect.exit_status) {
+        errors.push(`${label}: expected exit_status=${expect.exit_status}, got ${invocation.status}`);
+      }
+
+      if (typeof expect.ok === "boolean" && Boolean(parsed?.ok) !== expect.ok) {
+        errors.push(`${label}: expected ok=${expect.ok}, got ${Boolean(parsed?.ok)}`);
+      }
+
+      if (typeof expect.action === "string" && String(parsed?.action || "") !== expect.action) {
+        errors.push(`${label}: expected action=${expect.action}, got ${parsed?.action || "<missing>"}`);
+      }
+
+      compareExpectedObject({
+        actual: parsed?.commit,
+        expected: expect.commit_fields,
+        baseLabel: `${label}: expected commit`,
+        errors
+      });
+      compareExpectedObject({
+        actual: parsed?.push,
+        expected: expect.push_fields,
+        baseLabel: `${label}: expected push`,
+        errors
+      });
+      compareExpectedObject({
+        actual: parsed?.qc,
+        expected: expect.qc_fields,
+        baseLabel: `${label}: expected qc`,
+        errors
+      });
+      compareExpectedObject({
+        actual: parsed?.notify,
+        expected: expect.notify_fields,
+        baseLabel: `${label}: expected notify`,
+        errors
+      });
+      compareExpectedObject({
+        actual: parsed?.ci,
+        expected: expect.ci_fields,
+        baseLabel: `${label}: expected ci`,
+        errors
+      });
+      compareExpectedObject({
+        actual: parsed?.release,
+        expected: expect.release_fields,
+        baseLabel: `${label}: expected release`,
+        errors
+      });
+      compareExpectedObject({
+        actual: parsed?.git,
+        expected: expect.git_fields,
+        baseLabel: `${label}: expected git`,
+        errors
+      });
+      compareExpectedArrayFields({
+        actual: parsed?.git,
+        expected: expect.git_array_fields,
+        baseLabel: `${label}: expected git`,
+        errors
+      });
+      compareExpectedArray({
+        actual: parsed?.blockers,
+        expected: expect.blockers,
+        label: `${label}: expected blockers`,
+        errors
+      });
+      compareExpectedNestedFields({
+        actual: parsed?.preferences,
+        expected: expect.preference_fields,
+        baseLabel: `${label}: expected preferences`,
+        errors
+      });
+
+      const preferenceState = readSubmitPreferencesState(projectDir);
+      compareExpectedNestedFields({
+        actual: preferenceState,
+        expected: expect.preference_state_fields,
+        baseLabel: `${label}: expected state.submit_preferences`,
+        errors
+      });
+
+      if (typeof expect.head_subject === "string") {
+        const headSubject = runGit(stepCwd, ["log", "-1", "--pretty=%s"]);
+        const actualHeadSubject = headSubject.ok ? headSubject.stdout : "<missing>";
+        if (actualHeadSubject !== expect.head_subject) {
+          errors.push(`${label}: expected head_subject=${expect.head_subject}, got ${actualHeadSubject}`);
+        }
+      }
+
+      if (typeof expect.upstream === "string") {
+        const upstream = runGit(stepCwd, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]);
+        const actualUpstream = upstream.ok ? upstream.stdout : "<missing>";
+        if (actualUpstream !== expect.upstream) {
+          errors.push(`${label}: expected upstream=${expect.upstream}, got ${actualUpstream}`);
+        }
+      }
+
+      if (typeof expect.remote_branch_exists === "string") {
+        const remoteBranch = runGit(stepCwd, ["ls-remote", "--heads", "origin", expect.remote_branch_exists]);
+        const exists = remoteBranch.ok && Boolean(remoteBranch.stdout);
+        if (!exists) {
+          errors.push(`${label}: expected remote branch ${expect.remote_branch_exists} to exist`);
+        }
+      }
+
+      for (const relativePath of expect.project_paths_exist || []) {
+        if (!fileExists(path.join(projectDir, relativePath))) {
+          errors.push(`${label}: expected project path to exist "${relativePath}"`);
+        }
+      }
+
+      const fileContains = expect.project_file_contains && typeof expect.project_file_contains === "object"
+        ? expect.project_file_contains
+        : {};
+      for (const [relativePath, expectedText] of Object.entries(fileContains)) {
+        const filePath = path.join(projectDir, relativePath);
+        const actualText = fileExists(filePath) ? readText(filePath) : "";
+        if (!actualText.includes(String(expectedText))) {
+          errors.push(`${label}: expected project file ${relativePath} to contain ${JSON.stringify(expectedText)}`);
+        }
+      }
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateSubmitDeliveryBehaviorContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "submit-delivery-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadScenarioFiles(scenarioRoot)) {
+    const result = validateSubmitDeliveryScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 const executorDefinitions = Object.freeze({
   "authority-shape": Object.freeze({
     layer: "contract",
@@ -1428,6 +1683,17 @@ const executorDefinitions = Object.freeze({
     runActive: ({ repoRoot }) => validateValidateGitBehaviorContracts({ repoRoot }),
     runProof: ({ repoRoot, check }) =>
       validateValidateGitBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
+  "submit-delivery-behavior": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateSubmitDeliveryBehaviorContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateSubmitDeliveryBehaviorContracts({
         repoRoot,
         scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
       })

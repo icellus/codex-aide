@@ -31,7 +31,9 @@
           "finished_at": null
         },
         "project_paths_exist": [
-          ".codex/state/task-context.json"
+          ".codex/state/task-context.json",
+          ".codex/progress/active/tm-focus/current.md",
+          ".codex/progress/active/tm-focus/history"
         ],
         "project_paths_absent": [
           "worktrees/one/two/three/four/five/six/.codex/state/task-context.json"
@@ -251,6 +253,45 @@
         },
         "state_task_relative_path_fields": {
           "progress_path": ".codex/progress/active/tm-focus/current.md"
+        }
+      }
+    },
+    {
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Implement parser",
+          "task_id": "tm-focus",
+          "status": "completed",
+          "completion_reason": "validated and settled"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "completed"
+        },
+        "project_paths_exist": [
+          ".codex/progress/archive/tm-focus/current.md",
+          ".codex/progress/archive/tm-focus/history"
+        ],
+        "project_paths_absent": [
+          ".codex/progress/active/tm-focus/current.md"
+        ],
+        "project_dir_contains": {
+          ".codex/progress/archive/tm-focus/history": "- Status: `active` -> `completed`"
+        },
+        "state_task_fields": {
+          "status": "completed",
+          "completion_reason": "validated and settled"
+        },
+        "state_task_relative_path_fields": {
+          "progress_path": ".codex/progress/archive/tm-focus/current.md"
         }
       }
     }

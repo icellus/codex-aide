@@ -101,8 +101,9 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-slug>/current.md`
 - `technical_manager` is the only execution role that writes `.codex/progress/**`.
 - long-running current snapshot path: `.codex/progress/active/<task-slug>/current.md`.
 - long-running history path: `.codex/progress/active/<task-slug>/history/<timestamp>-<slug>.md`.
-- on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md` in the same update cycle.
-- on `completed`, keep the final snapshot + history coherent, then move the task record to `.codex/progress/archive/<task-slug>/...`.
+- on state changes that materially update long-running progress, append one history entry and refresh `current.md` in the same update cycle.
+- at minimum, treat `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `waiting-user`, `resume`, `paused`, `completed`, and `cancelled` as long-running sync events.
+- on `completed` or `cancelled`, keep the final snapshot + history coherent, then move the task record to `.codex/progress/archive/<task-slug>/...`.
 - `.codex/templates/progress/current.md` and `.codex/templates/progress/release.md` are `current.md` templates; `.codex/templates/progress/history.md` is the history-entry template.
 - progress path segments use a slugified task identifier; keep the literal `Task ID` inside file content and task state.
 - if a session stops before an `active`, `handoff`, or `blocked` task is explicitly settled, expect runtime hooks to record interruption only; on the next session, either resume the same hot task or retire it explicitly before switching.

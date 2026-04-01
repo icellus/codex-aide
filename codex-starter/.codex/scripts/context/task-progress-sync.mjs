@@ -30,7 +30,7 @@ function resolveProgressPath(projectDir, task) {
     return path.isAbsolute(configured) ? path.resolve(configured) : path.join(projectDir, configured);
   }
 
-  return defaultTaskProgressPath(projectDir, task.task_id, task.delivery_mode);
+  return defaultTaskProgressPath(projectDir, task.task_id, task.delivery_mode, task.status);
 }
 
 function parseProgressSnapshot(progressPath) {

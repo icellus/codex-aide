@@ -1,9 +1,9 @@
 {
   "version": 2,
   "budgets": {
-    "max_active_checks": 12,
-    "max_fixture_files": 24,
-    "max_fixture_bytes": 24576
+    "max_active_checks": 13,
+    "max_fixture_files": 26,
+    "max_fixture_bytes": 28672
   },
   "checks": [
     {
@@ -196,6 +196,31 @@
       "proof_fixture_root": "fixtures/codex-starter-dev/validate-git-invalid",
       "expected_error_patterns": [
         "expected decision=allow"
+      ]
+    },
+    {
+      "id": "submit-delivery-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "submit-delivery-flow",
+      "failure_mode": "submit-delivery-gate-regression",
+      "source_paths": [
+        "codex-starter/.codex/scripts/submit/plan-delivery.mjs",
+        "codex-starter/.codex/scripts/submit/execute-delivery.mjs",
+        "codex-starter/.codex/scripts/shared/submit-delivery.mjs",
+        "codex-starter/.codex/skills/submit/SKILL.md",
+        "codex-starter/.codex/agents/submit_worker.toml",
+        "codex-starter/.codex/policies/delivery-policy.json",
+        "codex-starter/.codex/state/submit-preferences.demo.json",
+        "fixtures/codex-starter-dev/submit-delivery-pass",
+        "fixtures/codex-starter-dev/submit-delivery-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "submit-delivery-behavior",
+      "proof_fixture_root": "fixtures/codex-starter-dev/submit-delivery-invalid",
+      "expected_error_patterns": [
+        "expected commit.status=done"
       ]
     },
     {
