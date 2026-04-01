@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import path from "node:path";
+
 import { getProjectContext } from "../shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
@@ -18,6 +20,7 @@ import {
   readTaskContext,
   writeTaskContext
 } from "../shared/task-context.mjs";
+import { absolutizeProjectPath } from "../shared/project-context.mjs";
 
 function normalizeText(value) {
   return String(value || "").replace(/\r/g, "").trim();
@@ -45,17 +48,17 @@ function createGeneratedTaskId(title, timestamp) {
   return `${timestampToken(timestamp)}-${slug}`;
 }
 
-function defaultProgressPath(taskId, deliveryMode) {
+function defaultProgressPath(projectDir, taskId, deliveryMode) {
   if (normalizeText(deliveryMode) !== "long-running") {
     return "";
   }
 
-  const normalizedTaskId = normalizeText(taskId);
+  const normalizedTaskId = slugifyTaskId(taskId);
   if (!normalizedTaskId) {
     return "";
   }
 
-  return `.codex/progress/active/${normalizedTaskId}/current.md`;
+  return path.join(projectDir, ".codex", "progress", "active", normalizedTaskId, "current.md");
 }
 
 function inferAction(input = {}) {
@@ -72,34 +75,71 @@ function inferAction(input = {}) {
   return "noop";
 }
 
-function normalizePatch(inputTask = {}) {
+function hasOwnField(value, fieldName) {
+  return Boolean(value) && Object.prototype.hasOwnProperty.call(value, fieldName);
+}
+
+function readOptionalText(inputTask, ...fieldNames) {
+  for (const fieldName of fieldNames) {
+    if (hasOwnField(inputTask, fieldName)) {
+      return normalizeText(inputTask[fieldName]);
+    }
+  }
+
+  return undefined;
+}
+
+function readOptionalLowerText(inputTask, ...fieldNames) {
+  const value = readOptionalText(inputTask, ...fieldNames);
+  return value === undefined ? undefined : value.toLowerCase();
+}
+
+function readOptionalStringList(inputTask, ...fieldNames) {
+  for (const fieldName of fieldNames) {
+    if (hasOwnField(inputTask, fieldName)) {
+      return normalizeStringList(inputTask[fieldName]);
+    }
+  }
+
+  return undefined;
+}
+
+function absolutizeOptionalRuntimePath(projectDir, value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return value ? absolutizeProjectPath(projectDir, value) : "";
+}
+
+function normalizePatch(projectDir, inputTask = {}) {
   return {
-    current_task: normalizeText(inputTask.current_task || inputTask.title),
-    task_id: normalizeText(inputTask.task_id),
-    status: normalizeText(inputTask.status).toLowerCase(),
-    class: normalizeText(inputTask.class),
-    risk: normalizeText(inputTask.risk),
-    delivery_mode: normalizeText(inputTask.delivery_mode),
-    route_rationale: normalizeText(inputTask.route_rationale),
-    routing_overrides: normalizeStringList(inputTask.routing_overrides),
-    enabled_roles: normalizeStringList(inputTask.enabled_roles),
-    enabled_modules: normalizeStringList(inputTask.enabled_modules),
-    qc_policy: normalizeText(inputTask.qc_policy),
-    submit_policy: normalizeText(inputTask.submit_policy),
-    validation_profile_status: normalizeText(inputTask.validation_profile_status),
-    open_questions: normalizeStringList(inputTask.open_questions),
-    checkpoint: normalizeText(inputTask.checkpoint),
-    next_step: normalizeText(inputTask.next_step),
-    next_owner: normalizeText(inputTask.next_owner),
-    sticky_owner: normalizeText(inputTask.sticky_owner || inputTask.follow_up_owner),
-    sticky_reason: normalizeText(inputTask.sticky_reason),
-    waiting_on: normalizeText(inputTask.waiting_on).toLowerCase(),
-    blocked_reason: normalizeText(inputTask.blocked_reason),
-    completion_reason: normalizeText(inputTask.completion_reason),
-    implementation_brief_path: normalizeText(inputTask.implementation_brief_path),
-    progress_path: normalizeText(inputTask.progress_path),
-    retire_current_as: normalizeText(inputTask.retire_current_as).toLowerCase(),
-    retire_reason: normalizeText(inputTask.retire_reason),
+    current_task: readOptionalText(inputTask, "current_task", "title"),
+    task_id: readOptionalText(inputTask, "task_id"),
+    status: readOptionalLowerText(inputTask, "status"),
+    class: readOptionalText(inputTask, "class"),
+    risk: readOptionalText(inputTask, "risk"),
+    delivery_mode: readOptionalText(inputTask, "delivery_mode"),
+    route_rationale: readOptionalText(inputTask, "route_rationale"),
+    routing_overrides: readOptionalStringList(inputTask, "routing_overrides"),
+    enabled_roles: readOptionalStringList(inputTask, "enabled_roles"),
+    enabled_modules: readOptionalStringList(inputTask, "enabled_modules"),
+    qc_policy: readOptionalText(inputTask, "qc_policy"),
+    submit_policy: readOptionalText(inputTask, "submit_policy"),
+    validation_profile_status: readOptionalText(inputTask, "validation_profile_status"),
+    open_questions: readOptionalStringList(inputTask, "open_questions"),
+    checkpoint: readOptionalText(inputTask, "checkpoint"),
+    next_step: readOptionalText(inputTask, "next_step"),
+    next_owner: readOptionalText(inputTask, "next_owner"),
+    sticky_owner: readOptionalText(inputTask, "sticky_owner", "follow_up_owner"),
+    sticky_reason: readOptionalText(inputTask, "sticky_reason"),
+    waiting_on: readOptionalLowerText(inputTask, "waiting_on"),
+    blocked_reason: readOptionalText(inputTask, "blocked_reason"),
+    completion_reason: readOptionalText(inputTask, "completion_reason"),
+    implementation_brief_path: absolutizeOptionalRuntimePath(projectDir, readOptionalText(inputTask, "implementation_brief_path")),
+    progress_path: absolutizeOptionalRuntimePath(projectDir, readOptionalText(inputTask, "progress_path")),
+    retire_current_as: readOptionalLowerText(inputTask, "retire_current_as"),
+    retire_reason: readOptionalText(inputTask, "retire_reason"),
     replace_current: inputTask.replace_current && typeof inputTask.replace_current === "object" ? inputTask.replace_current : null
   };
 }
@@ -257,14 +297,41 @@ function requestedRetireStatus(rawValue, fallback = "paused") {
   return normalizeRetireStatus(raw, "");
 }
 
-function applySetTask({ state, patch, timestamp, actor, explicitEvent }) {
+function deriveWaitingOn({ patch, previousTask, nextStatus }) {
+  const explicitWaitingOn = patch.waiting_on === undefined ? undefined : normalizeWaitingOn(patch.waiting_on, "none");
+
+  if (nextStatus === "waiting_user") {
+    if (explicitWaitingOn && explicitWaitingOn !== "none") {
+      return explicitWaitingOn;
+    }
+
+    return "user";
+  }
+
+  if (nextStatus === "blocked") {
+    if (explicitWaitingOn !== undefined) {
+      return explicitWaitingOn;
+    }
+
+    const previousWaitingOn = normalizeWaitingOn(previousTask.waiting_on, "none");
+    return previousWaitingOn === "none" || previousWaitingOn === "user" ? "unknown" : previousWaitingOn;
+  }
+
+  if (explicitWaitingOn !== undefined) {
+    return explicitWaitingOn;
+  }
+
+  return "none";
+}
+
+function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEvent }) {
   const next = defaultTaskContext();
   next.collaboration = state.collaboration;
   next.updated_at = timestamp;
   next.recent_tasks = Array.isArray(state.recent_tasks) ? [...state.recent_tasks] : [];
 
   const previousTask = state.task || defaultTaskState();
-  const incomingTitle = patch.current_task || previousTask.current_task;
+  const incomingTitle = patch.current_task === undefined ? previousTask.current_task : patch.current_task;
   const explicitTaskId = patch.task_id;
   const titleChanged = Boolean(incomingTitle) && incomingTitle !== previousTask.current_task;
   const incomingTaskId =
@@ -333,37 +400,37 @@ function applySetTask({ state, patch, timestamp, actor, explicitEvent }) {
   if (patch.delivery_mode) {
     nextTask.delivery_mode = patch.delivery_mode;
   }
-  if (patch.route_rationale || patch.route_rationale === "") {
+  if (patch.route_rationale !== undefined) {
     nextTask.route_rationale = patch.route_rationale;
   }
-  if (patch.routing_overrides.length > 0 || Array.isArray(patch.routing_overrides)) {
+  if (patch.routing_overrides !== undefined) {
     nextTask.routing_overrides = patch.routing_overrides;
   }
-  if (patch.enabled_roles.length > 0) {
+  if (patch.enabled_roles !== undefined) {
     nextTask.enabled_roles = patch.enabled_roles;
   }
-  if (patch.enabled_modules.length > 0) {
+  if (patch.enabled_modules !== undefined) {
     nextTask.enabled_modules = patch.enabled_modules;
   }
-  if (patch.qc_policy) {
+  if (patch.qc_policy !== undefined) {
     nextTask.qc_policy = patch.qc_policy;
   }
-  if (patch.submit_policy) {
+  if (patch.submit_policy !== undefined) {
     nextTask.submit_policy = patch.submit_policy;
   }
-  if (patch.validation_profile_status) {
+  if (patch.validation_profile_status !== undefined) {
     nextTask.validation_profile_status = patch.validation_profile_status;
   }
-  if (Array.isArray(patch.open_questions)) {
+  if (patch.open_questions !== undefined) {
     nextTask.open_questions = patch.open_questions;
   }
-  if (patch.checkpoint || patch.checkpoint === "") {
+  if (patch.checkpoint !== undefined) {
     nextTask.checkpoint = patch.checkpoint || "none";
   }
-  if (patch.next_step || patch.next_step === "") {
+  if (patch.next_step !== undefined) {
     nextTask.next_step = patch.next_step;
   }
-  if (patch.next_owner || patch.next_owner === "") {
+  if (patch.next_owner !== undefined) {
     nextTask.next_owner = patch.next_owner;
   }
   const stickyOwner = inferStickyOwner({ patch, previousTask, newIdentity });
@@ -371,35 +438,29 @@ function applySetTask({ state, patch, timestamp, actor, explicitEvent }) {
   nextTask.sticky_reason = patch.sticky_reason || previousTask.sticky_reason || defaultStickyReason(stickyOwner);
   nextTask.sticky_since =
     stickyOwner && stickyOwner !== previousStickyOwner ? timestamp : previousTask.sticky_since || (stickyOwner ? timestamp : null);
-  if (patch.waiting_on) {
-    nextTask.waiting_on = normalizeWaitingOn(patch.waiting_on, nextTask.waiting_on);
-  }
-  if (patch.blocked_reason || patch.blocked_reason === "") {
+  if (patch.blocked_reason !== undefined) {
     nextTask.blocked_reason = patch.blocked_reason;
   }
-  if (patch.completion_reason || patch.completion_reason === "") {
+  if (patch.completion_reason !== undefined) {
     nextTask.completion_reason = patch.completion_reason;
   }
-  if (patch.implementation_brief_path || patch.implementation_brief_path === "") {
+  if (patch.implementation_brief_path !== undefined) {
     nextTask.implementation_brief_path = patch.implementation_brief_path;
   }
-  if (patch.progress_path || patch.progress_path === "") {
+  if (patch.progress_path !== undefined) {
     nextTask.progress_path = patch.progress_path;
   }
   if (!nextTask.progress_path) {
-    nextTask.progress_path = defaultProgressPath(nextTask.task_id, nextTask.delivery_mode);
+    nextTask.progress_path = defaultProgressPath(projectDir, nextTask.task_id, nextTask.delivery_mode);
   }
   nextTask.interrupted_at = null;
+  nextTask.waiting_on = deriveWaitingOn({ patch, previousTask, nextStatus });
 
-  if (nextStatus === "waiting_user" && (!patch.waiting_on || normalizeWaitingOn(patch.waiting_on, "none") === "none")) {
-    nextTask.waiting_on = "user";
-  }
-
-  if (nextStatus !== "blocked" && !patch.blocked_reason) {
+  if (nextStatus !== "blocked" && patch.blocked_reason === undefined) {
     nextTask.blocked_reason = "";
   }
 
-  if (!isTerminalTaskStatus(nextStatus) && !patch.completion_reason) {
+  if (!isTerminalTaskStatus(nextStatus) && patch.completion_reason === undefined) {
     nextTask.completion_reason = "";
   }
 
@@ -502,7 +563,32 @@ function applyRecordInterruption({ state, timestamp }) {
   return { state: next, changed: true };
 }
 
-function applyResumeTask({ state, timestamp, actor, taskId, explicitStatus, options = {} }) {
+function normalizeResumeStatus(value) {
+  const normalized = normalizeTaskStatus(value, "");
+  if (!normalized) {
+    return {
+      ok: true,
+      status: "active"
+    };
+  }
+
+  if (["active", "handoff", "blocked", "waiting_user"].includes(normalized)) {
+    return {
+      ok: true,
+      status: normalized
+    };
+  }
+
+  return {
+    ok: false,
+    error: {
+      code: "invalid-resume-status",
+      message: "resume-task status must be active|handoff|blocked|waiting_user when provided"
+    }
+  };
+}
+
+function applyResumeTask({ projectDir, state, timestamp, actor, taskId, explicitStatus, options = {} }) {
   const targetTaskId = normalizeText(taskId);
   if (!targetTaskId) {
     return {
@@ -510,6 +596,13 @@ function applyResumeTask({ state, timestamp, actor, taskId, explicitStatus, opti
         code: "missing-task-id",
         message: "resume-task requires task_id"
       }
+    };
+  }
+
+  const resumeStatus = normalizeResumeStatus(explicitStatus);
+  if (!resumeStatus.ok) {
+    return {
+      error: resumeStatus.error
     };
   }
 
@@ -580,7 +673,7 @@ function applyResumeTask({ state, timestamp, actor, taskId, explicitStatus, opti
   next.task = {
     ...defaultTaskState(),
     ...target,
-    status: normalizeTaskStatus(explicitStatus, "active"),
+    status: resumeStatus.status,
     updated_at: timestamp,
     paused_at: null,
     interrupted_at: null,
@@ -593,18 +686,28 @@ function applyResumeTask({ state, timestamp, actor, taskId, explicitStatus, opti
   next.task.sticky_reason = normalizeText(target.sticky_reason) || defaultStickyReason(next.task.sticky_owner);
   next.task.sticky_since = target.sticky_since || timestamp;
   if (!next.task.progress_path) {
-    next.task.progress_path = defaultProgressPath(next.task.task_id, next.task.delivery_mode);
+    next.task.progress_path = defaultProgressPath(projectDir, next.task.task_id, next.task.delivery_mode);
   }
 
   if (!next.task.started_at) {
     next.task.started_at = timestamp;
   }
 
+  next.task.waiting_on = deriveWaitingOn({
+    patch: { waiting_on: undefined },
+    previousTask: target,
+    nextStatus: next.task.status
+  });
+
+  if (next.task.status !== "blocked") {
+    next.task.blocked_reason = "";
+  }
+
   return { state: next, changed: true };
 }
 
 async function main() {
-  const envelope = await readJsonStdinEnvelope();
+  const envelope = await readJsonStdinEnvelope({ strict: true });
   const input = envelope.value;
   const project = getProjectContext(input);
   const projectDir = project.projectDir;
@@ -620,6 +723,10 @@ async function main() {
   const restoreStreams = logger.captureProcessStreams();
 
   try {
+    if (envelope.parseError) {
+      throw envelope.parseError;
+    }
+
     const action = inferAction(input);
     const timestamp = new Date().toISOString();
     const actor = normalizeText(input.actor || input.source_role || input.hook_event_name || "main");
@@ -628,8 +735,9 @@ async function main() {
 
     if (action === "set") {
       result = applySetTask({
+        projectDir,
         state,
-        patch: normalizePatch(input.task),
+        patch: normalizePatch(projectDir, input.task),
         timestamp,
         actor,
         explicitEvent: input.event
@@ -640,6 +748,7 @@ async function main() {
       result = applyRecordInterruption({ state, timestamp });
     } else if (action === "resume-task") {
       result = applyResumeTask({
+        projectDir,
         state,
         timestamp,
         actor,

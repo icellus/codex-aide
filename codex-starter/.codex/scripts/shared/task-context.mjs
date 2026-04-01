@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { ensureDir } from "./logging.mjs";
+import { absolutizeProjectPath } from "./project-context.mjs";
 
 const TASK_STATUS_VALUES = [
   "idle",
@@ -51,6 +52,19 @@ function normalizeStickyOwner(value, fallback = "") {
 function normalizeTimestamp(value) {
   const normalized = normalizeText(value);
   return normalized || null;
+}
+
+function normalizeRuntimePath(projectDir, value) {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return "";
+  }
+
+  if (!projectDir) {
+    return normalized;
+  }
+
+  return absolutizeProjectPath(projectDir, normalized);
 }
 
 function defaultTaskState() {
@@ -137,7 +151,7 @@ function defaultTaskContext() {
   };
 }
 
-function normalizeTask(task = {}) {
+function normalizeTask(task = {}, projectDir = "") {
   const defaults = defaultTaskState();
 
   return {
@@ -166,8 +180,8 @@ function normalizeTask(task = {}) {
     waiting_on: normalizeWaitingOn(task.waiting_on, defaults.waiting_on),
     blocked_reason: normalizeText(task.blocked_reason),
     completion_reason: normalizeText(task.completion_reason),
-    implementation_brief_path: normalizeText(task.implementation_brief_path),
-    progress_path: normalizeText(task.progress_path),
+    implementation_brief_path: normalizeRuntimePath(projectDir, task.implementation_brief_path),
+    progress_path: normalizeRuntimePath(projectDir, task.progress_path),
     created_at: normalizeTimestamp(task.created_at),
     started_at: normalizeTimestamp(task.started_at),
     updated_at: normalizeTimestamp(task.updated_at),
@@ -179,7 +193,7 @@ function normalizeTask(task = {}) {
   };
 }
 
-function normalizeRecentTask(task = {}) {
+function normalizeRecentTask(task = {}, projectDir = "") {
   const defaults = defaultRecentTask();
 
   return {
@@ -198,8 +212,8 @@ function normalizeRecentTask(task = {}) {
     waiting_on: normalizeWaitingOn(task.waiting_on, defaults.waiting_on),
     blocked_reason: normalizeText(task.blocked_reason),
     completion_reason: normalizeText(task.completion_reason),
-    implementation_brief_path: normalizeText(task.implementation_brief_path),
-    progress_path: normalizeText(task.progress_path),
+    implementation_brief_path: normalizeRuntimePath(projectDir, task.implementation_brief_path),
+    progress_path: normalizeRuntimePath(projectDir, task.progress_path),
     created_at: normalizeTimestamp(task.created_at),
     started_at: normalizeTimestamp(task.started_at),
     updated_at: normalizeTimestamp(task.updated_at),
@@ -223,15 +237,15 @@ function normalizeCollaboration(collaboration = {}) {
   };
 }
 
-function normalizeTaskContext(value = {}) {
+function normalizeTaskContext(value = {}, projectDir = "") {
   const defaults = defaultTaskContext();
   return {
     version: Number.isFinite(value?.version) ? value.version : defaults.version,
     updated_at: normalizeTimestamp(value?.updated_at),
     collaboration: normalizeCollaboration(value?.collaboration),
-    task: normalizeTask(value?.task),
+    task: normalizeTask(value?.task, projectDir),
     recent_tasks: Array.isArray(value?.recent_tasks)
-      ? value.recent_tasks.map((item) => normalizeRecentTask(item)).slice(0, RECENT_TASK_LIMIT)
+      ? value.recent_tasks.map((item) => normalizeRecentTask(item, projectDir)).slice(0, RECENT_TASK_LIMIT)
       : []
   };
 }
@@ -247,7 +261,7 @@ function readTaskContext(projectDir) {
   }
 
   try {
-    return normalizeTaskContext(JSON.parse(fs.readFileSync(filePath, "utf8")));
+    return normalizeTaskContext(JSON.parse(fs.readFileSync(filePath, "utf8")), projectDir);
   } catch {
     return defaultTaskContext();
   }
@@ -256,7 +270,7 @@ function readTaskContext(projectDir) {
 function writeTaskContext(projectDir, state) {
   const filePath = taskContextPath(projectDir);
   ensureDir(path.dirname(filePath));
-  fs.writeFileSync(filePath, `${JSON.stringify(normalizeTaskContext(state), null, 2)}\n`, "utf8");
+  fs.writeFileSync(filePath, `${JSON.stringify(normalizeTaskContext(state, projectDir), null, 2)}\n`, "utf8");
 }
 
 function hasTrackedTask(task = {}) {

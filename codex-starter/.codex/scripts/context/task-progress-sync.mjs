@@ -27,7 +27,7 @@ function readBulletField(text, label) {
 function resolveProgressPath(projectDir, task) {
   const configured = normalizeText(task.progress_path);
   if (configured) {
-    return path.join(projectDir, configured);
+    return path.isAbsolute(configured) ? path.resolve(configured) : path.join(projectDir, configured);
   }
 
   const taskId = normalizeText(task.task_id);

@@ -49,6 +49,15 @@ Repository-level maintenance guidance for this repo.
 - If review runs in parallel before real implementation lands, classify it as design review / solution review only, not implementation review.
 - Design/solution review cannot replace the post-implementation review pass for real delivered changes.
 
+## Systemic Fix Strategy
+
+- Do not optimize for the smallest local patch when the escaped issue is systemic. Fix the governing contract first, then update the dependent implementation.
+- Do not preserve a flawed abstraction only because it reduces immediate diff size. Prefer the structurally correct model when the old shape is the source of recurring drift.
+- When multiple defects share the same root cause, solve them as one repair cluster instead of shipping a series of isolated symptom patches.
+- Prefer a shared contract plus aligned consumers over repeated local heuristics. This applies especially to runtime root resolution, task-state transitions, delivery gates, and governance routing.
+- When an old field or rule still carries design value but is not yet consumed by execution, do not silently delete it. Mark its status explicitly so design intent is preserved without pretending it is live behavior.
+- When a report or review introduces new repair groupings, keep the mapping back to the original issue identifiers so later follow-up does not lose the original anchor.
+
 ## Validation
 
 - The legacy `tests/codex-starter/` runner and scripts have been removed from this repository.

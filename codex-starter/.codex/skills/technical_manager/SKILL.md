@@ -38,7 +38,7 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 ## Repository Scan Task
 
 - repository initialization scan is an independent, low-context `technical_manager` task
-- objective: produce `.codex/state/repo-context.json` content and `.codex/policies/validation-profile.json` content from repository facts
+- objective: produce `.codex/state/repo-context.json` content with the absolute `repo_root` plus `.codex/policies/validation-profile.json` content from repository facts
 - keep the scan factual; do not add routing advice, risk grading, or implementation planning
 - prioritize root structure, manifest/workspace/task config, CI/release config, and only minimal extra reads when needed
 - do not install dependencies or run build/test during the scan

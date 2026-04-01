@@ -1,0 +1,12 @@
+{
+  "id": "invalid_json_is_not_accepted",
+  "steps": [
+    {
+      "raw_input": "{invalid-json}\n",
+      "expect": {
+        "exit_status": 0,
+        "ok": true
+      }
+    }
+  ]
+}

@@ -136,7 +136,7 @@ Role-specific additions:
 - if the user indicates the repository was initialized, reinitialized, replaced, or otherwise reset, rerun that scan and replace the cached artifacts
 - treat the scan as a low-context `technical_manager` subtask; pass repo root plus trigger reason, and wait for completion before continuing
 - treat the scan as complete only when `technical_manager` returns `status=complete` with both `repo_context` and `validation_profile`
-- write returned `repo_context` to `.codex/state/repo-context.json` and returned `validation_profile` to `.codex/policies/validation-profile.json` immediately
+- write returned `repo_context` through `node .codex/scripts/context/repo-context.mjs` and returned `validation_profile` to `.codex/policies/validation-profile.json` immediately
 
 ## Scan Policy
 
@@ -176,7 +176,7 @@ For routed or otherwise durable tasks:
 
 Maintain `.codex/state/repo-context.json` with:
 
-- repo root and scan reason/status
+- absolute repo root and scan reason/status
 - project type, scale, languages/frameworks, and repo shape
 - key paths and entrypoints
 - CI, release, and validation signals

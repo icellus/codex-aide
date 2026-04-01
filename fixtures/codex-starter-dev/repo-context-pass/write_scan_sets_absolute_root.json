@@ -1,0 +1,42 @@
+{
+  "id": "write_scan_sets_absolute_root",
+  "steps": [
+    {
+      "cwd_relative": "worktrees/one/two/three/four/five/six",
+      "input": {
+        "projectDir": ".",
+        "scan_reason": "initial-scan",
+        "repo_context": {
+          "repo_root": "/tmp/ignored-root",
+          "project_type": "Node",
+          "primary_languages": ["JavaScript"],
+          "notes": ["scan complete"]
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "write-scan",
+        "repo_context_fields": {
+          "scan_reason": "initial-scan",
+          "scan_status": "complete"
+        },
+        "repo_context_relative_path_fields": {
+          "repo_root": "."
+        },
+        "state_fields": {
+          "project_type": "Node",
+          "scan_reason": "initial-scan",
+          "scan_status": "complete"
+        },
+        "state_relative_path_fields": {
+          "repo_root": "."
+        },
+        "state_array_fields": {
+          "primary_languages": ["JavaScript"],
+          "notes": ["scan complete"]
+        }
+      }
+    }
+  ]
+}

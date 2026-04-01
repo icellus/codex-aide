@@ -1,0 +1,13 @@
+{
+  "id": "authority_commit_is_allowed",
+  "setup_commands": [
+    "git add AGENTS.md"
+  ],
+  "input": {
+    "command": "git commit -m \"save authority\""
+  },
+  "expect": {
+    "exit_status": 0,
+    "decision": "allow"
+  }
+}

@@ -1,9 +1,9 @@
 {
   "version": 2,
   "budgets": {
-    "max_active_checks": 9,
-    "max_fixture_files": 15,
-    "max_fixture_bytes": 14336
+    "max_active_checks": 11,
+    "max_fixture_files": 20,
+    "max_fixture_bytes": 18432
   },
   "checks": [
     {
@@ -96,7 +96,27 @@
       "executor": "task-state-behavior",
       "proof_fixture_root": "fixtures/codex-starter-dev/task-state-invalid",
       "expected_error_patterns": [
-        "expected project path to exist"
+        "expected exit_status=0"
+      ]
+    },
+    {
+      "id": "repo-context-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "repo-context-root-write",
+      "failure_mode": "repo-context-root-write-regression",
+      "source_paths": [
+        "codex-starter/.codex/scripts/context/repo-context.mjs",
+        "codex-starter/.codex/state/repo-context.demo.json",
+        "fixtures/codex-starter-dev/repo-context-pass",
+        "fixtures/codex-starter-dev/repo-context-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "repo-context-behavior",
+      "proof_fixture_root": "fixtures/codex-starter-dev/repo-context-invalid",
+      "expected_error_patterns": [
+        "expected state.repo_context.repo_root=/tmp/should-not-stick"
       ]
     },
     {
@@ -115,7 +135,7 @@
       "executor": "project-context-behavior",
       "proof_fixture_root": "fixtures/codex-starter-dev/project-context-invalid",
       "expected_error_patterns": [
-        "expected project_dir_relative=."
+        "expected source=input.cwd"
       ]
     },
     {
@@ -136,7 +156,26 @@
       "executor": "hook-root-behavior",
       "proof_fixture_root": "fixtures/codex-starter-dev/hook-root-invalid",
       "expected_error_patterns": [
-        "expected root_log_exists=true"
+        "expected root_entry_source=input.projectDir"
+      ]
+    },
+    {
+      "id": "validate-git-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "validate-git-authority-delivery",
+      "failure_mode": "validate-git-authority-delivery-regression",
+      "source_paths": [
+        "codex-starter/.codex/scripts/guards/validate-git.mjs",
+        "fixtures/codex-starter-dev/validate-git-pass",
+        "fixtures/codex-starter-dev/validate-git-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "validate-git-behavior",
+      "proof_fixture_root": "fixtures/codex-starter-dev/validate-git-invalid",
+      "expected_error_patterns": [
+        "expected decision=allow"
       ]
     },
     {

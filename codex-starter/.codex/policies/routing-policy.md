@@ -91,7 +91,7 @@ Plain-language intent should map to the same routes.
 
 1. `Aide`: on first contact if `.codex/state/repo-context.json` is missing, or `.codex/policies/validation-profile.json` is missing or still `not-set`, or if the user indicates repository initialization/reset semantics, launch the independent repository scan and wait.
 2. `technical_manager`: run the low-context repository scan and return `status` plus `repo_context` and `validation_profile`.
-3. `Aide`: treat the scan as complete only when `status=complete` and both artifacts exist, then immediately write `.codex/state/repo-context.json` and `.codex/policies/validation-profile.json`.
+3. `Aide`: treat the scan as complete only when `status=complete` and both artifacts exist, then immediately write `.codex/state/repo-context.json` through `node .codex/scripts/context/repo-context.mjs` and `.codex/policies/validation-profile.json`.
 
 ### Technical-Delivery Line
 

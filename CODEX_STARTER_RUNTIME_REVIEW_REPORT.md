@@ -1,6 +1,6 @@
 # codex-starter 运行时工作流验证与代码审查报告
 
-更新时间：2026-04-01
+更新时间：2026-04-01（已追加修复跟进）
 
 说明：
 - 本报告按子线程完成顺序增量写入，先落盘已完成证据，剩余部分待后续线程返回后补齐。
@@ -10,6 +10,69 @@
 - 明确不包含：
   - 开发期校验体系评审
   - 安装器/安装流程检验
+
+## 修复跟进
+
+本节记录 2026-04-01 同日后续修复结果。
+
+修复证据边界：
+- 本次跟进的主要证据来自代码修复与开发期 contract proof，不是新的两轮独立 runtime 手工线程复跑。
+- 已实际通过的回归命令为 `node scripts/validate-codex-starter-dev.mjs full`。
+- 当前回归结果：`contract PASS (shape=3, behavior=6)`、`consistency PASS`、`meta PASS`。
+
+后续推进建议按以下 5 个分组理解本报告：
+- 分组 A：根路径与仓库根事实
+  - 对应原始问题：`RV-1`
+  - 关注点：deep `cwd`、canonical absolute `projectDir`、`repo_root` 持久化事实
+- 分组 B：task-state 状态机与字段联动
+  - 对应原始问题：`CF-1`、`RV-2`、`RV-4`、`RV-6`
+  - 关注点：合法状态迁移、`waiting_on`、数组字段保留、`parked` 契约漂移
+- 分组 C：输入健壮性与路径字段安全
+  - 对应原始问题：`CF-2`、`CF-3`
+  - 关注点：`task_id -> progress_path`、strict JSON、运行态绝对路径模型
+- 分组 D：交付门禁与治理边界
+  - 对应原始问题：`RV-3`、`CF-4`、`RV-7`
+  - 关注点：authority 文件提交流、special-flow、policy 字段的真实消费
+- 分组 E：long-running 闭环
+  - 对应原始问题：`RV-5`
+  - 关注点：`history/current/archive` 的脚本级同步与归档保证
+
+本轮已落地的修复范围主要覆盖分组 A、B、C、D：
+- 分组 A：`projectDir` 收敛为 canonical absolute root，并增加 `.codex/state/repo-context.json` 的 `repo_root` 写入脚本入口。
+- 分组 B：task-state contract 收敛状态迁移与字段联动，补 `waiting_on` 归一、数组字段保留、`resume-task` 状态约束。
+- 分组 C：补 strict JSON、路径字段绝对化、`task_id` 到默认 `progress_path` 的安全归一。
+- 分组 D：放开 authority 文件的受控提交，special-flow 先判目标再决定是否做 generic operation 校验，并接入 policy frontmatter 的关键字段消费。
+
+当前状态判断：
+- 分组 A、B、C 的核心问题已从“已确认缺陷”下降为“已修复并有开发期 proof 的项”。
+- 分组 D 已从“主要依赖文档声明”下降为“已有执行层修复与开发期 proof 的项”，但仍建议后续补 submit 全链路回归。
+- 分组 E 仍是当前最明显的未闭环项。
+- 仍不能把系统直接上升为“高可靠”，因为 long-running `history/current/archive` 闭环仍缺脚本级强保证，且尚未复跑最初的独立 runtime 线程。
+
+## 修复后状态
+
+已修复或显著收敛：
+- `RV-1`：深层 `cwd` 下 root 解析与写入位置问题已收敛到 canonical absolute `projectDir` 模型，并新增 `project-context`、`repo-context`、hook root propagation 的 behavior proof。
+- `CF-1`：`resume-task` 不再允许注入 `completed` / `idle` 等不合理状态。
+- `RV-2`：`waiting_user -> active` 后 `waiting_on` 残留问题已修复。
+- `CF-2`：默认 `progress_path` 推导已对 `task_id` 做 slug 化，并统一走绝对路径写入模型。
+- `CF-3`：`task-state.mjs` stdin 已切换为 strict JSON，不再 fail-open。
+- `RV-3`：`validate-git` 不再阻断 `.codex/**` 与 `AGENTS.md` 的受控提交，只继续拦 broad/opaque staging。
+- `RV-4`：`open_questions` 与 `routing_overrides` 已改为按字段显式更新，不再在普通 `set` 中静默清空。
+- `CF-4`：special-flow 目标已改为先判 target flow，再决定是否做 generic operation 归一化，不再因无关坏 `operations` 提前拒绝。
+
+部分收敛但仍需后续回归确认：
+- `RV-7`：governance policy 的 `auto_fix_levels`、`persist_fields`、`active_statuses` 已接入执行层；`version` 仍仅作元数据使用，当前已在 policy 文本中明确。
+- `repo_root` 已有独立写入脚本 `node .codex/scripts/context/repo-context.mjs`，但还没有新的真实客户端事件总线端到端证据。
+
+仍未解决：
+- `RV-5`：long-running 的 `history/current/archive` 闭环仍主要依赖流程与文档约束，缺少脚本级强保证。
+- `RV-6`：`parked` 状态契约漂移仍存在，模板/展示与状态机尚未统一。
+
+建议保留高优先级跟进项：
+- 对 long-running `history/current/archive` 补脚本级闭环与 behavior proof。
+- 对 `submit` 全链路补 `validate-git + delivery-policy + submit worker` 联动回归。
+- 视需要重跑最初两轮独立 runtime 手工线程，确认修复后的真实运行态行为。
 
 ## 当前进度
 

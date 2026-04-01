@@ -20,6 +20,11 @@
 
 This file is the single authority for `Aide` governance rules.
 
+## Frontmatter Execution Notes
+
+- `default_disposition`, `auto_fix_levels`, `persist_fields`, `candidate_sources`, `runtime_state_path`, `safe_diff_types`, `special_flow_targets`, and `active_statuses` are consumed by the runtime governance scripts.
+- `version` is metadata only; it documents the frontmatter schema version and is not currently used as a runtime switch.
+
 ## Governance Objects
 
 - Role contracts

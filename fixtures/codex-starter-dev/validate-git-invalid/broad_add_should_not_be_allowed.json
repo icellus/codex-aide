@@ -1,0 +1,10 @@
+{
+  "id": "broad_add_should_not_be_allowed",
+  "input": {
+    "command": "git add ."
+  },
+  "expect": {
+    "exit_status": 0,
+    "decision": "allow"
+  }
+}

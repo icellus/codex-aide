@@ -3,11 +3,11 @@
   "steps": [
     {
       "cwd_relative": "worktrees/one/two/three/four/five/six",
-      "use_input_cwd": true,
+      "use_env_project_dir": true,
       "expect": {
         "exit_status": 0,
         "source": "input.cwd",
-        "project_dir_relative": ".",
+        "project_dir_relative": "worktrees/one/two/three/four/five/six",
         "start_path_relative": "worktrees/one/two/three/four/five/six"
       }
     }

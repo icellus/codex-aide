@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
@@ -12,11 +11,6 @@ const gitGlobalOptionsWithInlineValue = ["--git-dir=", "--work-tree=", "--namesp
 
 function normalizeRelativePath(value) {
   return String(value || "").replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "").trim();
-}
-
-function isCodexStarterAssetPath(value) {
-  const normalized = normalizeRelativePath(value);
-  return normalized === "AGENTS.md" || normalized.startsWith(".codex/");
 }
 
 function permissionResponse(permissionDecisionReason) {
@@ -341,28 +335,7 @@ function parseAddArguments(args) {
   };
 }
 
-function listStagedFiles(projectDir) {
-  try {
-    const output = execFileSync("git", ["diff", "--cached", "--name-only", "--relative"], {
-      cwd: projectDir,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    });
-
-    return output
-      .split(/\r?\n/)
-      .map((line) => normalizeRelativePath(line))
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-function stagedCodexStarterAssets(projectDir) {
-  return listStagedFiles(projectDir).filter((filePath) => isCodexStarterAssetPath(filePath));
-}
-
-function decisionForInvocation(invocation, projectDir) {
+function decisionForInvocation(invocation) {
   if (invocation.subcommand === "add") {
     const addArguments = parseAddArguments(invocation.args);
     if (addArguments.broad) {
@@ -371,22 +344,6 @@ function decisionForInvocation(invocation, projectDir) {
 
     if (addArguments.opaquePathspec) {
       return permissionResponse("Opaque pathspec staging is not allowed. Stage explicit project files instead.");
-    }
-
-    const assetPaths = addArguments.explicitPaths.filter((entry) => isCodexStarterAssetPath(entry));
-    if (assetPaths.length > 0) {
-      return permissionResponse(
-        `Codex starter assets must not be staged with project changes: ${assetPaths.join(", ")}`
-      );
-    }
-  }
-
-  if (invocation.subcommand === "commit") {
-    const stagedAssets = stagedCodexStarterAssets(projectDir);
-    if (stagedAssets.length > 0) {
-      return permissionResponse(
-        `Codex starter assets are staged and must not be committed with project changes: ${stagedAssets.join(", ")}`
-      );
     }
   }
 

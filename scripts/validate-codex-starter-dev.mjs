@@ -454,6 +454,20 @@ function compareExpectedObject({ actual, expected, baseLabel, errors }) {
   }
 }
 
+function compareExpectedRelativePathFields({ baseDir, actual, expected, baseLabel, errors }) {
+  if (!expected || typeof expected !== "object" || Array.isArray(expected)) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(expected)) {
+    const actualValue = actual ? actual[key] : undefined;
+    const actualRelative = typeof actualValue === "string" && actualValue ? relativeOrDot(baseDir, actualValue) : "<missing>";
+    if (actualRelative !== value) {
+      errors.push(`${baseLabel}.${key}=${value}, got ${actualRelative}`);
+    }
+  }
+}
+
 function compareExpectedArray({ actual, expected, label, errors }) {
   if (!Array.isArray(expected)) {
     return;
@@ -462,6 +476,22 @@ function compareExpectedArray({ actual, expected, label, errors }) {
   const actualArray = Array.isArray(actual) ? actual : [];
   if (JSON.stringify(actualArray) !== JSON.stringify(expected)) {
     errors.push(`${label}=${JSON.stringify(expected)}, got ${JSON.stringify(actualArray)}`);
+  }
+}
+
+function compareExpectedArrayFields({ actual, expected, baseLabel, errors }) {
+  if (!expected || typeof expected !== "object" || Array.isArray(expected)) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(expected)) {
+    const actualValue = actual ? actual[key] : undefined;
+    compareExpectedArray({
+      actual: actualValue,
+      expected: value,
+      label: `${baseLabel}.${key}`,
+      errors
+    });
   }
 }
 
@@ -485,6 +515,47 @@ function readTaskContextState(projectDir) {
   }
 
   return readJson(stateFilePath);
+}
+
+function readRepoContextState(projectDir) {
+  const stateFilePath = path.join(projectDir, ".codex", "state", "repo-context.json");
+  if (!fileExists(stateFilePath)) {
+    return null;
+  }
+
+  return readJson(stateFilePath);
+}
+
+function runNodeRawScript(scriptPath, projectDir, rawInput, options = {}) {
+  const extraEnv = options.extraEnv && typeof options.extraEnv === "object" ? options.extraEnv : {};
+  const useProjectDirEnv = options.useProjectDirEnv !== false;
+  const result = spawnSync(process.execPath, [scriptPath], {
+    cwd: options.cwd || projectDir,
+    env: {
+      ...process.env,
+      ...extraEnv,
+      ...(useProjectDirEnv ? { CODEX_PROJECT_DIR: projectDir } : {})
+    },
+    input: String(rawInput || ""),
+    encoding: "utf8"
+  });
+
+  let parsed = null;
+  const stdout = String(result.stdout || "").trim();
+  if (stdout) {
+    try {
+      parsed = JSON.parse(stdout);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  return {
+    status: result.status ?? 1,
+    stdout,
+    stderr: String(result.stderr || "").trim(),
+    parsed
+  };
 }
 
 function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
@@ -511,11 +582,18 @@ function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
       const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
       fs.mkdirSync(stepCwd, { recursive: true });
 
-      const invocation = runNodeJsonScript(scriptPath, projectDir, step.input || {}, {
-        cwd: stepCwd,
-        useProjectDirEnv: step.use_project_dir_env !== false,
-        extraEnv: step.env && typeof step.env === "object" ? step.env : {}
-      });
+      const invocation =
+        typeof step.raw_input === "string"
+          ? runNodeRawScript(scriptPath, projectDir, step.raw_input, {
+              cwd: stepCwd,
+              useProjectDirEnv: step.use_project_dir_env !== false,
+              extraEnv: step.env && typeof step.env === "object" ? step.env : {}
+            })
+          : runNodeJsonScript(scriptPath, projectDir, step.input || {}, {
+              cwd: stepCwd,
+              useProjectDirEnv: step.use_project_dir_env !== false,
+              extraEnv: step.env && typeof step.env === "object" ? step.env : {}
+            });
       const parsed = invocation.parsed;
       const expect = step.expect || {};
 
@@ -538,6 +616,12 @@ function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
       compareExpectedObject({
         actual: parsed?.task,
         expected: expect.task_fields,
+        baseLabel: `${label}: expected task`,
+        errors
+      });
+      compareExpectedArrayFields({
+        actual: parsed?.task,
+        expected: expect.task_array_fields,
         baseLabel: `${label}: expected task`,
         errors
       });
@@ -573,6 +657,19 @@ function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
       compareExpectedObject({
         actual: state?.task,
         expected: expect.state_task_fields,
+        baseLabel: `${label}: expected state.task`,
+        errors
+      });
+      compareExpectedArrayFields({
+        actual: state?.task,
+        expected: expect.state_task_array_fields,
+        baseLabel: `${label}: expected state.task`,
+        errors
+      });
+      compareExpectedRelativePathFields({
+        baseDir: projectDir,
+        actual: state?.task,
+        expected: expect.state_task_relative_path_fields,
         baseLabel: `${label}: expected state.task`,
         errors
       });
@@ -631,6 +728,114 @@ function validateTaskStateBehaviorContracts({
 
   for (const { filePath, scenario } of loadTaskStateScenarios(scenarioRoot)) {
     const result = validateTaskStateScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateRepoContextScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-repo-context-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    for (const command of scenario.setup_commands || []) {
+      runShellSetup(String(command || ""), projectDir);
+    }
+
+    if (!Array.isArray(scenario.steps) || scenario.steps.length === 0) {
+      return {
+        ok: false,
+        errors: [`${scenario.id || "<unknown>"}: steps must be a non-empty array`]
+      };
+    }
+
+    const scriptPath = path.join(projectDir, ".codex", "scripts", "context", "repo-context.mjs");
+
+    scenario.steps.forEach((step, index) => {
+      const label = `${scenario.id || "<unknown>"} step ${index + 1}`;
+      const cwdRelative = typeof step.cwd_relative === "string" ? step.cwd_relative.trim() : "";
+      const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
+      fs.mkdirSync(stepCwd, { recursive: true });
+
+      const invocation = runNodeJsonScript(scriptPath, projectDir, step.input || {}, {
+        cwd: stepCwd,
+        useProjectDirEnv: step.use_project_dir_env !== false,
+        extraEnv: step.env && typeof step.env === "object" ? step.env : {}
+      });
+      const parsed = invocation.parsed;
+      const expect = step.expect || {};
+
+      if (typeof expect.exit_status === "number" && invocation.status !== expect.exit_status) {
+        errors.push(`${label}: expected exit_status=${expect.exit_status}, got ${invocation.status}`);
+      }
+
+      if (typeof expect.ok === "boolean" && Boolean(parsed?.ok) !== expect.ok) {
+        errors.push(`${label}: expected ok=${expect.ok}, got ${Boolean(parsed?.ok)}`);
+      }
+
+      if (typeof expect.action === "string" && String(parsed?.action || "") !== expect.action) {
+        errors.push(`${label}: expected action=${expect.action}, got ${parsed?.action || "<missing>"}`);
+      }
+
+      compareExpectedObject({
+        actual: parsed?.repo_context,
+        expected: expect.repo_context_fields,
+        baseLabel: `${label}: expected repo_context`,
+        errors
+      });
+      compareExpectedRelativePathFields({
+        baseDir: projectDir,
+        actual: parsed?.repo_context,
+        expected: expect.repo_context_relative_path_fields,
+        baseLabel: `${label}: expected repo_context`,
+        errors
+      });
+
+      const state = readRepoContextState(projectDir);
+      compareExpectedObject({
+        actual: state,
+        expected: expect.state_fields,
+        baseLabel: `${label}: expected state.repo_context`,
+        errors
+      });
+      compareExpectedRelativePathFields({
+        baseDir: projectDir,
+        actual: state,
+        expected: expect.state_relative_path_fields,
+        baseLabel: `${label}: expected state.repo_context`,
+        errors
+      });
+      compareExpectedArrayFields({
+        actual: state,
+        expected: expect.state_array_fields,
+        baseLabel: `${label}: expected state.repo_context`,
+        errors
+      });
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateRepoContextBehaviorContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "repo-context-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadScenarioFiles(scenarioRoot)) {
+    const result = validateRepoContextScenario({ repoRoot, scenario });
     if (!result.ok) {
       for (const error of result.errors) {
         errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
@@ -967,6 +1172,75 @@ function validateHookRootBehaviorContracts({
   return { ok: errors.length === 0, errors };
 }
 
+function runShellSetup(command, cwd) {
+  const result = spawnSync("bash", ["-lc", command], {
+    cwd,
+    encoding: "utf8"
+  });
+
+  if ((result.status ?? 1) !== 0) {
+    throw new Error(String(result.stderr || result.stdout || "").trim() || `setup command failed: ${command}`);
+  }
+}
+
+function validateGitScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-validate-git-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    initGitRepo(projectDir);
+
+    for (const command of scenario.setup_commands || []) {
+      runShellSetup(String(command || ""), projectDir);
+    }
+
+    const scriptPath = path.join(projectDir, ".codex", "scripts", "guards", "validate-git.mjs");
+    const invocation = runNodeJsonScript(scriptPath, projectDir, scenario.input || {});
+    const parsed = invocation.parsed;
+    const expect = scenario.expect || {};
+    const actualDecision = parsed?.permissionDecision === "deny" ? "deny" : "allow";
+    const actualReason = String(parsed?.permissionDecisionReason || "");
+
+    if (typeof expect.exit_status === "number" && invocation.status !== expect.exit_status) {
+      errors.push(`${scenario.id || "<unknown>"}: expected exit_status=${expect.exit_status}, got ${invocation.status}`);
+    }
+
+    if (typeof expect.decision === "string" && actualDecision !== expect.decision) {
+      errors.push(`${scenario.id || "<unknown>"}: expected decision=${expect.decision}, got ${actualDecision}`);
+    }
+
+    if (typeof expect.reason_contains === "string" && !actualReason.includes(expect.reason_contains)) {
+      errors.push(`${scenario.id || "<unknown>"}: expected reason to contain "${expect.reason_contains}"`);
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateValidateGitBehaviorContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "validate-git-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadScenarioFiles(scenarioRoot)) {
+    const result = validateGitScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 const executorDefinitions = Object.freeze({
   "authority-shape": Object.freeze({
     layer: "contract",
@@ -1016,6 +1290,17 @@ const executorDefinitions = Object.freeze({
         scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
       })
   }),
+  "repo-context-behavior": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateRepoContextBehaviorContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateRepoContextBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
   "project-context-behavior": Object.freeze({
     layer: "contract",
     assertionKind: "behavior",
@@ -1034,6 +1319,17 @@ const executorDefinitions = Object.freeze({
     runActive: ({ repoRoot }) => validateHookRootBehaviorContracts({ repoRoot }),
     runProof: ({ repoRoot, check }) =>
       validateHookRootBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
+  "validate-git-behavior": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateValidateGitBehaviorContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateValidateGitBehaviorContracts({
         repoRoot,
         scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
       })
@@ -1470,7 +1766,9 @@ export {
   validateHookRootBehaviorContracts,
   validateJsonContracts,
   validateMeta,
+  validateRepoContextBehaviorContracts,
   validateProjectContextBehaviorContracts,
   validateRegistry,
-  validateTaskStateBehaviorContracts
+  validateTaskStateBehaviorContracts,
+  validateValidateGitBehaviorContracts
 };

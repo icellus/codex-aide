@@ -10,7 +10,13 @@
           "current_task": "Implement parser",
           "task_id": "tm-focus",
           "status": "active",
-          "delivery_mode": "long-running"
+          "delivery_mode": "long-running",
+          "routing_overrides": [
+            "preserve-route"
+          ],
+          "open_questions": [
+            "confirm-parser-scope"
+          ]
         }
       },
       "expect": {
@@ -31,8 +37,62 @@
           "worktrees/one/two/three/four/five/six/.codex/state/task-context.json"
         ],
         "state_task_fields": {
-          "progress_path": ".codex/progress/active/tm-focus/current.md",
           "status": "active"
+        },
+        "state_task_relative_path_fields": {
+          "progress_path": ".codex/progress/active/tm-focus/current.md"
+        },
+        "state_task_array_fields": {
+          "routing_overrides": [
+            "preserve-route"
+          ],
+          "open_questions": [
+            "confirm-parser-scope"
+          ]
+        }
+      }
+    },
+    {
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Implement parser",
+          "task_id": "tm-focus",
+          "status": "active"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "active",
+          "waiting_on": "none"
+        }
+      }
+    },
+    {
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Implement parser",
+          "task_id": "tm-focus",
+          "status": "waiting_user"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "waiting_user",
+          "waiting_on": "user"
         }
       }
     },
@@ -44,17 +104,43 @@
         "exit_status": 0,
         "ok": true,
         "action": "record-interruption",
+        "changed": false,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "waiting_user",
+          "waiting_on": "user",
+          "interrupted_at": null
+        }
+      }
+    },
+    {
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Implement parser",
+          "task_id": "tm-focus",
+          "status": "active"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
         "changed": true,
         "task_fields": {
           "task_id": "tm-focus",
-          "status": "active"
+          "status": "active",
+          "waiting_on": "none"
         },
-        "task_present_fields": [
-          "interrupted_at"
-        ],
-        "state_task_present_fields": [
-          "interrupted_at"
-        ]
+        "state_task_array_fields": {
+          "routing_overrides": [
+            "preserve-route"
+          ],
+          "open_questions": [
+            "confirm-parser-scope"
+          ]
+        }
       }
     },
     {
@@ -150,7 +236,7 @@
         "task_fields": {
           "task_id": "tm-focus",
           "status": "active",
-          "waiting_on": "user",
+          "waiting_on": "none",
           "finished_at": null
         },
         "recent_tasks_count": 1,
@@ -161,8 +247,10 @@
           "tm-followup"
         ],
         "state_task_fields": {
-          "progress_path": ".codex/progress/active/tm-focus/current.md",
           "status": "active"
+        },
+        "state_task_relative_path_fields": {
+          "progress_path": ".codex/progress/active/tm-focus/current.md"
         }
       }
     }

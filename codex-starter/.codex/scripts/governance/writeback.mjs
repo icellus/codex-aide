@@ -16,6 +16,8 @@ const defaultPolicy = Object.freeze({
   safe_diff_types: ["replace-exact-text", "remove-exact-text", "insert-after-anchor"],
   special_flow_targets: [".codex/policies/validation-profile.json"],
   auto_fix_levels: ["G1"],
+  persist_fields: ["issue", "level", "authority_target", "disposition", "note"],
+  active_statuses: ["accepted", "ask-user", "special-flow"],
   default_disposition: {
     G1: "auto-fix",
     G2: "ask-user",
@@ -65,6 +67,14 @@ function ensureStringArray(value) {
   }
 
   return value.map((item) => normalizeText(item)).filter(Boolean);
+}
+
+function ensureObjectArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item) => isPlainObject(item));
 }
 
 function relativeTargetPath(projectDir, targetPath) {
@@ -189,7 +199,7 @@ function normalizeCandidate(projectDir, inputCandidate, policy) {
   const taskRef = normalizeText(inputCandidate?.task_ref);
   const evidence = ensureJsonSerializableArray(inputCandidate?.evidence);
   const inputTarget = normalizeText(inputCandidate?.authority_target);
-  const operations = Array.isArray(inputCandidate?.operations) ? inputCandidate.operations : [];
+  const operations = ensureObjectArray(inputCandidate?.operations);
   const errors = [];
 
   let authorityTarget = "";
@@ -230,22 +240,6 @@ function normalizeCandidate(projectDir, inputCandidate, policy) {
     errors.push("candidate.evidence must contain at least one item");
   }
 
-  const normalizedOperations = [];
-  for (const operation of operations) {
-    const normalized = normalizeOperation(operation);
-    if (normalized.error) {
-      errors.push(normalized.error);
-      continue;
-    }
-
-    if (!policy.safe_diff_types.includes(normalized.type)) {
-      errors.push(`operation type "${normalized.type}" is not allowed by governance policy`);
-      continue;
-    }
-
-    normalizedOperations.push(normalized);
-  }
-
   return {
     errors,
     candidate: {
@@ -265,8 +259,33 @@ function normalizeCandidate(projectDir, inputCandidate, policy) {
         policy.default_disposition[level] ||
         defaultPolicy.default_disposition[level] ||
         "ask-user",
-      operations: normalizedOperations
+      operations
     }
+  };
+}
+
+function normalizeOperations(operations, policy) {
+  const errors = [];
+  const normalizedOperations = [];
+
+  for (const operation of ensureObjectArray(operations)) {
+    const normalized = normalizeOperation(operation);
+    if (normalized.error) {
+      errors.push(normalized.error);
+      continue;
+    }
+
+    if (!policy.safe_diff_types.includes(normalized.type)) {
+      errors.push(`operation type "${normalized.type}" is not allowed by governance policy`);
+      continue;
+    }
+
+    normalizedOperations.push(normalized);
+  }
+
+  return {
+    errors,
+    operations: normalizedOperations
   };
 }
 
@@ -345,7 +364,32 @@ function targetFlow(relativePath, policy) {
   };
 }
 
-function upsertActiveItem(state, candidate, status, sourceRoles) {
+function allowedActiveStatuses(policy) {
+  const configured = ensureStringArray(policy.active_statuses);
+  return configured.length > 0 ? new Set(configured) : new Set(defaultPolicy.active_statuses);
+}
+
+function persistedFieldNames(policy) {
+  const configured = ensureStringArray(policy.persist_fields);
+  return configured.length > 0 ? configured : defaultPolicy.persist_fields;
+}
+
+function persistedCandidatePayload(candidate, policy) {
+  const payload = {};
+  for (const fieldName of persistedFieldNames(policy)) {
+    if (Object.prototype.hasOwnProperty.call(candidate, fieldName)) {
+      payload[fieldName] = candidate[fieldName];
+    }
+  }
+
+  return payload;
+}
+
+function upsertActiveItem(state, candidate, status, sourceRoles, policy) {
+  if (!allowedActiveStatuses(policy).has(status)) {
+    throw new Error(`governance status "${status}" is not allowed by policy.active_statuses`);
+  }
+
   const now = new Date().toISOString();
   const existingIndex = state.items.findIndex((item) => item.id === candidate.id);
   const existing = existingIndex === -1 ? null : state.items[existingIndex];
@@ -353,15 +397,9 @@ function upsertActiveItem(state, candidate, status, sourceRoles) {
   const nextItem = {
     id: candidate.id,
     task_ref: candidate.task_ref || existing?.task_ref || "",
-    issue: candidate.issue,
-    authority_target: candidate.authority_target,
+    ...persistedCandidatePayload(candidate, policy),
     source_roles: mergedSourceRoles,
     evidence: candidate.evidence,
-    note: candidate.note,
-    level: candidate.level,
-    impact: candidate.impact,
-    recommended_action: candidate.recommended_action,
-    disposition: candidate.disposition,
     status,
     created_at: existing?.created_at || now,
     updated_at: now
@@ -460,6 +498,7 @@ async function main() {
     }
 
     const candidate = normalized.candidate;
+    const flow = targetFlow(candidate.authority_target, policy);
 
     if (actorRole !== "Aide") {
       const payload = resultPayload({
@@ -476,11 +515,9 @@ async function main() {
       return 2;
     }
 
-    const flow = targetFlow(candidate.authority_target, policy);
-
     if (flow.decision === "special-flow") {
       candidate.disposition = "special-flow";
-      upsertActiveItem(state, candidate, "special-flow", candidate.source_roles);
+      upsertActiveItem(state, candidate, "special-flow", candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: "special-flow",
@@ -512,26 +549,9 @@ async function main() {
       return 2;
     }
 
-    if (candidate.level !== "G1") {
-      candidate.disposition = "ask-user";
-      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles);
-      writeGovernanceState(stateFilePath, state);
-      const payload = resultPayload({
-        decision: "ask-user",
-        candidate,
-        reason: `generic governance auto-fix only supports G1; received ${candidate.level}`
-      });
-      process.stdout.write(`${JSON.stringify(payload)}\n`);
-      logger.finalize({
-        status: "ok",
-        metadata: payload
-      });
-      return 0;
-    }
-
     if (candidate.disposition !== "auto-fix") {
       const status = candidate.disposition === "special-flow" ? "special-flow" : "ask-user";
-      upsertActiveItem(state, candidate, status, candidate.source_roles);
+      upsertActiveItem(state, candidate, status, candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: status,
@@ -548,7 +568,7 @@ async function main() {
 
     if (flow.decision === "ask-user") {
       candidate.disposition = "ask-user";
-      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles);
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: "ask-user",
@@ -563,9 +583,48 @@ async function main() {
       return 0;
     }
 
+    const autoFixLevels = new Set(ensureStringArray(policy.auto_fix_levels).length > 0 ? ensureStringArray(policy.auto_fix_levels) : defaultPolicy.auto_fix_levels);
+
+    if (!autoFixLevels.has(candidate.level)) {
+      candidate.disposition = "ask-user";
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
+      writeGovernanceState(stateFilePath, state);
+      const payload = resultPayload({
+        decision: "ask-user",
+        candidate,
+        reason: `generic governance auto-fix only supports ${Array.from(autoFixLevels).join("|")}; received ${candidate.level}`
+      });
+      process.stdout.write(`${JSON.stringify(payload)}\n`);
+      logger.finalize({
+        status: "ok",
+        metadata: payload
+      });
+      return 0;
+    }
+
+    const normalizedOperations = normalizeOperations(candidate.operations, policy);
+    if (normalizedOperations.errors.length > 0) {
+      candidate.disposition = "ask-user";
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
+      writeGovernanceState(stateFilePath, state);
+      const payload = resultPayload({
+        decision: "ask-user",
+        candidate,
+        reason: normalizedOperations.errors.join("; ")
+      });
+      process.stdout.write(`${JSON.stringify(payload)}\n`);
+      logger.finalize({
+        status: "ok",
+        metadata: payload
+      });
+      return 0;
+    }
+
+    candidate.operations = normalizedOperations.operations;
+
     if (candidate.operations.length === 0) {
       candidate.disposition = "ask-user";
-      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles);
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: "ask-user",
@@ -584,7 +643,7 @@ async function main() {
 
     if (!beforeValidation.ok && beforeValidation.code === "unsupported_target") {
       candidate.disposition = "ask-user";
-      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles);
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: "ask-user",
@@ -608,7 +667,7 @@ async function main() {
       originalText = fs.readFileSync(targetFilePath, "utf8");
     } catch (error) {
       candidate.disposition = "ask-user";
-      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles);
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: "ask-user",
@@ -630,7 +689,7 @@ async function main() {
       modifiedText = applyOperations(originalText, candidate.operations);
     } catch (error) {
       candidate.disposition = "ask-user";
-      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles);
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: "ask-user",
@@ -651,7 +710,7 @@ async function main() {
     if (!afterValidation.ok) {
       fs.writeFileSync(targetFilePath, originalText, "utf8");
       candidate.disposition = afterValidation.code === "unsupported_target" ? "ask-user" : candidate.disposition;
-      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles);
+      upsertActiveItem(state, candidate, "ask-user", candidate.source_roles, policy);
       writeGovernanceState(stateFilePath, state);
       const payload = resultPayload({
         decision: "ask-user",
