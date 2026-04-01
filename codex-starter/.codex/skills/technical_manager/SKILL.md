@@ -98,6 +98,8 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-slug>/current.md`
 - before switching the hot slot to another task, retire the current non-terminal task into `recent_tasks` by default as `paused`.
 - use explicit retirement only when repository evidence justifies recording the previous hot task as `completed` or `cancelled`.
 - when the hot task is in source-code technical follow-up, keep `sticky_owner=technical_manager` until the task settles or re-triage moves ownership elsewhere.
+- `sticky_owner=technical_manager` does not force every same-task reply through technical delivery; explanation-only status, summary, and user-decision turns may stay in `Aide` when they introduce no new durable execution fact.
+- if same-task follow-up changes task lifecycle truth, execution constraints, validation boundary, implementation input, or long-running progress truth, route it back through `technical_manager` and persist the update before closeout.
 - treat sticky owner as role continuity, not a requirement to keep one long-lived subagent process alive.
 - when long-running tracking is active, use `node .codex/scripts/context/task-progress-sync.mjs` as the read-only drift check between hot task state and `.codex/progress/**`.
 

@@ -36,6 +36,8 @@ Plain-language intent should map to the same routes.
 - `product_assistant` receives non-code delivery work from `Aide` and returns results to `Aide`.
 - `product_assistant` should not auto-enter the submit path; only explicit user intent enables governed submit for non-code work.
 - if `.codex/state/task-context.json` marks `sticky_owner=technical_manager`, same-task source-code follow-up should stay on the technical-delivery line by default even when phrased as Q&A.
+- `Aide` may answer same-task explanation, status, summary, and user-decision turns directly when they introduce no new durable execution fact.
+- if a same-task follow-up changes task lifecycle truth, execution constraints, validation boundary, implementation input, or long-running progress truth, `Aide` must persist the update or route through `technical_manager` before closeout.
 - sticky owner means role-line continuity, not a requirement to keep the same subagent process alive across turns.
 - `technical_manager` produces and refreshes the `Implementation Brief`, which is the execution input for `coder` and `tester`.
 - If `coder` or `tester` lacks a readable `Implementation Brief`, they must return `blocked` to `technical_manager`.
@@ -75,6 +77,7 @@ Plain-language intent should map to the same routes.
 - `waiting_user` means the next move depends on explicit user clarification or decision.
 - `paused` means the task was explicitly paused and should remain resumable outside the hot slot.
 - Do not infer completion from silence, missing follow-up, or session end.
+- if the hot task could not be correctly recovered from `.codex/state/task-context.json` and `.codex/progress/**` without the current turn, do not treat that turn as explanation-only.
 - when a routed turn returns a Structured Result with `task_update.sync=true`, the Stop hook should sync that turn into the hot task state before any interruption fallback.
 - If a session stops while task status is `active`, `handoff`, or `blocked`, runtime hooks should record an interruption timestamp instead of changing task status.
 - Starting a new hot task while another non-terminal task is still open should retire the previous hot task into `recent_tasks` by default as `paused`.

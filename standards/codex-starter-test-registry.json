@@ -212,6 +212,8 @@
       "rule_id": "validate-git-authority-delivery",
       "failure_mode": "validate-git-authority-delivery-regression",
       "source_paths": [
+        "codex-starter/.codex/hooks.json",
+        "codex-starter/.codex/scripts/guards/dispatch-bash-guard.mjs",
         "codex-starter/.codex/scripts/guards/validate-git.mjs",
         "fixtures/codex-starter-dev/validate-git-pass",
         "fixtures/codex-starter-dev/validate-git-invalid"

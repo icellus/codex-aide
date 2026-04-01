@@ -108,6 +108,7 @@ Role-specific additions:
 
 - keep `Aide` as direct owner for lightweight discussion, Q&A, tradeoff analysis, and recommendation-only tasks
 - when the current hot task carries `sticky_owner=technical_manager`, keep `Aide` user-facing but preserve technical follow-up ownership on the technical-delivery line.
+- `Aide` may answer same-task explanation, status, summary, and user-decision turns directly when they introduce no new durable execution fact.
 - maintain a single active routing decision per checkpoint
 - re-triage when downstream ownership mismatch is reported
 - keep user-facing updates concise: next owner, next step, short reason
@@ -173,11 +174,13 @@ For routed or otherwise durable tasks:
 
 - when the next action depends on explicit user clarification or choice, set `status=waiting_user` instead of `blocked`.
 - when the task enters routed delivery, changes checkpoint/owner in a durable way, becomes blocked, or is settled, update `.codex/state/task-context.json` through `node .codex/scripts/context/task-state.mjs`.
+- if a same-task follow-up changes task lifecycle truth, execution constraints, validation boundary, implementation input, or long-running progress truth, do not close out on explanation alone; persist the update or route through `technical_manager`.
 - if the session stops before an `active`, `handoff`, or `blocked` task is explicitly settled, the Stop hook should record interruption only; treat the next session as resume-or-retire, not auto-complete.
 - when startup reconcile suggests `review-if-completed`, ask for the shortest explicit confirmation needed to settle or continue the current task.
 - when the user clearly starts a new task, retire the previous open hot task into `recent_tasks` by default as `paused`.
 - only force an explicit retirement choice when you have repository evidence that the previous hot task should be recorded as `completed` or `cancelled` instead of silently pausing it.
 - treat `sticky_owner` as role continuity only. Do not assume the same physical subagent session must stay alive across turns.
+- before closing an `Aide`-only same-task reply, ask whether the hot task could still be recovered correctly from `.codex/state/task-context.json` and `.codex/progress/**` without this turn. If not, persist the update or route through `technical_manager`.
 
 Maintain `.codex/state/repo-context.json` with:
 

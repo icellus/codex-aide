@@ -1419,7 +1419,9 @@ function validateGitScenario({ repoRoot = defaultRepoRoot, scenario }) {
       writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), scenario.task_context);
     }
 
-    const scriptPath = path.join(projectDir, ".codex", "scripts", "guards", "validate-git.mjs");
+    const requestedScript = typeof scenario.script === "string" ? scenario.script.trim() : "";
+    const normalizedScript = requestedScript.replace(/^\.?\//, "");
+    const scriptPath = path.join(projectDir, normalizedScript || ".codex/scripts/guards/validate-git.mjs");
     const invocation = runNodeJsonScript(scriptPath, projectDir, scenario.input || {});
     const parsed = invocation.parsed;
     const expect = scenario.expect || {};
@@ -1436,6 +1438,10 @@ function validateGitScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
     if (typeof expect.reason_contains === "string" && !actualReason.includes(expect.reason_contains)) {
       errors.push(`${scenario.id || "<unknown>"}: expected reason to contain "${expect.reason_contains}"`);
+    }
+
+    if (typeof expect.stdout_exact === "string" && invocation.stdout !== expect.stdout_exact) {
+      errors.push(`${scenario.id || "<unknown>"}: expected stdout=${JSON.stringify(expect.stdout_exact)}, got ${JSON.stringify(invocation.stdout)}`);
     }
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

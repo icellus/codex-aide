@@ -61,7 +61,7 @@
           },
           {
             "type": "command",
-            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/guards/validate-git.mjs\"'"
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/guards/dispatch-bash-guard.mjs\"'"
           }
         ]
       }

@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
@@ -12,6 +13,7 @@ const gitGlobalOptionsWithValue = new Set(["-c", "-C", "--git-dir", "--work-tree
 const gitGlobalOptionsWithInlineValue = ["--git-dir=", "--work-tree=", "--namespace=", "--exec-path=", "--config-env="];
 const gitConfigOptionsWithValue = new Set(["-f", "--file", "--blob", "--type", "--default", "--comment"]);
 const gitConfigOptionsWithInlineValue = ["--file=", "--blob=", "--type=", "--default=", "--comment="];
+const shellBoundaryTokens = new Set(["{", "(", "then", "do", "if", "elif", "while", "until", "for", "case", "select", "!", "time"]);
 
 function normalizeRelativePath(value) {
   return String(value || "").replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "").trim();
@@ -493,6 +495,31 @@ function resolveGitSubcommandIndex(tokens, executableIndex) {
   return index;
 }
 
+function tokenStartsCommandBoundary(token) {
+  const normalized = String(token || "").trim();
+  return normalized === "" || shellBoundaryTokens.has(normalized) || normalized.endsWith("{") || normalized.endsWith("(");
+}
+
+function gitExecutableIndices(tokens, executable) {
+  const indices = new Set();
+
+  if (executable && isGitExecutable(executable.executable)) {
+    indices.add(executable.index);
+  }
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (!isGitExecutable(tokens[index]) || indices.has(index)) {
+      continue;
+    }
+
+    if (index === 0 || tokenStartsCommandBoundary(tokens[index - 1])) {
+      indices.add(index);
+    }
+  }
+
+  return Array.from(indices).sort((left, right) => left - right);
+}
+
 function collectGitInvocations(command, depth = 0) {
   if (depth > 2) {
     return [];
@@ -508,34 +535,27 @@ function collectGitInvocations(command, depth = 0) {
     }
 
     const executable = resolveExecutable(tokens);
-    if (!executable) {
-      continue;
-    }
-
-    if (isShellExecutable(executable.executable)) {
+    if (executable && isShellExecutable(executable.executable)) {
       const nestedCommand = extractShellScriptArg(tokens, executable.index);
       if (nestedCommand) {
         invocations.push(...collectGitInvocations(nestedCommand, depth + 1));
       }
-      continue;
     }
 
-    if (!isGitExecutable(executable.executable)) {
-      continue;
-    }
+    for (const index of gitExecutableIndices(tokens, executable)) {
+      const subcommandIndex = resolveGitSubcommandIndex(tokens, index);
+      const subcommand = String(tokens[subcommandIndex] || "").trim().toLowerCase();
+      if (!subcommand) {
+        continue;
+      }
 
-    const subcommandIndex = resolveGitSubcommandIndex(tokens, executable.index);
-    const subcommand = String(tokens[subcommandIndex] || "").trim().toLowerCase();
-    if (!subcommand) {
-      continue;
+      invocations.push({
+        subcommand,
+        envAssignments: tokens.slice(0, index).filter(isEnvironmentAssignment),
+        prefixArgs: tokens.slice(index + 1, subcommandIndex),
+        args: tokens.slice(subcommandIndex + 1)
+      });
     }
-
-    invocations.push({
-      subcommand,
-      envAssignments: tokens.slice(0, executable.index).filter(isEnvironmentAssignment),
-      prefixArgs: tokens.slice(executable.index + 1, subcommandIndex),
-      args: tokens.slice(subcommandIndex + 1)
-    });
   }
 
   return invocations;
@@ -561,11 +581,7 @@ function commandContainsGovernedGitDelivery(command, depth = 0) {
       }
     }
 
-    for (let index = 0; index < tokens.length; index += 1) {
-      if (!isGitExecutable(tokens[index])) {
-        continue;
-      }
-
+    for (const index of gitExecutableIndices(tokens, executable)) {
       const subcommandIndex = resolveGitSubcommandIndex(tokens, index);
       const subcommand = String(tokens[subcommandIndex] || "").trim().toLowerCase();
       if (subcommand === "commit" || subcommand === "push") {
@@ -719,4 +735,15 @@ async function main() {
   }
 }
 
-await main();
+const isEntrypoint = Boolean(process.argv[1]) && pathToFileURL(process.argv[1]).href === import.meta.url;
+
+export {
+  collectGitInvocations,
+  commandContainsTests,
+  commandDecision,
+  readCommandInput
+};
+
+if (isEntrypoint) {
+  await main();
+}
