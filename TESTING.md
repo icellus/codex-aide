@@ -79,8 +79,14 @@ Default meanings:
 
 Git hooks use:
 
-- `pre-commit` -> `contract`
-- `pre-push` -> `full`
+- `pre-commit` -> `contract`, scoped to staged files in the validation-maintenance boundary
+- `pre-push` -> `full`, scoped to validation-maintenance files in the refs being pushed
+
+Hook-scoped execution rules:
+
+- if no validation-maintenance files are present in the current staged set or pushed refs, the hook may skip running the validator
+- changed-file scoping may filter expensive `contract` `behavior` checks, but must not skip `shape`, `consistency`, or `meta` layers that still belong to the selected mode
+- when `scripts/validate-codex-starter-dev.mjs` or `standards/codex-starter-test-registry.json` changes, do not filter `contract` behavior checks by changed files
 
 `standards/codex-starter-test-registry.json` is the dispatch table for the default suite.
 If the registry cannot be read, development validation must fail instead of pretending the suite is still known.
