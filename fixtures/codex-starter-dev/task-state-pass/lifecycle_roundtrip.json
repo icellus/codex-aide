@@ -1,0 +1,170 @@
+{
+  "id": "lifecycle_roundtrip",
+  "steps": [
+    {
+      "cwd_relative": "worktrees/one/two/three/four/five/six",
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Implement parser",
+          "task_id": "tm-focus",
+          "status": "active",
+          "delivery_mode": "long-running"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "active",
+          "waiting_on": "none",
+          "finished_at": null
+        },
+        "project_paths_exist": [
+          ".codex/state/task-context.json"
+        ],
+        "project_paths_absent": [
+          "worktrees/one/two/three/four/five/six/.codex/state/task-context.json"
+        ],
+        "state_task_fields": {
+          "progress_path": ".codex/progress/active/tm-focus/current.md",
+          "status": "active"
+        }
+      }
+    },
+    {
+      "input": {
+        "action": "record-interruption"
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "record-interruption",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "active"
+        },
+        "task_present_fields": [
+          "interrupted_at"
+        ],
+        "state_task_present_fields": [
+          "interrupted_at"
+        ]
+      }
+    },
+    {
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Implement parser",
+          "task_id": "tm-focus",
+          "status": "waiting_user"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "waiting_user",
+          "waiting_on": "user",
+          "interrupted_at": null
+        },
+        "state_task_fields": {
+          "status": "waiting_user",
+          "waiting_on": "user"
+        }
+      }
+    },
+    {
+      "input": {
+        "action": "record-interruption"
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "record-interruption",
+        "changed": false,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "waiting_user",
+          "waiting_on": "user",
+          "interrupted_at": null
+        }
+      }
+    },
+    {
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Write docs",
+          "task_id": "tm-followup",
+          "status": "active"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-followup",
+          "status": "active"
+        },
+        "recent_tasks_count": 1,
+        "recent_task_statuses": [
+          "paused"
+        ],
+        "recent_task_ids": [
+          "tm-focus"
+        ],
+        "state_recent_tasks_count": 1,
+        "state_recent_task_statuses": [
+          "paused"
+        ],
+        "state_recent_task_ids": [
+          "tm-focus"
+        ]
+      }
+    },
+    {
+      "input": {
+        "action": "resume-task",
+        "actor": "technical_manager",
+        "task_id": "tm-focus"
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "resume-task",
+        "changed": true,
+        "task_fields": {
+          "task_id": "tm-focus",
+          "status": "active",
+          "waiting_on": "user",
+          "finished_at": null
+        },
+        "recent_tasks_count": 1,
+        "recent_task_statuses": [
+          "paused"
+        ],
+        "recent_task_ids": [
+          "tm-followup"
+        ],
+        "state_task_fields": {
+          "progress_path": ".codex/progress/active/tm-focus/current.md",
+          "status": "active"
+        }
+      }
+    }
+  ]
+}

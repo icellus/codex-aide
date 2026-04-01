@@ -1,24 +1,68 @@
 # Testing
 
-This document defines development-time validation for `codex-starter` inside `/workspace/agent-skills`.
+本文件定义 `/workspace/agent-skills` 中 `codex-starter` 的开发期校验模型。
 
-It does not define:
+它不定义：
 
-- installation smoke validation
-- installed-runtime user workflow validation inside target repositories
+- 安装流程 smoke
+- 安装后目标仓库中的 runtime 用户工作流
+- runtime authority 本身
+
+`standards/*.json`、`fixtures/codex-starter-dev/**`、`scripts/validate-*.mjs` 只属于开发期治理。
+它们校验 runtime authority 和实现是否对齐，但它们本身不是 runtime authority。
 
 ## Principles
 
-- These rules apply to all contributors, whether changes are made manually, with Codex, with another AI assistant, or with no AI tooling at all.
-- Treat `codex-starter` as a maintained product, not as a throwaway task artifact.
-- Optimize for long-term signal density, not for making the current change pass at any cost.
-- Prefer a small number of stable executors plus explicit rule data over many bespoke scripts.
-- Keep test assets easy to review, easy to delete, and easy to prove useful.
-- Keep validation CLI-first and tool-agnostic so the same checks can run from a shell, Git hooks, CI, or any editor/integration.
+- 这些规则适用于所有贡献者，无论改动来自手工、Codex、其他 AI 助手还是无 AI 工具。
+- 把 `codex-starter` 当作长期维护产品，而不是一次性任务产物。
+- 优先提高长期信号密度，而不是为了当前改动临时放宽标准。
+- 优先少量稳定执行器加显式规则数据，避免大量一次性脚本。
+- 测试资产应保持易审查、易删除、易证明有价值。
+- 开发期校验默认以 CLI 为主，不绑定某个客户端或某个 AI 运行时。
+
+## Validation Model
+
+开发期校验有两个维度：
+
+### Layer
+
+- `contract`
+  - 只放可执行契约。
+  - 允许两类断言：`shape` 和 `behavior`。
+  - `shape` 用于单文件/单 owner 的结构约束、解析约束、target validator。
+  - `behavior` 用于 fixture 驱动的脚本执行与结果断言。
+  - 不要把仅靠文本重复成立的 runtime 语义伪装成 `contract`。
+
+- `consistency`
+  - 只放跨文件一致性。
+  - 适用范围限于 authority boundary、owner/handoff 约束、special-flow、path convention、integration wiring。
+  - 不是 runtime 行为语义的 owner，也不是状态机/事件语义的替代实现。
+
+- `meta`
+  - 校验 registry、proof fixture、预算、套件完整性和 failing proof 路径。
+  - 用来保证“测试系统本身”可信。
+
+### Assertion Kind
+
+- `shape`
+  - 结构、解析、段落/字段约束、target validator。
+
+- `behavior`
+  - 运行脚本、驱动场景、比对结果。
+  - 执行期入口应先确定唯一的绝对 `projectDir`；写入 state/log/progress 的持久化路径仍应保持 repo-relative。
+
+- `consistency`
+  - 跨文件 owner、边界、handoff、special-flow、路径约定的一致性。
+
+- `meta`
+  - registry 和 proof 体系本身的健康度。
+
+`contract` 是 layer，不等于 assertion kind。  
+`contract` 层中的检查必须明确属于 `shape` 或 `behavior` 之一。
 
 ## Default Entry Points
 
-Use the unified development validator:
+统一入口保持不变：
 
 ```bash
 node scripts/validate-codex-starter-dev.mjs contract
@@ -27,21 +71,24 @@ node scripts/validate-codex-starter-dev.mjs meta
 node scripts/validate-codex-starter-dev.mjs full
 ```
 
-Default meanings:
+默认含义：
 
-- `contract`: single-file or single-owner invariants
-- `consistency`: cross-file rule alignment for the same behavior
-- `meta`: validation of test assets, registry quality, and failing proof paths
+- `contract`: 可执行契约检查，含 `shape + behavior`
+- `consistency`: 跨文件一致性检查
+- `meta`: 测试系统自校验
 - `full`: `contract + consistency + meta`
 
-Git hooks use:
+Git hooks 使用：
 
 - `pre-commit` -> `contract`
 - `pre-push` -> `full`
 
+`standards/codex-starter-test-registry.json` 是默认套件的分发表。  
+如果 registry 无法读取，开发期校验应直接失败，而不是假装还能代表当前套件。
+
 ## Source Of Truth
 
-Development validation is defined by these files:
+开发期校验由以下文件共同定义：
 
 - [AGENTS.md](/workspace/agent-skills/AGENTS.md)
 - [TESTING.md](/workspace/agent-skills/TESTING.md)
@@ -52,78 +99,85 @@ Development validation is defined by these files:
 - [standards/codex-starter-test-registry.json](/workspace/agent-skills/standards/codex-starter-test-registry.json)
 - [fixtures/codex-starter-dev](/workspace/agent-skills/fixtures/codex-starter-dev)
 
+其中：
+
+- `authority-map.json` 和 `consistency-map.json` 是开发期规则数据。
+- 它们描述“如何验证”，不是 runtime authority。
+
 ## Daily Decision Rules
 
-Use this fixed order when changing `codex-starter`:
+修改 testing 时按以下顺序决策：
 
-1. First decide whether no new check is needed.
-2. If coverage must change, prefer updating an existing check.
-3. Add a new check only when the rule or failure mode is genuinely new.
-4. Delete or merge checks immediately when they are duplicate, obsolete, or ruleless.
+1. 先判断是否根本不需要新检查。
+2. 如需保留原规则，优先更新已有检查。
+3. 只有规则或逃逸 failure mode 真正新增时，才加新检查。
+4. 重复、过时或无 owner 的检查应在同一改动中删除或合并。
 
 ### When To Add No New Check
 
-Do not add a new check when any of the following is true:
+以下情况不要新增检查：
 
-- the change does not alter a governed rule, invariant, or failure mode
-- the change is documentation-only and does not affect development-validation behavior
-- the implementation only refactors an executor and existing checks still cover the same `rule_id`
-- an existing active check was updated and no new rule or new failure mode was introduced
+- 改动不影响受治理规则、不变量或 failure mode
+- 只是文档改动，不改变开发期校验行为
+- 只是重构执行器，而现有检查仍覆盖相同 `rule_id`
+- 只是更新既有检查的数据、措辞、owner 或可接受输出形状
 
-When choosing no new check, record the reason in the change summary, PR description, review note, or validation note.
+如果决定“不新增检查”，需要在变更说明、review note 或验证说明中记录原因。
 
 ### When To Update An Existing Check
 
-Update an existing check instead of adding one when all of the following are true:
+在以下情况下应更新已有检查而不是新增：
 
-- the same `rule_id` still applies
-- the existing check is still the correct owner for that behavior
-- the change only refreshes wording, file ownership, fixture text, accepted output shape, or rule expression under the same rule
+- 仍然是同一个 `rule_id`
+- 现有检查仍是该行为/约束的正确 owner
+- 只是刷新 wording、fixture 文本、owner、目标文件或规则表达
 
 ### When To Add A New Check
 
-Add a new check only when all of the following are true:
+只有以下条件同时满足时才新增：
 
-- the protected rule or failure mode is genuinely new
-- current active coverage cannot represent it without becoming misleading
-- the added check has a clear long-term owner
-- the added check remains useful after the current change is finished
+- 被保护的规则或 failure mode 确实是新的
+- 当前活跃覆盖无法准确表达它
+- 新检查有明确长期 owner
+- 当前改动结束后它仍然有持续价值
 
-Before adding a new check, answer from repository evidence:
+新增前必须能回答：
 
-- which `rule_id` or escaped failure mode it protects
-- why existing coverage is insufficient
-- why updating an existing check is not enough
-- whether it is permanent or `temporary`
-- if `temporary`, when it must be removed
+- 它保护哪个 `rule_id` 或哪个 escaped failure mode
+- 现有覆盖为什么不够
+- 为什么更新旧检查还不够
+- 它是永久检查还是 `temporary`
+- 如果是 `temporary`，删除条件是什么
 
 ### When To Delete Or Merge Checks
 
-Delete or merge a check in the same change when any of the following is true:
+出现以下任一情况时，应删除或合并：
 
-- the underlying rule was removed or intentionally replaced
-- the check only covered an obsolete implementation path
-- another active check already covers the same `rule_id` and failure mode
-- a `temporary` check reached its removal condition
+- 底层规则被移除或故意替换
+- 检查只覆盖了过时实现路径
+- 另一个活跃检查已覆盖同一 `rule_id` 和 failure mode
+- `temporary` 检查已到删除条件
+- 该检查实际上只是文本重复验证，却被错误当成 runtime 行为契约
 
 ## Test Asset Rules
 
-- Keep one default validation entrypoint.
-- Add new coverage to rule data or tiny fixtures first.
-- Do not add a new executor when an existing one can express the rule.
-- Do not add large snapshots or full-file golden copies as routine coverage.
-- Do not use thick mocks for internal rule semantics.
-- Prefer minimal real text fixtures that exercise validators directly.
-- Validation assets should grow mainly in rule data and tiny fixtures, not in script count.
+- 保持一个默认入口。
+- 优先把新覆盖加到规则数据或小型 fixture，而不是新建执行器。
+- 能复用现有执行器时，不要新增执行器。
+- 不要把大快照或整文件 golden copy 当成常规覆盖。
+- 不要用厚 mock 代替规则语义验证。
+- 优先使用最小真实文本 fixture，直接驱动 validator。
+- 开发期资产应主要增长在规则数据和小型 fixture，而不是脚本数量。
 
 ## Registry Rules
 
-Every active development-validation check must be registered in [standards/codex-starter-test-registry.json](/workspace/agent-skills/standards/codex-starter-test-registry.json).
+所有活跃开发期检查都必须登记在 [standards/codex-starter-test-registry.json](/workspace/agent-skills/standards/codex-starter-test-registry.json)。
 
-Minimum fields:
+最小字段：
 
 - `id`
-- `type`
+- `layer`
+- `assertion_kind`
 - `rule_id`
 - `failure_mode`
 - `source_paths`
@@ -131,28 +185,51 @@ Minimum fields:
 - `status`
 - `executor`
 
-Additional rules:
+额外规则：
 
-- `temporary` checks must define `remove_when`
-- checks with maintained failing proofs must define `proof_fixture_root`
-- fixture count and fixture size must stay inside the registry budgets
+- `temporary` 检查必须声明 `remove_when`
+- 维护 failing proof 的检查必须声明 `proof_fixture_root`
+- fixture 数量和大小必须受 registry budget 约束
+- `layer` 与 `assertion_kind` 必须匹配：
+  - `contract -> shape|behavior`
+  - `consistency -> consistency`
+  - `meta -> meta`
+
+## Consistency Scope
+
+`standards/codex-starter-consistency-map.json` 只允许表达以下跨文件一致性：
+
+- `ownership`
+- `handoff`
+- `path-convention`
+- `authority-boundary`
+- `special-flow`
+- `integration-wiring`
+
+不要把以下内容继续塞进 consistency：
+
+- runtime 状态机合法状态集合
+- runtime 事件枚举
+- 归档闭环行为本身
+- 任何应该由脚本执行或 fixture 行为检查证明的语义
 
 ## Failing Proof Requirement
 
-Development validators are not trusted on passing examples alone.
+开发期 validator 不能只靠 pass case 获得信任。
 
-- Maintain at least one intentional failing proof path for validators that enforce authority or consistency behavior.
-- Keep failing proof fixtures minimal and purpose-built.
-- If a validator passes on the live tree but has no maintained failing proof path, treat it as incomplete.
+- 对 authority、consistency、behavior 这类检查，维护至少一条故意失败的 proof 路径。
+- failing proof fixture 必须最小、专用、可理解。
+- live tree 通过但没有 maintained failing proof 的检查，应视为不完整。
 
 ## Review And Delivery
 
-For every `codex-starter` development change, report:
+每次 `codex-starter` 开发交付至少报告：
 
-- which validation layers were run
-- what rule, invariant, or drift they cover
-- whether a check was updated, added, deleted, merged, or intentionally not added
-- any remaining validation gap and owner
+- 跑了哪些 layer
+- 每个 layer 下跑了哪些 assertion kind
+- 覆盖了什么规则、边界或 drift
+- 哪些检查被更新、删除、迁移或故意不新增
+- 还剩哪些验证缺口和 owner
 
-Do not describe a partial local iteration check as full development validation.
-This reporting requirement is tool-agnostic; use the delivery surface that exists for the change, such as a local change note, PR description, review summary, or assistant handoff.
+不要把文本存在性检查描述成行为覆盖。  
+不要把局部迭代检查描述成完整开发期验证。

@@ -1,14 +1,15 @@
 {
-  "version": 1,
+  "version": 2,
   "budgets": {
-    "max_active_checks": 6,
-    "max_fixture_files": 9,
-    "max_fixture_bytes": 4096
+    "max_active_checks": 9,
+    "max_fixture_files": 15,
+    "max_fixture_bytes": 14336
   },
   "checks": [
     {
-      "id": "authority-contract",
-      "type": "contract",
+      "id": "authority-shape-contract",
+      "layer": "contract",
+      "assertion_kind": "shape",
       "rule_id": "authority-map",
       "failure_mode": "authority-ownership-drift",
       "source_paths": [
@@ -16,15 +17,16 @@
       ],
       "owner": "scripts/validate-codex-starter-authority.mjs",
       "status": "active",
-      "executor": "authority",
+      "executor": "authority-shape",
       "proof_fixture_root": "fixtures/codex-starter-dev/authority-invalid",
       "expected_error_patterns": [
         "disallowed section heading"
       ]
     },
     {
-      "id": "json-contract-files",
-      "type": "contract",
+      "id": "json-shape-contract",
+      "layer": "contract",
+      "assertion_kind": "shape",
       "rule_id": "structured-json-parse",
       "failure_mode": "invalid-json",
       "source_paths": [
@@ -34,11 +36,12 @@
       ],
       "owner": "scripts/validate-codex-starter-dev.mjs",
       "status": "active",
-      "executor": "json-parse"
+      "executor": "json-shape"
     },
     {
-      "id": "governance-target-contract",
-      "type": "contract",
+      "id": "governance-target-shape-contract",
+      "layer": "contract",
+      "assertion_kind": "shape",
       "rule_id": "governance-target-validator",
       "failure_mode": "unsafe-governance-target-drift",
       "source_paths": [
@@ -47,7 +50,7 @@
       ],
       "owner": "scripts/validate-codex-starter-dev.mjs",
       "status": "active",
-      "executor": "governance",
+      "executor": "governance-target-shape",
       "proof_fixture_root": "fixtures/codex-starter-dev/authority-invalid",
       "proof_project_path": "codex-starter",
       "proof_target_path": "AGENTS.md",
@@ -56,8 +59,9 @@
       ]
     },
     {
-      "id": "governance-flow-contract",
-      "type": "contract",
+      "id": "governance-flow-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
       "rule_id": "governance-writeback-flow",
       "failure_mode": "governance-decision-or-repair-regression",
       "source_paths": [
@@ -76,24 +80,86 @@
       ]
     },
     {
-      "id": "consistency-core-rules",
-      "type": "consistency",
-      "rule_id": "core-delivery-consistency",
+      "id": "task-state-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "task-state-lifecycle",
+      "failure_mode": "task-state-lifecycle-regression",
+      "source_paths": [
+        "codex-starter/.codex/scripts/context/task-state.mjs",
+        "codex-starter/.codex/scripts/shared/task-context.mjs",
+        "fixtures/codex-starter-dev/task-state-pass",
+        "fixtures/codex-starter-dev/task-state-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "task-state-behavior",
+      "proof_fixture_root": "fixtures/codex-starter-dev/task-state-invalid",
+      "expected_error_patterns": [
+        "expected project path to exist"
+      ]
+    },
+    {
+      "id": "project-context-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "project-context-root-precedence",
+      "failure_mode": "project-context-root-resolution-regression",
+      "source_paths": [
+        "codex-starter/.codex/scripts/shared/project-context.mjs",
+        "fixtures/codex-starter-dev/project-context-pass",
+        "fixtures/codex-starter-dev/project-context-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "project-context-behavior",
+      "proof_fixture_root": "fixtures/codex-starter-dev/project-context-invalid",
+      "expected_error_patterns": [
+        "expected project_dir_relative=."
+      ]
+    },
+    {
+      "id": "hook-root-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "hook-entry-root-propagation",
+      "failure_mode": "hook-entry-root-propagation-regression",
+      "source_paths": [
+        "codex-starter/.codex/hooks.json",
+        "codex-starter/.codex/hooks/log-event.mjs",
+        "codex-starter/.codex/scripts/shared/project-context.mjs",
+        "fixtures/codex-starter-dev/hook-root-pass",
+        "fixtures/codex-starter-dev/hook-root-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "hook-root-behavior",
+      "proof_fixture_root": "fixtures/codex-starter-dev/hook-root-invalid",
+      "expected_error_patterns": [
+        "expected root_log_exists=true"
+      ]
+    },
+    {
+      "id": "boundary-consistency-rules",
+      "layer": "consistency",
+      "assertion_kind": "consistency",
+      "rule_id": "cross-file-boundary-alignment",
       "failure_mode": "cross-file-rule-drift",
       "source_paths": [
         "standards/codex-starter-consistency-map.json"
       ],
       "owner": "scripts/validate-codex-starter-dev.mjs",
       "status": "active",
-      "executor": "consistency",
+      "executor": "text-consistency",
       "proof_fixture_root": "fixtures/codex-starter-dev/consistency-invalid",
       "expected_error_patterns": [
         "missing required pattern"
       ]
     },
     {
-      "id": "meta-test-registry",
-      "type": "meta",
+      "id": "registry-meta",
+      "layer": "meta",
+      "assertion_kind": "meta",
       "rule_id": "test-registry-health",
       "failure_mode": "stale-or-bloated-test-assets",
       "source_paths": [
@@ -101,7 +167,7 @@
       ],
       "owner": "scripts/validate-codex-starter-dev.mjs",
       "status": "active",
-      "executor": "meta"
+      "executor": "registry-meta"
     }
   ]
 }

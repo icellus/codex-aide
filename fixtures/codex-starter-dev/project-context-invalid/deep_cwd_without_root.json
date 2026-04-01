@@ -1,0 +1,15 @@
+{
+  "id": "deep_cwd_without_root",
+  "steps": [
+    {
+      "cwd_relative": "worktrees/one/two/three/four/five/six",
+      "use_input_cwd": true,
+      "expect": {
+        "exit_status": 0,
+        "source": "input.cwd",
+        "project_dir_relative": ".",
+        "start_path_relative": "worktrees/one/two/three/four/five/six"
+      }
+    }
+  ]
+}

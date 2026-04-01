@@ -8,13 +8,14 @@ import { validateAuthority } from "./validate-codex-starter-authority.mjs";
 import { validateGovernanceTarget } from "../codex-starter/.codex/scripts/guards/validate-governance-target.mjs";
 
 const defaultRepoRoot = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const defaultCheckManifest = Object.freeze([
-  { id: "authority-contract", layer: "contract" },
-  { id: "json-contract-files", layer: "contract" },
-  { id: "governance-target-contract", layer: "contract" },
-  { id: "governance-flow-contract", layer: "contract" },
-  { id: "consistency-core-rules", layer: "consistency" },
-  { id: "meta-test-registry", layer: "meta" }
+const runnableStatuses = new Set(["active", "temporary"]);
+const validConsistencyKinds = new Set([
+  "ownership",
+  "handoff",
+  "path-convention",
+  "authority-boundary",
+  "special-flow",
+  "integration-wiring"
 ]);
 
 function readJson(filePath) {
@@ -85,7 +86,6 @@ function loadJsonFile(repoRoot, filePath, errors) {
 
 function collectJsonFiles(repoRoot) {
   const roots = [path.join(repoRoot, "standards"), path.join(repoRoot, "codex-starter", ".codex")];
-
   return roots.flatMap((rootDir) => listFilesRecursive(rootDir, (filePath) => filePath.endsWith(".json")));
 }
 
@@ -101,6 +101,28 @@ function validateJsonContracts({ repoRoot = defaultRepoRoot } = {}) {
   }
 
   return { ok: errors.length === 0, errors };
+}
+
+function validatePatternArray(ruleId, targetPath, fieldName, value, errors) {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value) || value.length === 0) {
+    errors.push(`${ruleId}: ${targetPath}: ${fieldName} must be a non-empty array when provided`);
+    return [];
+  }
+
+  const patterns = [];
+  for (const pattern of value) {
+    if (typeof pattern !== "string" || pattern.length === 0) {
+      errors.push(`${ruleId}: ${targetPath}: ${fieldName} entries must be non-empty strings`);
+      continue;
+    }
+    patterns.push(pattern);
+  }
+
+  return patterns;
 }
 
 function validateConsistency({
@@ -134,6 +156,16 @@ function validateConsistency({
     }
     seenRuleIds.add(rule.id);
 
+    if (!rule.intent || typeof rule.intent !== "string") {
+      errors.push(`${rule.id}: rule must declare intent`);
+    }
+
+    if (!rule.kind || typeof rule.kind !== "string") {
+      errors.push(`${rule.id}: rule must declare kind`);
+    } else if (!validConsistencyKinds.has(rule.kind)) {
+      errors.push(`${rule.id}: unsupported kind "${rule.kind}"`);
+    }
+
     if (!Array.isArray(rule.targets) || rule.targets.length === 0) {
       errors.push(`${rule.id}: rule must declare at least one target`);
       continue;
@@ -145,32 +177,37 @@ function validateConsistency({
         continue;
       }
 
-      const filePath = path.join(repoRoot, target.path);
+      const targetPath = target.path;
+      const filePath = path.join(repoRoot, targetPath);
       if (!fileExists(filePath)) {
-        errors.push(`${rule.id}: ${target.path}: file not found`);
+        errors.push(`${rule.id}: ${targetPath}: file not found`);
+        continue;
+      }
+
+      const allOf = validatePatternArray(rule.id, targetPath, "all_of", target.all_of, errors);
+      const anyOf = validatePatternArray(rule.id, targetPath, "any_of", target.any_of, errors);
+      const noneOf = validatePatternArray(rule.id, targetPath, "none_of", target.none_of, errors);
+
+      if (allOf.length === 0 && anyOf.length === 0 && noneOf.length === 0) {
+        errors.push(`${rule.id}: ${targetPath}: target must declare at least one of all_of, any_of, none_of`);
         continue;
       }
 
       const text = readText(filePath);
 
-      for (const pattern of target.all_of || []) {
+      for (const pattern of allOf) {
         if (!text.includes(pattern)) {
-          errors.push(`${rule.id}: ${target.path}: missing required pattern "${pattern}"`);
+          errors.push(`${rule.id}: ${targetPath}: missing required pattern "${pattern}"`);
         }
       }
 
-      if (target.any_of?.length) {
-        const found = target.any_of.some((pattern) => text.includes(pattern));
-        if (!found) {
-          errors.push(
-            `${rule.id}: ${target.path}: missing one of required patterns ${target.any_of.join(", ")}`
-          );
-        }
+      if (anyOf.length > 0 && !anyOf.some((pattern) => text.includes(pattern))) {
+        errors.push(`${rule.id}: ${targetPath}: missing one of required patterns ${anyOf.join(", ")}`);
       }
 
-      for (const pattern of target.none_of || []) {
+      for (const pattern of noneOf) {
         if (text.includes(pattern)) {
-          errors.push(`${rule.id}: ${target.path}: forbidden pattern "${pattern}"`);
+          errors.push(`${rule.id}: ${targetPath}: forbidden pattern "${pattern}"`);
         }
       }
     }
@@ -179,7 +216,7 @@ function validateConsistency({
   return { ok: errors.length === 0, errors };
 }
 
-function validateGovernanceContracts({ repoRoot = defaultRepoRoot } = {}) {
+function validateGovernanceTargetContracts({ repoRoot = defaultRepoRoot } = {}) {
   const errors = [];
   const projectDir = path.join(repoRoot, "codex-starter");
   const targets = [
@@ -219,12 +256,15 @@ function writeStructuredTranscript(filePath, structuredResult) {
   fs.writeFileSync(filePath, `${JSON.stringify(entry)}\n`, "utf8");
 }
 
-function runNodeJsonScript(scriptPath, projectDir, input) {
+function runNodeJsonScript(scriptPath, projectDir, input, options = {}) {
+  const extraEnv = options.extraEnv && typeof options.extraEnv === "object" ? options.extraEnv : {};
+  const useProjectDirEnv = options.useProjectDirEnv !== false;
   const result = spawnSync(process.execPath, [scriptPath], {
-    cwd: projectDir,
+    cwd: options.cwd || projectDir,
     env: {
       ...process.env,
-      CODEX_PROJECT_DIR: projectDir
+      ...extraEnv,
+      ...(useProjectDirEnv ? { CODEX_PROJECT_DIR: projectDir } : {})
     },
     input: `${JSON.stringify(input)}\n`,
     encoding: "utf8"
@@ -383,20 +423,694 @@ function validateGovernanceFlowContracts({
   return { ok: errors.length === 0, errors };
 }
 
+function loadTaskStateScenarios(scenarioRoot) {
+  return listFilesRecursive(scenarioRoot, (filePath) => filePath.endsWith(".json")).map((filePath) => ({
+    filePath,
+    scenario: readJson(filePath)
+  }));
+}
+
+function loadScenarioFiles(scenarioRoot) {
+  return listFilesRecursive(scenarioRoot, (filePath) => filePath.endsWith(".json")).map((filePath) => ({
+    filePath,
+    scenario: readJson(filePath)
+  }));
+}
+
+function isPresentValue(value) {
+  return value !== undefined && value !== null && value !== "";
+}
+
+function compareExpectedObject({ actual, expected, baseLabel, errors }) {
+  if (!expected || typeof expected !== "object" || Array.isArray(expected)) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(expected)) {
+    const actualValue = actual ? actual[key] : undefined;
+    if (actualValue !== value) {
+      errors.push(`${baseLabel}.${key}=${value}, got ${actualValue === undefined ? "<missing>" : actualValue}`);
+    }
+  }
+}
+
+function compareExpectedArray({ actual, expected, label, errors }) {
+  if (!Array.isArray(expected)) {
+    return;
+  }
+
+  const actualArray = Array.isArray(actual) ? actual : [];
+  if (JSON.stringify(actualArray) !== JSON.stringify(expected)) {
+    errors.push(`${label}=${JSON.stringify(expected)}, got ${JSON.stringify(actualArray)}`);
+  }
+}
+
+function assertPresentFields({ actual, fields, label, errors }) {
+  if (!Array.isArray(fields)) {
+    return;
+  }
+
+  for (const field of fields) {
+    const actualValue = actual ? actual[field] : undefined;
+    if (!isPresentValue(actualValue)) {
+      errors.push(`${label}.${field} to be present`);
+    }
+  }
+}
+
+function readTaskContextState(projectDir) {
+  const stateFilePath = path.join(projectDir, ".codex", "state", "task-context.json");
+  if (!fileExists(stateFilePath)) {
+    return null;
+  }
+
+  return readJson(stateFilePath);
+}
+
+function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-task-state-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    if (!Array.isArray(scenario.steps) || scenario.steps.length === 0) {
+      return {
+        ok: false,
+        errors: [`${scenario.id || "<unknown>"}: steps must be a non-empty array`]
+      };
+    }
+
+    const scriptPath = path.join(projectDir, ".codex", "scripts", "context", "task-state.mjs");
+
+    scenario.steps.forEach((step, index) => {
+      const label = `${scenario.id || "<unknown>"} step ${index + 1}`;
+      const cwdRelative = typeof step.cwd_relative === "string" ? step.cwd_relative.trim() : "";
+      const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
+      fs.mkdirSync(stepCwd, { recursive: true });
+
+      const invocation = runNodeJsonScript(scriptPath, projectDir, step.input || {}, {
+        cwd: stepCwd,
+        useProjectDirEnv: step.use_project_dir_env !== false,
+        extraEnv: step.env && typeof step.env === "object" ? step.env : {}
+      });
+      const parsed = invocation.parsed;
+      const expect = step.expect || {};
+
+      if (typeof expect.exit_status === "number" && invocation.status !== expect.exit_status) {
+        errors.push(`${label}: expected exit_status=${expect.exit_status}, got ${invocation.status}`);
+      }
+
+      if (typeof expect.ok === "boolean" && Boolean(parsed?.ok) !== expect.ok) {
+        errors.push(`${label}: expected ok=${expect.ok}, got ${Boolean(parsed?.ok)}`);
+      }
+
+      if (typeof expect.action === "string" && String(parsed?.action || "") !== expect.action) {
+        errors.push(`${label}: expected action=${expect.action}, got ${parsed?.action || "<missing>"}`);
+      }
+
+      if (typeof expect.changed === "boolean" && Boolean(parsed?.changed) !== expect.changed) {
+        errors.push(`${label}: expected changed=${expect.changed}, got ${Boolean(parsed?.changed)}`);
+      }
+
+      compareExpectedObject({
+        actual: parsed?.task,
+        expected: expect.task_fields,
+        baseLabel: `${label}: expected task`,
+        errors
+      });
+      assertPresentFields({
+        actual: parsed?.task,
+        fields: expect.task_present_fields,
+        label: `${label}: expected task`,
+        errors
+      });
+
+      if (typeof expect.recent_tasks_count === "number") {
+        const actualCount = Array.isArray(parsed?.recent_tasks) ? parsed.recent_tasks.length : 0;
+        if (actualCount !== expect.recent_tasks_count) {
+          errors.push(`${label}: expected recent_tasks_count=${expect.recent_tasks_count}, got ${actualCount}`);
+        }
+      }
+
+      compareExpectedArray({
+        actual: Array.isArray(parsed?.recent_tasks) ? parsed.recent_tasks.map((item) => item.status) : [],
+        expected: expect.recent_task_statuses,
+        label: `${label}: expected recent_task_statuses`,
+        errors
+      });
+
+      compareExpectedArray({
+        actual: Array.isArray(parsed?.recent_tasks) ? parsed.recent_tasks.map((item) => item.task_id) : [],
+        expected: expect.recent_task_ids,
+        label: `${label}: expected recent_task_ids`,
+        errors
+      });
+
+      const state = readTaskContextState(projectDir);
+      compareExpectedObject({
+        actual: state?.task,
+        expected: expect.state_task_fields,
+        baseLabel: `${label}: expected state.task`,
+        errors
+      });
+      assertPresentFields({
+        actual: state?.task,
+        fields: expect.state_task_present_fields,
+        label: `${label}: expected state.task`,
+        errors
+      });
+
+      if (typeof expect.state_recent_tasks_count === "number") {
+        const actualCount = Array.isArray(state?.recent_tasks) ? state.recent_tasks.length : 0;
+        if (actualCount !== expect.state_recent_tasks_count) {
+          errors.push(`${label}: expected state_recent_tasks_count=${expect.state_recent_tasks_count}, got ${actualCount}`);
+        }
+      }
+
+      compareExpectedArray({
+        actual: Array.isArray(state?.recent_tasks) ? state.recent_tasks.map((item) => item.status) : [],
+        expected: expect.state_recent_task_statuses,
+        label: `${label}: expected state_recent_task_statuses`,
+        errors
+      });
+
+      compareExpectedArray({
+        actual: Array.isArray(state?.recent_tasks) ? state.recent_tasks.map((item) => item.task_id) : [],
+        expected: expect.state_recent_task_ids,
+        label: `${label}: expected state_recent_task_ids`,
+        errors
+      });
+
+      for (const relativePath of expect.project_paths_exist || []) {
+        if (!fileExists(path.join(projectDir, relativePath))) {
+          errors.push(`${label}: expected project path to exist "${relativePath}"`);
+        }
+      }
+
+      for (const relativePath of expect.project_paths_absent || []) {
+        if (fileExists(path.join(projectDir, relativePath))) {
+          errors.push(`${label}: expected project path to be absent "${relativePath}"`);
+        }
+      }
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateTaskStateBehaviorContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "task-state-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadTaskStateScenarios(scenarioRoot)) {
+    const result = validateTaskStateScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function runInlineModuleProbe({ cwd, env, modulePath, input }) {
+  const probeSource = [
+    "import { pathToFileURL } from 'node:url';",
+    "const modulePath = process.env.CODEX_PROBE_MODULE_PATH;",
+    "const input = JSON.parse(process.env.CODEX_PROBE_INPUT || '{}');",
+    "const mod = await import(pathToFileURL(modulePath).href);",
+    "const result = mod.getProjectContext(input);",
+    "process.stdout.write(JSON.stringify(result));"
+  ].join("\n");
+
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", probeSource], {
+    cwd,
+    env: {
+      ...process.env,
+      ...env,
+      CODEX_PROBE_MODULE_PATH: modulePath,
+      CODEX_PROBE_INPUT: JSON.stringify(input || {})
+    },
+    encoding: "utf8"
+  });
+
+  let parsed = null;
+  const stdout = String(result.stdout || "").trim();
+  if (stdout) {
+    try {
+      parsed = JSON.parse(stdout);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  return {
+    status: result.status ?? 1,
+    stdout,
+    stderr: String(result.stderr || "").trim(),
+    parsed
+  };
+}
+
+function relativeOrDot(baseDir, targetPath) {
+  const relativePath = path.relative(baseDir, targetPath).replace(/\\/g, "/");
+  return relativePath || ".";
+}
+
+function buildScenarioInput(baseInput, { projectDir, stepCwd, useInputProjectDir, useInputCwd }) {
+  const input = baseInput && typeof baseInput === "object" ? JSON.parse(JSON.stringify(baseInput)) : {};
+
+  if (useInputProjectDir) {
+    input.projectDir = projectDir;
+  }
+
+  if (useInputCwd) {
+    input.cwd = stepCwd;
+  }
+
+  return input;
+}
+
+function buildScenarioEnv(baseEnv, { projectDir, useEnvProjectDir }) {
+  const env = baseEnv && typeof baseEnv === "object" ? { ...baseEnv } : {};
+
+  if (useEnvProjectDir) {
+    env.CODEX_PROJECT_DIR = projectDir;
+  }
+
+  return env;
+}
+
+function validateProjectContextScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-project-context-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    if (!Array.isArray(scenario.steps) || scenario.steps.length === 0) {
+      return {
+        ok: false,
+        errors: [`${scenario.id || "<unknown>"}: steps must be a non-empty array`]
+      };
+    }
+
+    const modulePath = path.join(projectDir, ".codex", "scripts", "shared", "project-context.mjs");
+
+    scenario.steps.forEach((step, index) => {
+      const label = `${scenario.id || "<unknown>"} step ${index + 1}`;
+      const cwdRelative = typeof step.cwd_relative === "string" ? step.cwd_relative.trim() : "";
+      const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
+      fs.mkdirSync(stepCwd, { recursive: true });
+
+      const invocation = runInlineModuleProbe({
+        cwd: stepCwd,
+        env: buildScenarioEnv(step.env, {
+          projectDir,
+          useEnvProjectDir: step.use_env_project_dir === true
+        }),
+        modulePath,
+        input: buildScenarioInput(step.input, {
+          projectDir,
+          stepCwd,
+          useInputProjectDir: step.use_input_project_dir === true,
+          useInputCwd: step.use_input_cwd === true
+        })
+      });
+
+      const parsed = invocation.parsed || {};
+      const expect = step.expect || {};
+
+      if (typeof expect.exit_status === "number" && invocation.status !== expect.exit_status) {
+        errors.push(`${label}: expected exit_status=${expect.exit_status}, got ${invocation.status}`);
+      }
+
+      if (typeof expect.source === "string" && String(parsed.source || "") !== expect.source) {
+        errors.push(`${label}: expected source=${expect.source}, got ${parsed.source || "<missing>"}`);
+      }
+
+      if (typeof expect.project_dir_relative === "string") {
+        const actualRelative = parsed.projectDir ? relativeOrDot(projectDir, parsed.projectDir) : "<missing>";
+        if (actualRelative !== expect.project_dir_relative) {
+          errors.push(`${label}: expected project_dir_relative=${expect.project_dir_relative}, got ${actualRelative}`);
+        }
+      }
+
+      if (typeof expect.start_path_relative === "string") {
+        const actualRelative = parsed.startPath ? relativeOrDot(projectDir, parsed.startPath) : "<missing>";
+        if (actualRelative !== expect.start_path_relative) {
+          errors.push(`${label}: expected start_path_relative=${expect.start_path_relative}, got ${actualRelative}`);
+        }
+      }
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateProjectContextBehaviorContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "project-context-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadScenarioFiles(scenarioRoot)) {
+    const result = validateProjectContextScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function initGitRepo(projectDir) {
+  const result = spawnSync("git", ["init", "-q"], {
+    cwd: projectDir,
+    encoding: "utf8"
+  });
+
+  if ((result.status ?? 1) !== 0) {
+    throw new Error(`git init failed: ${String(result.stderr || result.stdout || "").trim()}`);
+  }
+}
+
+function readHooksConfig(projectDir) {
+  return readJson(path.join(projectDir, ".codex", "hooks.json"));
+}
+
+function getHookCommand(hooksConfig, eventName, chainIndex = 0, hookIndex = 0) {
+  const chains = hooksConfig?.hooks?.[eventName];
+  if (!Array.isArray(chains) || !chains[chainIndex] || !Array.isArray(chains[chainIndex].hooks)) {
+    throw new Error(`hook chain not found for ${eventName}[${chainIndex}]`);
+  }
+
+  const hook = chains[chainIndex].hooks[hookIndex];
+  if (!hook || hook.type !== "command" || typeof hook.command !== "string") {
+    throw new Error(`hook command not found for ${eventName}[${chainIndex}].hooks[${hookIndex}]`);
+  }
+
+  return hook.command;
+}
+
+function latestJsonlEntry(logDir) {
+  if (!fileExists(logDir)) {
+    return null;
+  }
+
+  const files = fs.readdirSync(logDir).filter((fileName) => fileName.endsWith(".jsonl")).sort();
+  if (files.length === 0) {
+    return null;
+  }
+
+  const lastFile = path.join(logDir, files[files.length - 1]);
+  const lines = fs.readFileSync(lastFile, "utf8").split("\n").filter(Boolean);
+  if (lines.length === 0) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(lines[lines.length - 1]);
+  } catch {
+    return null;
+  }
+}
+
+function runHookCommand(command, { cwd, env, input }) {
+  return spawnSync("bash", ["-lc", command], {
+    cwd,
+    env: {
+      ...process.env,
+      ...env
+    },
+    input: input ? `${JSON.stringify(input)}\n` : "",
+    encoding: "utf8"
+  });
+}
+
+function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-hook-root-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    if (!Array.isArray(scenario.steps) || scenario.steps.length === 0) {
+      return {
+        ok: false,
+        errors: [`${scenario.id || "<unknown>"}: steps must be a non-empty array`]
+      };
+    }
+
+    initGitRepo(projectDir);
+    const hooksConfig = readHooksConfig(projectDir);
+    fs.rmSync(path.join(projectDir, ".codex", "logs"), { recursive: true, force: true });
+
+    scenario.steps.forEach((step, index) => {
+      const label = `${scenario.id || "<unknown>"} step ${index + 1}`;
+      const cwdRelative = typeof step.cwd_relative === "string" ? step.cwd_relative.trim() : "";
+      const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
+      fs.mkdirSync(stepCwd, { recursive: true });
+
+      const command = getHookCommand(
+        hooksConfig,
+        step.hook_event || "SessionStart",
+        Number.isInteger(step.chain_index) ? step.chain_index : 0,
+        Number.isInteger(step.hook_index) ? step.hook_index : 0
+      );
+
+      const result = runHookCommand(command, {
+        cwd: stepCwd,
+        env: buildScenarioEnv(step.env, {
+          projectDir,
+          useEnvProjectDir: step.use_env_project_dir === true
+        }),
+        input: buildScenarioInput(step.input, {
+          projectDir,
+          stepCwd,
+          useInputProjectDir: step.use_input_project_dir === true,
+          useInputCwd: step.use_input_cwd === true
+        })
+      });
+
+      const expect = step.expect || {};
+
+      if (typeof expect.exit_status === "number" && (result.status ?? 1) !== expect.exit_status) {
+        errors.push(`${label}: expected exit_status=${expect.exit_status}, got ${result.status ?? 1}`);
+      }
+
+      const rootLogDir = path.join(projectDir, ".codex", "logs", "codex-hooks");
+      const deepLogDir = path.join(stepCwd, ".codex", "logs", "codex-hooks");
+
+      if (typeof expect.root_log_exists === "boolean" && fileExists(rootLogDir) !== expect.root_log_exists) {
+        errors.push(`${label}: expected root_log_exists=${expect.root_log_exists}, got ${fileExists(rootLogDir)}`);
+      }
+
+      if (typeof expect.deep_log_exists === "boolean" && fileExists(deepLogDir) !== expect.deep_log_exists) {
+        errors.push(`${label}: expected deep_log_exists=${expect.deep_log_exists}, got ${fileExists(deepLogDir)}`);
+      }
+
+      const rootEntry = latestJsonlEntry(rootLogDir);
+      if (typeof expect.root_entry_source === "string" && String(rootEntry?.projectDirSource || "") !== expect.root_entry_source) {
+        errors.push(
+          `${label}: expected root_entry_source=${expect.root_entry_source}, got ${rootEntry?.projectDirSource || "<missing>"}`
+        );
+      }
+
+      if (typeof expect.root_entry_project_dir_relative === "string") {
+        const actualRelative = rootEntry?.projectDir ? relativeOrDot(projectDir, rootEntry.projectDir) : "<missing>";
+        if (actualRelative !== expect.root_entry_project_dir_relative) {
+          errors.push(
+            `${label}: expected root_entry_project_dir_relative=${expect.root_entry_project_dir_relative}, got ${actualRelative}`
+          );
+        }
+      }
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateHookRootBehaviorContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "hook-root-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadScenarioFiles(scenarioRoot)) {
+    const result = validateHookRootScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+const executorDefinitions = Object.freeze({
+  "authority-shape": Object.freeze({
+    layer: "contract",
+    assertionKind: "shape",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateAuthority({ repoRoot }),
+    runProof: ({ repoRoot, check }) => validateAuthority({ repoRoot: path.join(repoRoot, check.proof_fixture_root) })
+  }),
+  "json-shape": Object.freeze({
+    layer: "contract",
+    assertionKind: "shape",
+    requiresProof: false,
+    runActive: ({ repoRoot }) => validateJsonContracts({ repoRoot })
+  }),
+  "governance-target-shape": Object.freeze({
+    layer: "contract",
+    assertionKind: "shape",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateGovernanceTargetContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) => {
+      const proofProjectPath = path.join(repoRoot, check.proof_fixture_root, check.proof_project_path || "codex-starter");
+      return validateGovernanceTarget({
+        projectDir: proofProjectPath,
+        targetPath: check.proof_target_path
+      });
+    }
+  }),
+  "governance-flow": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateGovernanceFlowContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateGovernanceFlowContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
+  "task-state-behavior": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateTaskStateBehaviorContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateTaskStateBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
+  "project-context-behavior": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateProjectContextBehaviorContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateProjectContextBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
+  "hook-root-behavior": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateHookRootBehaviorContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateHookRootBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
+  "text-consistency": Object.freeze({
+    layer: "consistency",
+    assertionKind: "consistency",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateConsistency({ repoRoot }),
+    runProof: ({ repoRoot, check }) => validateConsistency({ repoRoot: path.join(repoRoot, check.proof_fixture_root) })
+  }),
+  "registry-meta": Object.freeze({
+    layer: "meta",
+    assertionKind: "meta",
+    requiresProof: false,
+    runActive: ({ repoRoot }) => validateMeta({ repoRoot })
+  })
+});
+
+function validateRegistryExecutionShape({ repoRoot, registryFilePath = getRegistryPath(repoRoot) } = {}) {
+  const errors = [];
+  const registry = loadJsonFile(repoRoot, registryFilePath, errors);
+
+  if (registry === null) {
+    return { ok: false, errors, registry: null };
+  }
+
+  if (!Array.isArray(registry.checks) || registry.checks.length === 0) {
+    errors.push("standards/codex-starter-test-registry.json: checks must be a non-empty array");
+    return { ok: false, errors, registry };
+  }
+
+  for (const check of registry.checks) {
+    for (const field of ["id", "layer", "assertion_kind", "status", "executor"]) {
+      if (!check[field]) {
+        errors.push(`standards/codex-starter-test-registry.json: check is missing ${field}`);
+      }
+    }
+
+    const definition = executorDefinitions[check.executor];
+    if (!definition) {
+      errors.push(`${check.id || "<unknown>"}: unsupported executor "${check.executor || "<missing>"}"`);
+      continue;
+    }
+
+    if (check.layer && check.layer !== definition.layer) {
+      errors.push(`${check.id}: executor "${check.executor}" must stay in layer "${definition.layer}"`);
+    }
+
+    if (check.assertion_kind && check.assertion_kind !== definition.assertionKind) {
+      errors.push(
+        `${check.id}: executor "${check.executor}" must use assertion_kind "${definition.assertionKind}"`
+      );
+    }
+  }
+
+  return { ok: errors.length === 0, errors, registry };
+}
+
 function validateRegistry({
   repoRoot = defaultRepoRoot,
   registryFilePath = getRegistryPath(repoRoot)
 } = {}) {
   const errors = [];
   const registry = loadJsonFile(repoRoot, registryFilePath, errors);
-  const validTypes = new Set(["contract", "consistency", "meta"]);
+  const validLayers = new Set(["contract", "consistency", "meta"]);
+  const validAssertionKinds = new Set(["shape", "behavior", "consistency", "meta"]);
   const validStatuses = new Set(["active", "temporary", "deprecated"]);
-  const validExecutors = new Set(["authority", "json-parse", "consistency", "meta", "governance", "governance-flow"]);
   const seenIds = new Set();
   const seenCoverageKeys = new Set();
 
   if (registry === null) {
     return { ok: false, errors, registry: null };
+  }
+
+  if (!Number.isInteger(registry.version) || registry.version < 1) {
+    errors.push("standards/codex-starter-test-registry.json: version must be an integer >= 1");
   }
 
   if (!registry.budgets || typeof registry.budgets !== "object") {
@@ -408,13 +1122,15 @@ function validateRegistry({
     return { ok: false, errors, registry };
   }
 
-  const expectedCheckIds = new Set(defaultCheckManifest.map((check) => check.id));
-  const activeCheckIds = new Set();
-
-  let activeChecks = 0;
+  let runnableChecks = 0;
+  const runnableLayers = new Map([
+    ["contract", 0],
+    ["consistency", 0],
+    ["meta", 0]
+  ]);
 
   for (const check of registry.checks) {
-    for (const field of ["id", "type", "rule_id", "failure_mode", "owner", "status", "executor"]) {
+    for (const field of ["id", "layer", "assertion_kind", "rule_id", "failure_mode", "owner", "status", "executor"]) {
       if (!check[field]) {
         errors.push(`standards/codex-starter-test-registry.json: check is missing ${field}`);
       }
@@ -431,16 +1147,31 @@ function validateRegistry({
       seenIds.add(check.id);
     }
 
-    if (check.type && !validTypes.has(check.type)) {
-      errors.push(`${check.id}: unsupported type "${check.type}"`);
+    if (check.layer && !validLayers.has(check.layer)) {
+      errors.push(`${check.id}: unsupported layer "${check.layer}"`);
+    }
+
+    if (check.assertion_kind && !validAssertionKinds.has(check.assertion_kind)) {
+      errors.push(`${check.id}: unsupported assertion_kind "${check.assertion_kind}"`);
     }
 
     if (check.status && !validStatuses.has(check.status)) {
       errors.push(`${check.id}: unsupported status "${check.status}"`);
     }
 
-    if (check.executor && !validExecutors.has(check.executor)) {
+    const definition = executorDefinitions[check.executor];
+    if (!definition) {
       errors.push(`${check.id}: unsupported executor "${check.executor}"`);
+    } else {
+      if (check.layer && check.layer !== definition.layer) {
+        errors.push(`${check.id}: executor "${check.executor}" must stay in layer "${definition.layer}"`);
+      }
+
+      if (check.assertion_kind && check.assertion_kind !== definition.assertionKind) {
+        errors.push(
+          `${check.id}: executor "${check.executor}" must use assertion_kind "${definition.assertionKind}"`
+        );
+      }
     }
 
     if (check.owner && !fileExists(path.join(repoRoot, check.owner))) {
@@ -457,12 +1188,7 @@ function validateRegistry({
       errors.push(`${check.id}: temporary checks must declare remove_when`);
     }
 
-    if (
-      check.executor === "authority" ||
-      check.executor === "consistency" ||
-      check.executor === "governance" ||
-      check.executor === "governance-flow"
-    ) {
+    if (definition?.requiresProof) {
       if (!check.proof_fixture_root) {
         errors.push(`${check.id}: ${check.executor} checks must declare proof_fixture_root`);
       }
@@ -472,45 +1198,39 @@ function validateRegistry({
       }
     }
 
-    if (check.executor === "governance" && !check.proof_target_path) {
-      errors.push(`${check.id}: governance checks must declare proof_target_path`);
+    if (check.executor === "governance-target-shape" && !check.proof_target_path) {
+      errors.push(`${check.id}: governance-target-shape checks must declare proof_target_path`);
     }
 
     if (check.proof_fixture_root && !fileExists(path.join(repoRoot, check.proof_fixture_root))) {
       errors.push(`${check.id}: proof fixture root not found "${check.proof_fixture_root}"`);
     }
 
-    if (check.status === "active" || check.status === "temporary") {
-      activeChecks += 1;
-      activeCheckIds.add(check.id);
+    if (runnableStatuses.has(check.status)) {
+      runnableChecks += 1;
+      runnableLayers.set(check.layer, (runnableLayers.get(check.layer) || 0) + 1);
 
-      if (check.type && check.rule_id && check.failure_mode) {
-        const coverageKey = `${check.type}:${check.rule_id}:${check.failure_mode}`;
+      if (check.layer && check.assertion_kind && check.rule_id && check.failure_mode) {
+        const coverageKey = `${check.layer}:${check.assertion_kind}:${check.rule_id}:${check.failure_mode}`;
         if (seenCoverageKeys.has(coverageKey)) {
-          errors.push(`${check.id}: duplicates active coverage "${coverageKey}"`);
+          errors.push(`${check.id}: duplicates runnable coverage "${coverageKey}"`);
         }
         seenCoverageKeys.add(coverageKey);
       }
     }
   }
 
-  for (const expectedId of expectedCheckIds) {
-    if (!activeCheckIds.has(expectedId)) {
-      errors.push(`standards/codex-starter-test-registry.json: missing active check "${expectedId}"`);
-    }
-  }
-
-  for (const activeId of activeCheckIds) {
-    if (!expectedCheckIds.has(activeId)) {
-      errors.push(`standards/codex-starter-test-registry.json: active check "${activeId}" is not wired into the default suite`);
+  for (const layer of validLayers) {
+    if ((runnableLayers.get(layer) || 0) === 0) {
+      errors.push(`standards/codex-starter-test-registry.json: no runnable checks registered for layer "${layer}"`);
     }
   }
 
   const maxActiveChecks = registry.budgets?.max_active_checks;
   if (typeof maxActiveChecks !== "number" || maxActiveChecks < 1) {
     errors.push("standards/codex-starter-test-registry.json: budgets.max_active_checks must be >= 1");
-  } else if (activeChecks > maxActiveChecks) {
-    errors.push(`active checks ${activeChecks} exceed budget ${maxActiveChecks}`);
+  } else if (runnableChecks > maxActiveChecks) {
+    errors.push(`runnable checks ${runnableChecks} exceed budget ${maxActiveChecks}`);
   }
 
   const fixtureFiles = listFilesRecursive(path.join(repoRoot, "fixtures", "codex-starter-dev"));
@@ -538,31 +1258,16 @@ function runFailingProofs({ repoRoot = defaultRepoRoot, registry }) {
   const errors = [];
 
   for (const check of registry.checks || []) {
-    if (check.status === "deprecated" || !check.proof_fixture_root) {
+    if (!runnableStatuses.has(check.status) || !check.proof_fixture_root) {
       continue;
     }
 
-    const proofRoot = path.join(repoRoot, check.proof_fixture_root);
-    let result;
-
-    if (check.executor === "authority") {
-      result = validateAuthority({ repoRoot: proofRoot });
-    } else if (check.executor === "consistency") {
-      result = validateConsistency({ repoRoot: proofRoot });
-    } else if (check.executor === "governance") {
-      const proofProjectPath = path.join(proofRoot, check.proof_project_path || "codex-starter");
-      result = validateGovernanceTarget({
-        projectDir: proofProjectPath,
-        targetPath: check.proof_target_path
-      });
-    } else if (check.executor === "governance-flow") {
-      result = validateGovernanceFlowContracts({
-        repoRoot,
-        scenarioRoot: proofRoot
-      });
-    } else {
+    const definition = executorDefinitions[check.executor];
+    if (!definition?.runProof) {
       continue;
     }
+
+    const result = definition.runProof({ repoRoot, check });
 
     if (result.ok) {
       errors.push(`${check.id}: failing proof unexpectedly passed`);
@@ -595,29 +1300,95 @@ function validateMeta({
   return { ok: errors.length === 0, errors };
 }
 
-function runContractLayer({ repoRoot = defaultRepoRoot } = {}) {
-  const jsonResult = validateJsonContracts({ repoRoot });
-  const authorityResult = validateAuthority({ repoRoot });
-  const governanceResult = validateGovernanceContracts({ repoRoot });
-  const governanceFlowResult = validateGovernanceFlowContracts({ repoRoot });
-  const errors = [...jsonResult.errors, ...authorityResult.errors, ...governanceResult.errors, ...governanceFlowResult.errors];
+function loadRunnableChecksForLayer({ repoRoot = defaultRepoRoot, layer }) {
+  const registryResult = validateRegistryExecutionShape({ repoRoot });
+  if (!registryResult.ok) {
+    return { ok: false, errors: registryResult.errors, checks: [] };
+  }
 
-  return { ok: errors.length === 0, errors };
+  const checks = registryResult.registry.checks.filter(
+    (check) => runnableStatuses.has(check.status) && check.layer === layer
+  );
+
+  if (checks.length === 0) {
+    return {
+      ok: false,
+      errors: [`standards/codex-starter-test-registry.json: no runnable checks available for layer "${layer}"`],
+      checks: []
+    };
+  }
+
+  return { ok: true, errors: [], checks };
+}
+
+function summarizeAssertionKinds(checks) {
+  const counts = new Map();
+
+  for (const check of checks) {
+    counts.set(check.assertion_kind, (counts.get(check.assertion_kind) || 0) + 1);
+  }
+
+  return counts;
+}
+
+function formatSummary(counts) {
+  const order = ["shape", "behavior", "consistency", "meta"];
+  const items = order
+    .filter((key) => counts.get(key))
+    .map((key) => `${key}=${counts.get(key)}`);
+
+  return items.length > 0 ? ` (${items.join(", ")})` : "";
+}
+
+function executeLayer({ repoRoot = defaultRepoRoot, layer }) {
+  const loadResult = loadRunnableChecksForLayer({ repoRoot, layer });
+  if (!loadResult.ok) {
+    return { ok: false, errors: loadResult.errors, summary: new Map() };
+  }
+
+  const errors = [];
+  const summary = summarizeAssertionKinds(loadResult.checks);
+
+  for (const check of loadResult.checks) {
+    const definition = executorDefinitions[check.executor];
+
+    try {
+      const result = definition.runActive({ repoRoot, check });
+      if (result.ok) {
+        continue;
+      }
+
+      const resultErrors =
+        Array.isArray(result.errors) && result.errors.length > 0
+          ? result.errors
+          : [`executor "${check.executor}" failed without error details`];
+
+      for (const error of resultErrors) {
+        errors.push(`${check.id}: ${error}`);
+      }
+    } catch (error) {
+      errors.push(
+        `${check.id}: executor "${check.executor}" threw ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  return { ok: errors.length === 0, errors, summary };
 }
 
 function runLayers(mode, repoRoot) {
   const layers = [];
 
   if (mode === "contract" || mode === "full") {
-    layers.push(["contract", runContractLayer({ repoRoot })]);
+    layers.push(["contract", executeLayer({ repoRoot, layer: "contract" })]);
   }
 
   if (mode === "consistency" || mode === "full") {
-    layers.push(["consistency", validateConsistency({ repoRoot })]);
+    layers.push(["consistency", executeLayer({ repoRoot, layer: "consistency" })]);
   }
 
   if (mode === "meta" || mode === "full") {
-    layers.push(["meta", validateMeta({ repoRoot })]);
+    layers.push(["meta", executeLayer({ repoRoot, layer: "meta" })]);
   }
 
   return layers;
@@ -665,13 +1436,14 @@ function runCli(argv = process.argv.slice(2)) {
   let hasErrors = false;
 
   for (const [layerName, result] of layerResults) {
+    const summary = formatSummary(result.summary);
     if (result.ok) {
-      process.stdout.write(`[${layerName}] PASS\n`);
+      process.stdout.write(`[${layerName}] PASS${summary}\n`);
       continue;
     }
 
     hasErrors = true;
-    process.stderr.write(`[${layerName}] FAIL\n`);
+    process.stderr.write(`[${layerName}] FAIL${summary}\n`);
     for (const error of result.errors) {
       process.stderr.write(`- ${error}\n`);
     }
@@ -691,4 +1463,14 @@ if (isMain) {
   process.exit(runCli());
 }
 
-export { validateConsistency, validateGovernanceFlowContracts, validateJsonContracts, validateMeta };
+export {
+  validateConsistency,
+  validateGovernanceFlowContracts,
+  validateGovernanceTargetContracts,
+  validateHookRootBehaviorContracts,
+  validateJsonContracts,
+  validateMeta,
+  validateProjectContextBehaviorContracts,
+  validateRegistry,
+  validateTaskStateBehaviorContracts
+};

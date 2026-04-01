@@ -1,0 +1,36 @@
+{
+  "id": "deep_cwd_requires_root_contract",
+  "steps": [
+    {
+      "cwd_relative": "worktrees/one/two/three/four/five/six",
+      "use_project_dir_env": false,
+      "input": {
+        "action": "set",
+        "actor": "technical_manager",
+        "task": {
+          "current_task": "Need rooted entrypoint",
+          "task_id": "proof-deep-cwd",
+          "status": "active",
+          "delivery_mode": "long-running"
+        }
+      },
+      "expect": {
+        "exit_status": 0,
+        "ok": true,
+        "action": "set",
+        "changed": true,
+        "project_paths_exist": [
+          ".codex/state/task-context.json"
+        ],
+        "project_paths_absent": [
+          "worktrees/one/two/three/four/five/six/.codex/state/task-context.json"
+        ],
+        "state_task_fields": {
+          "task_id": "proof-deep-cwd",
+          "status": "active",
+          "progress_path": ".codex/progress/active/proof-deep-cwd/current.md"
+        }
+      }
+    }
+  ]
+}

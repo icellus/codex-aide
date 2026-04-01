@@ -1,0 +1,25 @@
+{
+  "id": "root_precedence",
+  "steps": [
+    {
+      "cwd_relative": "worktrees/one/two/three/four/five/six",
+      "use_env_project_dir": true,
+      "expect": {
+        "exit_status": 0,
+        "source": "env.CODEX_PROJECT_DIR",
+        "project_dir_relative": ".",
+        "start_path_relative": "."
+      }
+    },
+    {
+      "cwd_relative": "worktrees/one/two/three/four/five/six",
+      "use_input_project_dir": true,
+      "expect": {
+        "exit_status": 0,
+        "source": "input.projectDir",
+        "project_dir_relative": ".",
+        "start_path_relative": "."
+      }
+    }
+  ]
+}
