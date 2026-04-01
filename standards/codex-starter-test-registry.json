@@ -1,9 +1,9 @@
 {
   "version": 2,
   "budgets": {
-    "max_active_checks": 11,
-    "max_fixture_files": 20,
-    "max_fixture_bytes": 18432
+    "max_active_checks": 12,
+    "max_fixture_files": 24,
+    "max_fixture_bytes": 24576
   },
   "checks": [
     {
@@ -97,6 +97,26 @@
       "proof_fixture_root": "fixtures/codex-starter-dev/task-state-invalid",
       "expected_error_patterns": [
         "expected exit_status=0"
+      ]
+    },
+    {
+      "id": "task-progress-sync-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "task-progress-path-contract",
+      "failure_mode": "task-progress-sync-path-drift",
+      "source_paths": [
+        "codex-starter/.codex/scripts/context/task-progress-sync.mjs",
+        "codex-starter/.codex/scripts/shared/task-context.mjs",
+        "fixtures/codex-starter-dev/task-progress-sync-pass",
+        "fixtures/codex-starter-dev/task-progress-sync-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "task-progress-sync-behavior",
+      "proof_fixture_root": "fixtures/codex-starter-dev/task-progress-sync-invalid",
+      "expected_error_patterns": [
+        "expected stdout to contain \"Progress file missing\""
       ]
     },
     {

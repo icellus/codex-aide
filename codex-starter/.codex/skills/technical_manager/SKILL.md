@@ -33,7 +33,7 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 5. the current user goal and `Aide` handoff brief
 6. only repository evidence needed to make safe delivery decisions
 
-Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, and current brief artifacts only when relevant to the selected chain.
+Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-slug>/current.md`, and current brief artifacts only when relevant to the selected chain.
 
 ## Repository Scan Task
 
@@ -99,11 +99,12 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-id>/current.md`, 
 ## Progress Write Rules (Mandatory)
 
 - `technical_manager` is the only execution role that writes `.codex/progress/**`.
-- long-running current snapshot path: `.codex/progress/active/<task-id>/current.md`.
-- long-running history path: `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`.
+- long-running current snapshot path: `.codex/progress/active/<task-slug>/current.md`.
+- long-running history path: `.codex/progress/active/<task-slug>/history/<timestamp>-<slug>.md`.
 - on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md` in the same update cycle.
-- on `completed`, keep the final snapshot + history coherent, then move the task record to `.codex/progress/archive/<task-id>/...`.
+- on `completed`, keep the final snapshot + history coherent, then move the task record to `.codex/progress/archive/<task-slug>/...`.
 - `.codex/templates/progress/current.md` and `.codex/templates/progress/release.md` are `current.md` templates; `.codex/templates/progress/history.md` is the history-entry template.
+- progress path segments use a slugified task identifier; keep the literal `Task ID` inside file content and task state.
 - if a session stops before an `active`, `handoff`, or `blocked` task is explicitly settled, expect runtime hooks to record interruption only; on the next session, either resume the same hot task or retire it explicitly before switching.
 - if startup reconcile suggests the hot task might already be completed externally, confirm the evidence and then settle the task explicitly; do not rely on the reconcile helper to auto-complete it.
 

@@ -1,14 +1,15 @@
 # Release Task Progress (Current Snapshot)
 
-**Template Target**: `.codex/progress/active/<task-id>/current.md`
-**Archive Target**: `.codex/progress/archive/<task-id>/current.md`
+**Template Target**: `.codex/progress/active/<task-slug>/current.md`
+**Archive Target**: `.codex/progress/archive/<task-slug>/current.md`
 **Mode**: long-running (release)
 **Last Synced**: YYYY-MM-DD HH:MM
 **Latest Event**: `new-task|brief-refresh|handoff-switch|blocked|resume|completed`
-**Latest History Entry**: `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`
+**Latest History Entry**: `.codex/progress/active/<task-slug>/history/<timestamp>-<slug>.md`
 
 Use this template when release work needs explicit readiness, promotion, and follow-through checkpoints.
 This file is the task-local `current.md` snapshot, not a root-level aggregate progress note.
+The path segment uses a slugified task identifier; keep the literal Task ID in the fields below.
 
 ---
 
@@ -47,6 +48,6 @@ This file is the task-local `current.md` snapshot, not a root-level aggregate pr
 
 ## History Sync
 
-- History Directory: `.codex/progress/active/<task-id>/history/`
+- History Directory: `.codex/progress/active/<task-slug>/history/`
 - Latest History Entry: `[timestamp-slug.md]`
 - Sync Rule: on `new-task|brief-refresh|handoff-switch|blocked|resume|completed`, append history and refresh this file in the same update cycle.

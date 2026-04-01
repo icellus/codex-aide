@@ -67,6 +67,26 @@ function normalizeRuntimePath(projectDir, value) {
   return absolutizeProjectPath(projectDir, normalized);
 }
 
+function slugifyTaskId(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  return normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "";
+}
+
+function defaultTaskProgressPath(projectDir, taskId, deliveryMode) {
+  if (normalizeText(deliveryMode) !== "long-running") {
+    return "";
+  }
+
+  const normalizedTaskId = slugifyTaskId(taskId);
+  if (!normalizedTaskId) {
+    return "";
+  }
+
+  return projectDir
+    ? path.join(projectDir, ".codex", "progress", "active", normalizedTaskId, "current.md")
+    : path.join(".codex", "progress", "active", normalizedTaskId, "current.md");
+}
+
 function defaultTaskState() {
   return {
     current_task: "",
@@ -291,6 +311,7 @@ export {
   WAITING_ON_VALUES,
   STICKY_OWNER_VALUES,
   defaultTaskContext,
+  defaultTaskProgressPath,
   defaultRecentTask,
   defaultTaskState,
   hasTrackedTask,
@@ -303,6 +324,7 @@ export {
   normalizeTaskStatus,
   normalizeWaitingOn,
   readTaskContext,
+  slugifyTaskId,
   taskContextPath,
   writeTaskContext
 };

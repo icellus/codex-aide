@@ -161,9 +161,9 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 - require `technical_manager` to produce or refresh the `Implementation Brief` before any `coder`/`tester` work
 - enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `coder` for implementation ownership, followed by required downstream `tester`
-- enable `long-running` mode and `.codex/progress/active/<task-id>/current.md` when work is multi-step, cross-session, blocked, or release-shaped
+- enable `long-running` mode and `.codex/progress/active/<task-slug>/current.md` when work is multi-step, cross-session, blocked, or release-shaped
 - during long-running mode, on `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, and `completed`, append one history entry and refresh `current.md`
-- when `completed` is emitted, archive the task record to `.codex/progress/archive/<task-id>/...` after the final sync
+- when `completed` is emitted, archive the task record to `.codex/progress/archive/<task-slug>/...` after the final sync
 - enable `qc` when risk is high, the user asks for audit, or release confidence needs it
 - enable `submit` when governed commit/push or post-push follow-through matters
 
@@ -197,10 +197,11 @@ Environment setup decisions and preparation belong to `technical_manager`.
 - `.codex/policies/delivery-policy.json`: commit, push, notification, CI, release, and fallback policy
 - `.codex/state/repo-context.json`: repository initialization snapshot and cached repo facts
 - `.codex/policies/validation-profile.json`: validation commands and constraints
-- `.codex/progress/active/<task-id>/current.md`: primary long-running snapshot per active task
-- `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`: append-only long-running progress events
-- `.codex/progress/archive/<task-id>/...`: archived progress records for completed/closed tasks
+- `.codex/progress/active/<task-slug>/current.md`: primary long-running snapshot per active task
+- `.codex/progress/active/<task-slug>/history/<timestamp>-<slug>.md`: append-only long-running progress events
+- `.codex/progress/archive/<task-slug>/...`: archived progress records for completed/closed tasks
 - `node .codex/scripts/context/task-progress-sync.mjs`: read-only helper that reports drift between hot task state and long-running `current.md`
+- long-running path segments use a slugified task identifier; the literal `task_id` remains part of task state and file content
 - `PROGRESS.md`: legacy optional note only, never the primary runtime progress source
 - `.codex/context/project-profile.md`: human-readable repository summary and durable notes for people
 

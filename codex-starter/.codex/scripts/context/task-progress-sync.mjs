@@ -6,7 +6,7 @@ import path from "node:path";
 import { getProjectContext } from "../shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
-import { hasTrackedTask, readTaskContext } from "../shared/task-context.mjs";
+import { defaultTaskProgressPath, hasTrackedTask, readTaskContext } from "../shared/task-context.mjs";
 
 function normalizeText(value) {
   return String(value || "").replace(/\r/g, "").trim();
@@ -30,12 +30,7 @@ function resolveProgressPath(projectDir, task) {
     return path.isAbsolute(configured) ? path.resolve(configured) : path.join(projectDir, configured);
   }
 
-  const taskId = normalizeText(task.task_id);
-  if (!taskId || normalizeText(task.delivery_mode) !== "long-running") {
-    return "";
-  }
-
-  return path.join(projectDir, ".codex", "progress", "active", taskId, "current.md");
+  return defaultTaskProgressPath(projectDir, task.task_id, task.delivery_mode);
 }
 
 function parseProgressSnapshot(progressPath) {

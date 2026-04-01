@@ -77,24 +77,14 @@ function canonicalizeProjectDir(startPath) {
     };
   }
 
-  const cachedRepoRoot = readCachedRepoRoot(discoveredRoot);
-  if (!cachedRepoRoot) {
-    return {
-      projectDir: discoveredRoot,
-      cachedRepoRoot: null
-    };
-  }
-
-  if (cachedRepoRoot === discoveredRoot || isInside(cachedRepoRoot, absoluteStart)) {
-    return {
-      projectDir: cachedRepoRoot,
-      cachedRepoRoot
-    };
-  }
-
   return {
     projectDir: discoveredRoot,
-    cachedRepoRoot
+    cachedRepoRoot: (() => {
+      const cachedRepoRoot = readCachedRepoRoot(discoveredRoot);
+      return cachedRepoRoot && (cachedRepoRoot === discoveredRoot || isInside(cachedRepoRoot, discoveredRoot))
+        ? cachedRepoRoot
+        : null;
+    })()
   };
 }
 

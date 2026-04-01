@@ -923,6 +923,10 @@ function validateProjectContextScenario({ repoRoot = defaultRepoRoot, scenario }
   fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
 
   try {
+    for (const command of scenario.setup_commands || []) {
+      runShellSetup(String(command || ""), projectDir);
+    }
+
     if (!Array.isArray(scenario.steps) || scenario.steps.length === 0) {
       return {
         ok: false,
@@ -1172,6 +1176,16 @@ function validateHookRootBehaviorContracts({
   return { ok: errors.length === 0, errors };
 }
 
+function writeJsonFile(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function writeTextFile(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, String(value || ""), "utf8");
+}
+
 function runShellSetup(command, cwd) {
   const result = spawnSync("bash", ["-lc", command], {
     cwd,
@@ -1241,6 +1255,79 @@ function validateValidateGitBehaviorContracts({
   return { ok: errors.length === 0, errors };
 }
 
+function validateTaskProgressSyncScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  const errors = [];
+  const sourceProjectDir = path.join(repoRoot, "codex-starter");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "codex-starter-task-progress-sync-"));
+  const projectDir = path.join(tempRoot, "codex-starter");
+
+  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+
+  try {
+    for (const command of scenario.setup_commands || []) {
+      runShellSetup(String(command || ""), projectDir);
+    }
+
+    if (scenario.task_context && typeof scenario.task_context === "object") {
+      writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), scenario.task_context);
+    }
+
+    if (typeof scenario.progress_path === "string" && scenario.progress_path.trim()) {
+      writeTextFile(path.join(projectDir, scenario.progress_path), scenario.progress_text || "");
+    }
+
+    const scriptPath = path.join(projectDir, ".codex", "scripts", "context", "task-progress-sync.mjs");
+    const cwdRelative = typeof scenario.cwd_relative === "string" ? scenario.cwd_relative.trim() : "";
+    const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
+    fs.mkdirSync(stepCwd, { recursive: true });
+
+    const invocation = runNodeRawScript(scriptPath, projectDir, JSON.stringify(scenario.input || {}), {
+      cwd: stepCwd,
+      useProjectDirEnv: scenario.use_project_dir_env !== false,
+      extraEnv: scenario.env && typeof scenario.env === "object" ? scenario.env : {}
+    });
+    const expect = scenario.expect || {};
+
+    if (typeof expect.exit_status === "number" && invocation.status !== expect.exit_status) {
+      errors.push(`${scenario.id || "<unknown>"}: expected exit_status=${expect.exit_status}, got ${invocation.status}`);
+    }
+
+    if (typeof expect.stdout === "string" && invocation.stdout !== expect.stdout) {
+      errors.push(`${scenario.id || "<unknown>"}: expected stdout=${JSON.stringify(expect.stdout)}, got ${JSON.stringify(invocation.stdout)}`);
+    }
+
+    if (typeof expect.stdout_contains === "string" && !invocation.stdout.includes(expect.stdout_contains)) {
+      errors.push(`${scenario.id || "<unknown>"}: expected stdout to contain ${JSON.stringify(expect.stdout_contains)}`);
+    }
+
+    if (typeof expect.stderr_contains === "string" && !invocation.stderr.includes(expect.stderr_contains)) {
+      errors.push(`${scenario.id || "<unknown>"}: expected stderr to contain ${JSON.stringify(expect.stderr_contains)}`);
+    }
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function validateTaskProgressSyncBehaviorContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "fixtures", "codex-starter-dev", "task-progress-sync-pass")
+} = {}) {
+  const errors = [];
+
+  for (const { filePath, scenario } of loadScenarioFiles(scenarioRoot)) {
+    const result = validateTaskProgressSyncScenario({ repoRoot, scenario });
+    if (!result.ok) {
+      for (const error of result.errors) {
+        errors.push(`${displayPath(repoRoot, filePath)}: ${error}`);
+      }
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 const executorDefinitions = Object.freeze({
   "authority-shape": Object.freeze({
     layer: "contract",
@@ -1286,6 +1373,17 @@ const executorDefinitions = Object.freeze({
     runActive: ({ repoRoot }) => validateTaskStateBehaviorContracts({ repoRoot }),
     runProof: ({ repoRoot, check }) =>
       validateTaskStateBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
+      })
+  }),
+  "task-progress-sync-behavior": Object.freeze({
+    layer: "contract",
+    assertionKind: "behavior",
+    requiresProof: true,
+    runActive: ({ repoRoot }) => validateTaskProgressSyncBehaviorContracts({ repoRoot }),
+    runProof: ({ repoRoot, check }) =>
+      validateTaskProgressSyncBehaviorContracts({
         repoRoot,
         scenarioRoot: path.join(repoRoot, check.proof_fixture_root)
       })
@@ -1769,6 +1867,7 @@ export {
   validateRepoContextBehaviorContracts,
   validateProjectContextBehaviorContracts,
   validateRegistry,
+  validateTaskProgressSyncBehaviorContracts,
   validateTaskStateBehaviorContracts,
   validateValidateGitBehaviorContracts
 };

@@ -1,0 +1,25 @@
+{
+  "id": "legacy_slugged_fallback_reports_missing_progress",
+  "task_context": {
+    "version": 1,
+    "updated_at": null,
+    "collaboration": {
+      "preferred_address": "Boss",
+      "greeting_style": "warm",
+      "first_startup_greeting_completed": false
+    },
+    "task": {
+      "current_task": "Reconcile progress",
+      "task_id": "Feature/API",
+      "status": "active",
+      "delivery_mode": "long-running"
+    },
+    "recent_tasks": []
+  },
+  "progress_path": ".codex/progress/active/feature-api/current.md",
+  "progress_text": "- Task ID: `Feature/API`\n- Delivery Mode: `long-running`\n- Status: `active`\n",
+  "expect": {
+    "exit_status": 0,
+    "stdout_contains": "Progress file missing"
+  }
+}

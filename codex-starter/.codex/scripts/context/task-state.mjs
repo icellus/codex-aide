@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
-import path from "node:path";
-
 import { getProjectContext } from "../shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
 import {
   RECENT_TASK_LIMIT,
   defaultTaskContext,
+  defaultTaskProgressPath,
   defaultRecentTask,
   defaultTaskState,
   hasTrackedTask,
@@ -18,6 +17,7 @@ import {
   normalizeTaskStatus,
   normalizeWaitingOn,
   readTaskContext,
+  slugifyTaskId,
   writeTaskContext
 } from "../shared/task-context.mjs";
 import { absolutizeProjectPath } from "../shared/project-context.mjs";
@@ -34,11 +34,6 @@ function normalizeStringList(value) {
   return value.map((item) => normalizeText(item)).filter(Boolean);
 }
 
-function slugifyTaskId(value) {
-  const normalized = normalizeText(value).toLowerCase();
-  return normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "";
-}
-
 function timestampToken(timestamp) {
   return String(timestamp || new Date().toISOString()).replace(/[-:.TZ]/g, "").slice(0, 17) || "task";
 }
@@ -46,19 +41,6 @@ function timestampToken(timestamp) {
 function createGeneratedTaskId(title, timestamp) {
   const slug = slugifyTaskId(title) || "task";
   return `${timestampToken(timestamp)}-${slug}`;
-}
-
-function defaultProgressPath(projectDir, taskId, deliveryMode) {
-  if (normalizeText(deliveryMode) !== "long-running") {
-    return "";
-  }
-
-  const normalizedTaskId = slugifyTaskId(taskId);
-  if (!normalizedTaskId) {
-    return "";
-  }
-
-  return path.join(projectDir, ".codex", "progress", "active", normalizedTaskId, "current.md");
 }
 
 function inferAction(input = {}) {
@@ -451,7 +433,7 @@ function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEven
     nextTask.progress_path = patch.progress_path;
   }
   if (!nextTask.progress_path) {
-    nextTask.progress_path = defaultProgressPath(projectDir, nextTask.task_id, nextTask.delivery_mode);
+    nextTask.progress_path = defaultTaskProgressPath(projectDir, nextTask.task_id, nextTask.delivery_mode);
   }
   nextTask.interrupted_at = null;
   nextTask.waiting_on = deriveWaitingOn({ patch, previousTask, nextStatus });
@@ -686,7 +668,7 @@ function applyResumeTask({ projectDir, state, timestamp, actor, taskId, explicit
   next.task.sticky_reason = normalizeText(target.sticky_reason) || defaultStickyReason(next.task.sticky_owner);
   next.task.sticky_since = target.sticky_since || timestamp;
   if (!next.task.progress_path) {
-    next.task.progress_path = defaultProgressPath(projectDir, next.task.task_id, next.task.delivery_mode);
+    next.task.progress_path = defaultTaskProgressPath(projectDir, next.task.task_id, next.task.delivery_mode);
   }
 
   if (!next.task.started_at) {

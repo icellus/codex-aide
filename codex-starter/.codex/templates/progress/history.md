@@ -1,7 +1,7 @@
 # Task Progress History Entry
 
-**Template Target**: `.codex/progress/active/<task-id>/history/<timestamp>-<slug>.md`
-**Archive Target**: `.codex/progress/archive/<task-id>/history/<timestamp>-<slug>.md`
+**Template Target**: `.codex/progress/active/<task-slug>/history/<timestamp>-<slug>.md`
+**Archive Target**: `.codex/progress/archive/<task-slug>/history/<timestamp>-<slug>.md`
 **Timestamp**: YYYY-MM-DD HH:MM
 **Task ID**: `<task-id>`
 **Event**: `new-task|brief-refresh|handoff-switch|blocked|resume|completed`
@@ -31,7 +31,7 @@
 
 ## Current Sync
 
-- Current File: `.codex/progress/active/<task-id>/current.md`
+- Current File: `.codex/progress/active/<task-slug>/current.md`
 - Synced At: YYYY-MM-DD HH:MM
 - Sync Result: `synced|pending`
 
