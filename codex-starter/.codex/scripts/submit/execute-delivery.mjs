@@ -13,6 +13,11 @@ function normalizeText(value) {
   return String(value || "").replace(/\r/g, "").trim();
 }
 
+function normalizeWaitingOn(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  return normalized || "none";
+}
+
 function runGit(projectDir, args) {
   const result = spawnSync("git", args, {
     cwd: projectDir,
@@ -166,7 +171,57 @@ function blockedResult(action, plan, reason) {
     status: "blocked",
     qc_status: plan?.qc?.status || "not-needed",
     ...stageSkeleton(plan),
+    task_update: {
+      sync: true
+    },
     blockers: [reason].filter(Boolean)
+  };
+}
+
+function shouldAutoCompleteTask(task, overallStatus, pushResult) {
+  if (overallStatus !== "complete" || pushResult?.status !== "done") {
+    return false;
+  }
+
+  const currentStatus = normalizeText(task?.status).toLowerCase();
+  if (!currentStatus || ["completed", "cancelled", "waiting_user", "blocked", "paused"].includes(currentStatus)) {
+    return false;
+  }
+
+  if (normalizeWaitingOn(task?.waiting_on) !== "none") {
+    return false;
+  }
+
+  if (normalizeText(task?.next_step)) {
+    return false;
+  }
+
+  if (normalizeText(task?.blocked_reason)) {
+    return false;
+  }
+
+  return true;
+}
+
+function buildTaskUpdate(task, overallStatus, pushResult) {
+  const taskUpdate = {
+    sync: true
+  };
+
+  if (!shouldAutoCompleteTask(task, overallStatus, pushResult)) {
+    return taskUpdate;
+  }
+
+  return {
+    ...taskUpdate,
+    status: "completed",
+    checkpoint: "closeout",
+    next_step: "",
+    next_owner: "Aide",
+    waiting_on: "none",
+    blocked_reason: "",
+    completion_reason: normalizeText(task?.completion_reason) || "submit delivery completed",
+    event: "completed"
   };
 }
 
@@ -330,6 +385,7 @@ function execute(action, projectDir, input) {
   }
 
   const plan = planResult.parsed;
+  const task = readTaskContext(projectDir).task || {};
   if (plan.qc?.required && plan.qc?.status !== "passed") {
     return blockedResult(action, plan, "qc-waiting");
   }
@@ -340,6 +396,9 @@ function execute(action, projectDir, input) {
     status: "complete",
     qc_status: plan.qc?.status || "not-needed",
     ...stageSkeleton(plan),
+    task_update: {
+      sync: true
+    },
     blockers: []
   };
 
@@ -350,6 +409,7 @@ function execute(action, projectDir, input) {
       base.status = "blocked";
       base.blockers = [commit.reason];
     }
+    base.task_update = buildTaskUpdate(task, base.status, base.push);
     return base;
   }
 
@@ -372,6 +432,7 @@ function execute(action, projectDir, input) {
       base.status = "blocked";
       base.blockers = [push.reason];
     }
+    base.task_update = buildTaskUpdate(task, base.status, push);
     return base;
   }
 
@@ -419,6 +480,8 @@ function execute(action, projectDir, input) {
     base.status = "blocked";
     base.blockers = [push.reason];
   }
+
+  base.task_update = buildTaskUpdate(task, base.status, push);
 
   return base;
 }

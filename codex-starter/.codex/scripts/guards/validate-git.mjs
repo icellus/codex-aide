@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
@@ -7,8 +8,10 @@ import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
 import { getProjectContext } from "../shared/project-context.mjs";
 import { normalizeTaskStatus, readTaskContext } from "../shared/task-context.mjs";
 
-const gitGlobalOptionsWithValue = new Set(["-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"]);
-const gitGlobalOptionsWithInlineValue = ["--git-dir=", "--work-tree=", "--namespace=", "--exec-path="];
+const gitGlobalOptionsWithValue = new Set(["-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"]);
+const gitGlobalOptionsWithInlineValue = ["--git-dir=", "--work-tree=", "--namespace=", "--exec-path=", "--config-env="];
+const gitConfigOptionsWithValue = new Set(["-f", "--file", "--blob", "--type", "--default", "--comment"]);
+const gitConfigOptionsWithInlineValue = ["--file=", "--blob=", "--type=", "--default=", "--comment="];
 
 function normalizeRelativePath(value) {
   return String(value || "").replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\/+/, "").trim();
@@ -349,6 +352,121 @@ function startsWithAny(value, prefixes) {
   return prefixes.some((prefix) => String(value || "").startsWith(prefix));
 }
 
+function isAliasConfigEntry(value) {
+  return String(value || "").trim().toLowerCase().startsWith("alias.");
+}
+
+function hasInlineGitConfigOverride(args = []) {
+  for (let index = 0; index < args.length; index += 1) {
+    const token = String(args[index] || "");
+    if (token === "-c" || token === "--config-env") {
+      if (String(args[index + 1] || "").trim()) {
+        return true;
+      }
+      index += 1;
+      continue;
+    }
+
+    if (token.startsWith("-c") || token.startsWith("--config-env=")) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function hasEnvironmentGitConfigOverride(args = []) {
+  return args.some((token) => {
+    const name = String(token || "").split("=", 1)[0] || "";
+    return name.startsWith("GIT_CONFIG_");
+  });
+}
+
+function gitConfigOperands(args = []) {
+  const operands = [];
+
+  for (let index = 0; index < args.length; index += 1) {
+    const token = String(args[index] || "");
+    if (!token) {
+      continue;
+    }
+
+    if (token === "--") {
+      operands.push(...args.slice(index + 1).map((value) => String(value || "")).filter(Boolean));
+      break;
+    }
+
+    if (gitConfigOptionsWithValue.has(token)) {
+      index += 1;
+      continue;
+    }
+
+    if (startsWithAny(token, gitConfigOptionsWithInlineValue)) {
+      continue;
+    }
+
+    if (token.startsWith("-")) {
+      continue;
+    }
+
+    operands.push(token);
+  }
+
+  return operands;
+}
+
+function isGitConfigMutation(args = []) {
+  const operands = gitConfigOperands(args);
+  const hasMutationFlag = args.some((token) =>
+    ["--add", "--replace-all", "--unset", "--unset-all", "--rename-section", "--remove-section"].includes(String(token || ""))
+  );
+
+  return hasMutationFlag || operands.length > 1;
+}
+
+function runGitConfig(projectDir, args) {
+  const result = spawnSync("git", args, {
+    cwd: projectDir,
+    encoding: "utf8"
+  });
+
+  return {
+    ok: (result.status ?? 1) === 0,
+    stdout: String(result.stdout || "").trim()
+  };
+}
+
+function aliasTargetsGovernedDelivery(projectDir, aliasName, depth = 0, seen = new Set()) {
+  const normalizedAlias = String(aliasName || "").trim();
+  if (!normalizedAlias || depth > 3 || seen.has(normalizedAlias)) {
+    return false;
+  }
+
+  seen.add(normalizedAlias);
+  const aliasResult = runGitConfig(projectDir, ["config", "--get", `alias.${normalizedAlias}`]);
+  if (!aliasResult.ok || !aliasResult.stdout) {
+    return false;
+  }
+
+  const expansion = aliasResult.stdout;
+  if (expansion.startsWith("!")) {
+    return collectGitInvocations(expansion.slice(1), depth + 1).some(
+      (invocation) => invocation.subcommand === "commit" || invocation.subcommand === "push"
+    );
+  }
+
+  const tokens = tokenizeShellCommand(expansion);
+  const target = String(tokens[0] || "").trim().toLowerCase();
+  if (!target) {
+    return false;
+  }
+  if (target === "commit" || target === "push") {
+    return true;
+  }
+
+  return aliasTargetsGovernedDelivery(projectDir, target, depth + 1, seen);
+}
+
 function resolveGitSubcommandIndex(tokens, executableIndex) {
   let index = executableIndex + 1;
 
@@ -414,11 +532,49 @@ function collectGitInvocations(command, depth = 0) {
 
     invocations.push({
       subcommand,
+      envAssignments: tokens.slice(0, executable.index).filter(isEnvironmentAssignment),
+      prefixArgs: tokens.slice(executable.index + 1, subcommandIndex),
       args: tokens.slice(subcommandIndex + 1)
     });
   }
 
   return invocations;
+}
+
+function commandContainsGovernedGitDelivery(command, depth = 0) {
+  if (depth > 2) {
+    return false;
+  }
+
+  for (const rawSegment of splitShellSegments(command)) {
+    const segment = stripLeadingShellKeywords(rawSegment);
+    const tokens = tokenizeShellCommand(segment);
+    if (tokens.length === 0) {
+      continue;
+    }
+
+    const executable = resolveExecutable(tokens);
+    if (executable && isShellExecutable(executable.executable)) {
+      const nestedCommand = extractShellScriptArg(tokens, executable.index);
+      if (nestedCommand && commandContainsGovernedGitDelivery(nestedCommand, depth + 1)) {
+        return true;
+      }
+    }
+
+    for (let index = 0; index < tokens.length; index += 1) {
+      if (!isGitExecutable(tokens[index])) {
+        continue;
+      }
+
+      const subcommandIndex = resolveGitSubcommandIndex(tokens, index);
+      const subcommand = String(tokens[subcommandIndex] || "").trim().toLowerCase();
+      if (subcommand === "commit" || subcommand === "push") {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function parseAddArguments(args) {
@@ -462,7 +618,31 @@ function parseAddArguments(args) {
   };
 }
 
-function decisionForInvocation(invocation) {
+function decisionForInvocation(invocation, projectDir) {
+  if (hasEnvironmentGitConfigOverride(invocation.envAssignments)) {
+    return permissionResponse("Environment git config overrides are not allowed during governed delivery.");
+  }
+
+  if (invocation.subcommand === "config" && isGitConfigMutation(invocation.args)) {
+    return permissionResponse("Changing git configuration is not allowed during governed delivery.");
+  }
+
+  if (hasInlineGitConfigOverride(invocation.prefixArgs)) {
+    return permissionResponse("Inline git config overrides are not allowed during governed delivery.");
+  }
+
+  if (aliasTargetsGovernedDelivery(projectDir, invocation.subcommand)) {
+    return permissionResponse(
+      `Git alias ${invocation.subcommand} resolves to governed delivery and is not allowed on the main thread.`
+    );
+  }
+
+  if (invocation.subcommand === "commit" || invocation.subcommand === "push") {
+    return permissionResponse(
+      `Direct git ${invocation.subcommand} is not allowed. Use submit via node .codex/scripts/submit/execute-delivery.mjs instead.`
+    );
+  }
+
   if (invocation.subcommand === "add") {
     const addArguments = parseAddArguments(invocation.args);
     if (addArguments.broad) {
@@ -480,6 +660,10 @@ function decisionForInvocation(invocation) {
 function commandDecision(command, projectDir) {
   if (technicalManagerOwnsCurrentTurn(projectDir) && commandContainsTests(command)) {
     return permissionResponse("technical_manager must not run task-level tests on the main thread. Hand off to tester instead.");
+  }
+
+  if (commandContainsGovernedGitDelivery(command)) {
+    return permissionResponse("Direct git commit/push is not allowed. Use submit via node .codex/scripts/submit/execute-delivery.mjs instead.");
   }
 
   const decisions = collectGitInvocations(command)

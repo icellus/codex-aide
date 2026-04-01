@@ -544,6 +544,19 @@ function assertPresentFields({ actual, fields, label, errors }) {
   }
 }
 
+function assertAbsentFields({ actual, fields, label, errors }) {
+  if (!Array.isArray(fields)) {
+    return;
+  }
+
+  for (const field of fields) {
+    const actualValue = actual ? actual[field] : undefined;
+    if (actualValue !== undefined) {
+      errors.push(`${label}.${field} to be absent, got ${JSON.stringify(actualValue)}`);
+    }
+  }
+}
+
 function readTaskContextState(projectDir) {
   const stateFilePath = path.join(projectDir, ".codex", "state", "task-context.json");
   if (!fileExists(stateFilePath)) {
@@ -1554,6 +1567,10 @@ function validateSubmitDeliveryScenario({ repoRoot = defaultRepoRoot, scenario }
         runShellSetup(String(command || ""), stepCwd);
       }
 
+      if (step.task_context && typeof step.task_context === "object") {
+        writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), step.task_context);
+      }
+
       const stepScript = String(step.script || "plan").trim().toLowerCase();
       const scriptPath = path.join(
         projectDir,
@@ -1616,6 +1633,18 @@ function validateSubmitDeliveryScenario({ repoRoot = defaultRepoRoot, scenario }
         actual: parsed?.release,
         expected: expect.release_fields,
         baseLabel: `${label}: expected release`,
+        errors
+      });
+      compareExpectedObject({
+        actual: parsed?.task_update,
+        expected: expect.task_update_fields,
+        baseLabel: `${label}: expected task_update`,
+        errors
+      });
+      assertAbsentFields({
+        actual: parsed?.task_update,
+        fields: expect.task_update_absent_fields,
+        label: `${label}: expected task_update`,
         errors
       });
       compareExpectedObject({

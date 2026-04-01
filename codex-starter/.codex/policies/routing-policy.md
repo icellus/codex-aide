@@ -54,6 +54,7 @@ Plain-language intent should map to the same routes.
 - After required `tester` handoff in coder-involved work, `technical_manager` decides whether `qc` is needed.
 - `qc` is optional by risk or explicit audit need, and cannot replace `tester`.
 - `submit` is the governed delivery step after required validation gates.
+- `submit_policy=manual` suppresses automatic submit queueing only; explicit user commit/push requests still route through `submit`.
 - Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
 - blocked handoff from a missing `Implementation Brief` must stop tester, qc, and submit continuation until `technical_manager` resolves it.
 - if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
@@ -81,6 +82,7 @@ Plain-language intent should map to the same routes.
 - `.codex/state/task-context.json` may keep a small bounded `recent_tasks` parking list for explicitly retired hot tasks; this is not a full historical registry.
 - `node .codex/scripts/context/task-reconcile.mjs` is the startup helper for interrupted hot-task review. It may suggest resume or settle, but must not auto-complete tasks.
 - Use `completed` only after the active route satisfies its required delivery and validation gates, or the requested non-code output is truly delivered.
+- Do not infer `completed` from a successful push alone when the hot task still has `waiting_user`, `waiting_on!=none`, or a real remaining `next_step`.
 - Use `cancelled` only for explicit abandonment, supersession, or user cancellation.
 
 ## Delivery Chains

@@ -3,7 +3,7 @@
   "budgets": {
     "max_active_checks": 14,
     "max_fixture_files": 26,
-    "max_fixture_bytes": 48000
+    "max_fixture_bytes": 54000
   },
   "checks": [
     {

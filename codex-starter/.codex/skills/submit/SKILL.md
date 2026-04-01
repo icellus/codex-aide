@@ -28,6 +28,7 @@ Use `submit` when:
 - QC is disabled and a real `coder` completion or settled-task signal exists
 - QC passed and the next step is commit, push, or post-push delivery
 - the user explicitly asks to commit, push, or finish the delivery flow
+- `submit_policy=manual` suppresses auto-queueing only; explicit commit/push requests still must use `submit`
 
 Do not use `submit` to replace `qc`.
 If QC is enabled and has not passed, stop and report that `submit` is waiting for QC.
@@ -57,6 +58,7 @@ Disabled or unconfigured stages should return `skipped`, not `blocked`.
 - do not auto-amend unless the policy explicitly allows it
 - respect `max_auto_commits_per_task`; when the limit is reached, ask again before another automatic commit
 - when execution is approved, prefer `node .codex/scripts/submit/execute-delivery.mjs` so commit message generation and gate re-check stay consistent
+- do not run raw `git commit` on the main thread; governed delivery must go through `submit`
 
 ## Push Rules
 
@@ -69,6 +71,7 @@ Disabled or unconfigured stages should return `skipped`, not `blocked`.
 - if no upstream exists, ask before setting it
 - if push is skipped or blocked, stop there and report the remaining post-push stages as `skipped`
 - when execution is approved, prefer `node .codex/scripts/submit/execute-delivery.mjs` so push and post-push stage planning share the same gate contract
+- do not run raw `git push` on the main thread; governed delivery must go through `submit`
 
 ## Post-Push Rules
 
@@ -108,6 +111,7 @@ Return:
 When the repository already has an open hot task, include `task_update` in the Structured Result so the Stop hook can sync this delivery turn back into the same task.
 Use `task_update.sync=true` to keep the current hot task warm even when submit does not change lifecycle semantics.
 Only set `task_update.status` when submit truly changes the hot-task lifecycle.
+Do not mark a task `completed` only because push succeeded; keep `waiting_user` or other non-terminal states when real follow-up still remains.
 
 Then append:
 

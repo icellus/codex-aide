@@ -19,7 +19,8 @@
     },
     "notes": [
       "Automatic submit queueing applies to technical-delivery routes unless a runtime guard blocks it.",
-      "Non-code delivery stays out of the submit path unless the user explicitly asks for governed delivery."
+      "Non-code delivery stays out of the submit path unless the user explicitly asks for governed delivery.",
+      "submit_policy=manual suppresses automatic queueing only; explicit commit/push requests still use governed submit."
     ]
   },
   "commit": {
