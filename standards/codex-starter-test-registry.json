@@ -1,9 +1,9 @@
 {
   "version": 2,
   "budgets": {
-    "max_active_checks": 13,
+    "max_active_checks": 14,
     "max_fixture_files": 26,
-    "max_fixture_bytes": 28672
+    "max_fixture_bytes": 36500
   },
   "checks": [
     {
@@ -177,6 +177,30 @@
       "proof_fixture_root": "fixtures/codex-starter-dev/hook-root-invalid",
       "expected_error_patterns": [
         "expected root_entry_source=input.projectDir"
+      ]
+    },
+    {
+      "id": "stop-hook-task-sync-behavior-contract",
+      "layer": "contract",
+      "assertion_kind": "behavior",
+      "rule_id": "stop-turn-sync-lifecycle",
+      "failure_mode": "stop-hook-task-sync-regression",
+      "source_paths": [
+        "codex-starter/.codex/hooks.json",
+        "codex-starter/.codex/scripts/context/task-turn-sync.mjs",
+        "codex-starter/.codex/scripts/context/task-state.mjs",
+        "codex-starter/.codex/scripts/shared/task-context.mjs",
+        "codex-starter/.codex/scripts/shared/transcript.mjs",
+        "fixtures/codex-starter-dev/stop-hook-pass",
+        "fixtures/codex-starter-dev/hook-root-invalid"
+      ],
+      "owner": "scripts/validate-codex-starter-dev.mjs",
+      "status": "active",
+      "executor": "hook-root-behavior",
+      "scenario_root": "fixtures/codex-starter-dev/stop-hook-pass",
+      "proof_fixture_root": "fixtures/codex-starter-dev/hook-root-invalid",
+      "expected_error_patterns": [
+        "expected state.task.status=completed"
       ]
     },
     {

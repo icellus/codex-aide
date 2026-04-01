@@ -148,10 +148,15 @@ For other technical-delivery tasks, return:
 - governance escalation status (`none|reported|special-flow`)
 - post-tester QC decision (`run-qc|skip-qc`)
 - next action owner
+- hot-task lifecycle update for the current turn
 - validation boundary and hard-gate summary
 - conflicts or blockers, if any
 - escalation-to-`Aide` decision (`yes|no`) and reason when `yes`
 - progress sync status and latest history path when long-running tracking is active
+
+When the current routed turn should keep, change, or settle the same hot task, include `task_update` in the Structured Result so the Stop hook can sync the hot task from this turn deterministically.
+Use `task_update.sync=true` whenever this turn belongs to the current hot task.
+If the task is still waiting on the user, emit `status=waiting_user` in `task_update`; do not encode that situation as `completed`.
 
 End every final report with this exact section:
 ## Structured Result
@@ -179,6 +184,16 @@ End every final report with this exact section:
     }
   ],
   "next_action_owner": "",
+  "task_update": {
+    "sync": true,
+    "status": "active|handoff|blocked|waiting_user|completed|cancelled",
+    "checkpoint": "",
+    "next_step": "",
+    "next_owner": "",
+    "waiting_on": "none|user|repo|env|external|review|unknown",
+    "blocked_reason": "",
+    "completion_reason": ""
+  },
   "blockers": []
 }
 ```

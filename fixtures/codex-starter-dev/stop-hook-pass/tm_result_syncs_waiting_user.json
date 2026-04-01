@@ -1,0 +1,213 @@
+{
+  "id": "tm_result_syncs_waiting_user",
+  "task_context": {
+    "version": 1,
+    "task": {
+      "current_task": "Argentina launch",
+      "task_id": "arg-launch",
+      "status": "active",
+      "checkpoint": "closeout",
+      "next_step": "finalize code closeout",
+      "next_owner": "technical_manager",
+      "waiting_on": "none",
+      "created_at": "2026-04-01T00:00:00.000Z",
+      "started_at": "2026-04-01T00:00:00.000Z",
+      "updated_at": "2026-04-01T00:00:00.000Z",
+      "last_event": "checkpoint",
+      "last_actor": "technical_manager"
+    }
+  },
+  "steps": [
+    {
+      "hook_event": "Stop",
+      "run_entire_chain": true,
+      "cwd_relative": "worktrees/one/two",
+      "use_input_project_dir": true,
+      "input": {
+        "hook_event_name": "Stop",
+        "session_id": "stop-hook-pass",
+        "turn_id": "turn-tm"
+      },
+      "transcript_entries": [
+        {
+          "timestamp": "2026-04-01T00:01:00.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "task_started",
+            "turn_id": "turn-tm"
+          }
+        },
+        {
+          "timestamp": "2026-04-01T00:01:10.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "agent_message",
+            "phase": "final_answer",
+            "message": "Technical closeout\n\n## Structured Result\n```json\n{\"role\":\"technical_manager\",\"status\":\"complete\",\"next_action_owner\":\"user\",\"task_update\":{\"sync\":true,\"status\":\"completed\",\"checkpoint\":\"closeout\",\"next_step\":\"等待用户补参\",\"next_owner\":\"Aide\"},\"blockers\":[]}\n```"
+          }
+        }
+      ],
+      "expect": {
+        "exit_status": 0,
+        "root_log_exists": true,
+        "deep_log_exists": false,
+        "root_entry_source": "input.projectDir",
+        "root_entry_project_dir_relative": ".",
+        "state_task_fields": {
+          "status": "waiting_user",
+          "waiting_on": "user",
+          "next_step": "等待用户补参",
+          "next_owner": "Aide",
+          "finished_at": null,
+          "last_actor": "technical_manager"
+        },
+        "state_task_present_fields": [
+          "updated_at"
+        ],
+        "project_paths_exist": [
+          ".codex/logs/task-lifecycle"
+        ],
+        "latest_lifecycle_log_fields": {
+          "decision": "sync-task-state",
+          "role": "technical_manager",
+          "structured_status": "complete",
+          "status_after": "waiting_user",
+          "delegated_action": "set"
+        }
+      }
+    },
+    {
+      "hook_event": "Stop",
+      "run_entire_chain": true,
+      "cwd_relative": "worktrees/submit",
+      "use_input_project_dir": true,
+      "task_context": {
+        "version": 1,
+        "task": {
+          "current_task": "Argentina launch",
+          "task_id": "arg-launch",
+          "status": "waiting_user",
+          "checkpoint": "closeout",
+          "next_step": "等待用户补参",
+          "next_owner": "Aide",
+          "waiting_on": "user",
+          "created_at": "2026-04-01T00:00:00.000Z",
+          "started_at": "2026-04-01T00:00:00.000Z",
+          "updated_at": "2026-04-01T00:00:00.000Z",
+          "last_event": "waiting-user",
+          "last_actor": "technical_manager"
+        }
+      },
+      "input": {
+        "hook_event_name": "Stop",
+        "session_id": "stop-hook-pass",
+        "turn_id": "turn-submit"
+      },
+      "transcript_entries": [
+        {
+          "timestamp": "2026-04-01T00:02:00.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "task_started",
+            "turn_id": "turn-submit"
+          }
+        },
+        {
+          "timestamp": "2026-04-01T00:02:10.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "agent_message",
+            "phase": "final_answer",
+            "message": "Delivery complete\n\n## Structured Result\n```json\n{\"role\":\"submit\",\"status\":\"complete\",\"task_update\":{\"sync\":true},\"blockers\":[]}\n```"
+          }
+        }
+      ],
+      "expect": {
+        "exit_status": 0,
+        "state_task_fields": {
+          "status": "waiting_user",
+          "waiting_on": "user",
+          "next_step": "等待用户补参",
+          "next_owner": "Aide",
+          "finished_at": null,
+          "last_actor": "submit"
+        },
+        "state_task_present_fields": [
+          "updated_at"
+        ],
+        "latest_lifecycle_log_fields": {
+          "decision": "sync-task-state",
+          "role": "submit",
+          "structured_status": "complete",
+          "status_after": "waiting_user",
+          "delegated_action": "set"
+        }
+      }
+    },
+    {
+      "hook_event": "Stop",
+      "run_entire_chain": true,
+      "use_input_project_dir": true,
+      "task_context": {
+        "version": 1,
+        "task": {
+          "current_task": "Argentina launch",
+          "task_id": "arg-launch",
+          "status": "completed",
+          "checkpoint": "closeout",
+          "next_step": "等待用户补参",
+          "next_owner": "Aide",
+          "waiting_on": "none",
+          "completion_reason": "task settled",
+          "created_at": "2026-04-01T00:00:00.000Z",
+          "started_at": "2026-04-01T00:00:00.000Z",
+          "updated_at": "2026-04-01T00:00:00.000Z",
+          "finished_at": "2026-04-01T00:00:00.000Z",
+          "last_event": "completed",
+          "last_actor": "technical_manager"
+        }
+      },
+      "input": {
+        "hook_event_name": "Stop",
+        "session_id": "stop-hook-pass",
+        "turn_id": "turn-terminal-heartbeat"
+      },
+      "transcript_entries": [
+        {
+          "timestamp": "2026-04-01T00:03:00.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "task_started",
+            "turn_id": "turn-terminal-heartbeat"
+          }
+        },
+        {
+          "timestamp": "2026-04-01T00:03:10.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "agent_message",
+            "phase": "final_answer",
+            "message": "Delivery complete\n\n## Structured Result\n```json\n{\"role\":\"submit\",\"status\":\"complete\",\"task_update\":{\"sync\":true},\"blockers\":[]}\n```"
+          }
+        }
+      ],
+      "expect": {
+        "exit_status": 0,
+        "state_task_fields": {
+          "status": "completed",
+          "next_step": "等待用户补参",
+          "next_owner": "Aide",
+          "completion_reason": "task settled",
+          "last_actor": "technical_manager"
+        },
+        "latest_lifecycle_log_fields": {
+          "decision": "noop",
+          "reason": "terminal-task-sync-noop",
+          "role": "submit",
+          "status_after": "completed",
+          "delegated_action": null
+        }
+      }
+    }
+  ]
+}

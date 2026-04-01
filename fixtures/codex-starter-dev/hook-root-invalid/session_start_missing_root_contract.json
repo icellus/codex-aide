@@ -16,6 +16,58 @@
         "root_entry_source": "input.projectDir",
         "root_entry_project_dir_relative": "."
       }
+    },
+    {
+      "hook_event": "Stop",
+      "run_entire_chain": true,
+      "use_input_project_dir": true,
+      "task_context": {
+        "version": 1,
+        "task": {
+          "current_task": "Argentina launch",
+          "task_id": "arg-launch",
+          "status": "active",
+          "checkpoint": "closeout",
+          "next_step": "finalize code closeout",
+          "next_owner": "technical_manager",
+          "waiting_on": "none",
+          "created_at": "2026-04-01T00:00:00.000Z",
+          "started_at": "2026-04-01T00:00:00.000Z",
+          "updated_at": "2026-04-01T00:00:00.000Z",
+          "last_event": "checkpoint",
+          "last_actor": "technical_manager"
+        }
+      },
+      "input": {
+        "hook_event_name": "Stop",
+        "session_id": "hook-proof",
+        "turn_id": "turn-proof"
+      },
+      "transcript_entries": [
+        {
+          "timestamp": "2026-04-01T00:01:00.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "task_started",
+            "turn_id": "turn-proof"
+          }
+        },
+        {
+          "timestamp": "2026-04-01T00:01:10.000Z",
+          "type": "event_msg",
+          "payload": {
+            "type": "agent_message",
+            "phase": "final_answer",
+            "message": "Technical closeout\n\n## Structured Result\n```json\n{\"role\":\"technical_manager\",\"status\":\"complete\",\"next_action_owner\":\"user\",\"task_update\":{\"sync\":true,\"status\":\"completed\",\"checkpoint\":\"closeout\",\"next_step\":\"等待用户补参\",\"next_owner\":\"Aide\"},\"blockers\":[]}\n```"
+          }
+        }
+      ],
+      "expect": {
+        "exit_status": 0,
+        "state_task_fields": {
+          "status": "completed"
+        }
+      }
     }
   ]
 }

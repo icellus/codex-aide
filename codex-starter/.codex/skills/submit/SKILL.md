@@ -105,6 +105,10 @@ Return:
 - release result
 - next recommended step
 
+When the repository already has an open hot task, include `task_update` in the Structured Result so the Stop hook can sync this delivery turn back into the same task.
+Use `task_update.sync=true` to keep the current hot task warm even when submit does not change lifecycle semantics.
+Only set `task_update.status` when submit truly changes the hot-task lifecycle.
+
 Then append:
 
 ````markdown
@@ -132,6 +136,10 @@ Then append:
   },
   "release": {
     "status": "done|skipped|blocked"
+  },
+  "task_update": {
+    "sync": true,
+    "status": "active|handoff|blocked|waiting_user|completed|cancelled"
   },
   "blockers": []
 }

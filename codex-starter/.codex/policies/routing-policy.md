@@ -60,6 +60,8 @@ Plain-language intent should map to the same routes.
 ## Task Lifecycle
 
 - `.codex/state/task-context.json` is the single hot-task lifecycle record.
+- raw transcript `task_started/task_complete` events are turn-scoped host events, not the hot-task lifecycle truth.
+- `.codex/logs/task-lifecycle/*.jsonl` records normalized per-turn lifecycle sync decisions; it complements but does not replace `.codex/state/task-context.json`.
 - `sticky_owner` records which role line should handle same-task follow-up by default.
 - Terminal task statuses are `completed` and `cancelled` only.
 - `idle` means no tracked routed task is currently open.
@@ -69,6 +71,7 @@ Plain-language intent should map to the same routes.
 - `waiting_user` means the next move depends on explicit user clarification or decision.
 - `paused` means the task was explicitly paused and should remain resumable outside the hot slot.
 - Do not infer completion from silence, missing follow-up, or session end.
+- when a routed turn returns a Structured Result with `task_update.sync=true`, the Stop hook should sync that turn into the hot task state before any interruption fallback.
 - If a session stops while task status is `active`, `handoff`, or `blocked`, runtime hooks should record an interruption timestamp instead of changing task status.
 - Starting a new hot task while another non-terminal task is still open should retire the previous hot task into `recent_tasks` by default as `paused`.
 - Use explicit retirement only when the previous hot task should instead be recorded as `completed` or `cancelled`.
@@ -192,6 +195,7 @@ Environment setup decisions and preparation belong to `technical_manager`.
 ## Durable Coordination Files
 
 - `.codex/state/task-context.json`: hot task state
+- `.codex/logs/task-lifecycle/*.jsonl`: normalized per-turn task lifecycle sync log
 - `.codex/state/governance-context.json`: active governance items maintained by `Aide`
 - `.codex/state/submit-preferences.json`: repo-local submit preferences
 - `.codex/state/*.demo.json`: versioned structure examples for runtime state files

@@ -8,83 +8,9 @@ import { spawnSync } from "node:child_process";
 import { getProjectContext } from "../scripts/shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../scripts/shared/io.mjs";
 import { ensureDir, startRuntimeInvocationLogging } from "../scripts/shared/logging.mjs";
+import { latestStructuredResult, readTranscriptLines } from "../scripts/shared/transcript.mjs";
 
 const decidingRoles = new Set(["Aide"]);
-
-function readTranscriptLines(filePath) {
-  if (!filePath || !fs.existsSync(filePath)) {
-    return [];
-  }
-
-  return fs
-    .readFileSync(filePath, "utf8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      try {
-        return JSON.parse(line);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-}
-
-function assistantMessageText(entry) {
-  if (entry?.type !== "response_item") {
-    return "";
-  }
-
-  const payload = entry.payload;
-  if (payload?.type !== "message" || payload?.role !== "assistant") {
-    return "";
-  }
-
-  if (!Array.isArray(payload.content)) {
-    return "";
-  }
-
-  return payload.content
-    .map((item) => (item?.type === "output_text" ? String(item.text || "") : ""))
-    .filter(Boolean)
-    .join("\n");
-}
-
-function extractStructuredResult(text) {
-  const matches = Array.from(text.matchAll(/## Structured Result\s*```json\s*([\s\S]*?)\s*```/g));
-  if (matches.length === 0) {
-    return null;
-  }
-
-  const raw = matches[matches.length - 1][1];
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-function latestStructuredResult(lines) {
-  for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const text = assistantMessageText(lines[index]);
-    if (!text || !text.includes("## Structured Result")) {
-      continue;
-    }
-
-    const parsed = extractStructuredResult(text);
-    if (!parsed || typeof parsed !== "object") {
-      continue;
-    }
-
-    return {
-      structured: parsed,
-      messageText: text
-    };
-  }
-
-  return null;
-}
 
 function ingestLogPath(projectDir, timestamp) {
   const day = String(timestamp || new Date().toISOString()).slice(0, 10) || "unknown-date";

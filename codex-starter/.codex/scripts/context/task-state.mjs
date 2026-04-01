@@ -308,6 +308,52 @@ function deriveWaitingOn({ patch, previousTask, nextStatus }) {
   return "none";
 }
 
+function normalizeTerminalContinuation({ nextTask, nextStatus }) {
+  if (!isTerminalTaskStatus(nextStatus)) {
+    return {
+      status: nextStatus,
+      waiting_on: normalizeWaitingOn(nextTask.waiting_on, "none")
+    };
+  }
+
+  const blockedReason = normalizeText(nextTask.blocked_reason);
+  if (blockedReason) {
+    return {
+      status: "blocked",
+      waiting_on: normalizeWaitingOn(nextTask.waiting_on, "unknown") || "unknown"
+    };
+  }
+
+  const waitingOn = normalizeWaitingOn(nextTask.waiting_on, "none");
+  if (waitingOn !== "none") {
+    return {
+      status: waitingOn === "user" ? "waiting_user" : "blocked",
+      waiting_on: waitingOn
+    };
+  }
+
+  const nextOwner = normalizeText(nextTask.next_owner);
+  const nextStep = normalizeText(nextTask.next_step);
+  if (nextOwner || nextStep) {
+    if (!nextOwner || nextOwner === "Aide") {
+      return {
+        status: "waiting_user",
+        waiting_on: "user"
+      };
+    }
+
+    return {
+      status: "handoff",
+      waiting_on: "none"
+    };
+  }
+
+  return {
+    status: nextStatus,
+    waiting_on: "none"
+  };
+}
+
 function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEvent }) {
   const next = defaultTaskContext();
   next.collaboration = state.collaboration;
@@ -366,6 +412,7 @@ function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEven
   const previousStatus = normalizeTaskStatus(previousTask.status, "idle");
   const statusFallback = newIdentity ? "idle" : previousStatus;
   let nextStatus = patch.status ? normalizeTaskStatus(patch.status, statusFallback) : statusFallback;
+  const requestedTerminal = Boolean(patch.status) && isTerminalTaskStatus(patch.status);
 
   if (!nextTask.current_task && nextStatus !== "idle") {
     nextStatus = "idle";
@@ -448,11 +495,30 @@ function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEven
   nextTask.interrupted_at = null;
   nextTask.waiting_on = deriveWaitingOn({ patch, previousTask, nextStatus });
 
+  if (requestedTerminal) {
+    if (patch.next_step === undefined) {
+      nextTask.next_step = "";
+    }
+    if (patch.next_owner === undefined) {
+      nextTask.next_owner = "";
+    }
+    if (patch.waiting_on === undefined) {
+      nextTask.waiting_on = "none";
+    }
+    if (patch.blocked_reason === undefined) {
+      nextTask.blocked_reason = "";
+    }
+  }
+
+  const normalizedContinuation = normalizeTerminalContinuation({ nextTask, nextStatus });
+  nextStatus = normalizedContinuation.status;
+  nextTask.waiting_on = normalizedContinuation.waiting_on;
+
   if (nextStatus !== "blocked" && patch.blocked_reason === undefined) {
     nextTask.blocked_reason = "";
   }
 
-  if (!isTerminalTaskStatus(nextStatus) && patch.completion_reason === undefined) {
+  if (!isTerminalTaskStatus(nextStatus)) {
     nextTask.completion_reason = "";
   }
 

@@ -296,6 +296,48 @@
       ]
     },
     {
+      "id": "stop_hook_turn_sync_is_wired",
+      "kind": "integration-wiring",
+      "intent": "Keep Stop-hook turn-to-task sync aligned across hook wiring, lifecycle policy, and routed producer outputs.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/hooks.json",
+          "all_of": [
+            ".codex/scripts/context/task-turn-sync.mjs"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "raw transcript `task_started/task_complete` events are turn-scoped host events, not the hot-task lifecycle truth.",
+            "`.codex/logs/task-lifecycle/*.jsonl` records normalized per-turn lifecycle sync decisions",
+            "Structured Result with `task_update.sync=true`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "\"task_update\": {",
+            "include `task_update` in the Structured Result so the Stop hook can sync the hot task from this turn deterministically"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/submit/SKILL.md",
+          "all_of": [
+            "\"task_update\": {",
+            "include `task_update` in the Structured Result so the Stop hook can sync this delivery turn back into the same task"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/submit_worker.toml",
+          "all_of": [
+            "\"task_update\": {",
+            "include `task_update` so the Stop hook can sync this submit turn back into the same task"
+          ]
+        }
+      ]
+    },
+    {
       "id": "governance_ingest_runs_on_stop",
       "kind": "integration-wiring",
       "intent": "Keep governance transcript ingestion wired to the Stop hook once generic writeback is enabled.",

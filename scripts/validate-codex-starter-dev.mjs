@@ -1083,6 +1083,21 @@ function getHookCommand(hooksConfig, eventName, chainIndex = 0, hookIndex = 0) {
   return hook.command;
 }
 
+function getHookChainCommands(hooksConfig, eventName, chainIndex = 0) {
+  const chains = hooksConfig?.hooks?.[eventName];
+  if (!Array.isArray(chains) || !chains[chainIndex] || !Array.isArray(chains[chainIndex].hooks)) {
+    throw new Error(`hook chain not found for ${eventName}[${chainIndex}]`);
+  }
+
+  return chains[chainIndex].hooks.map((hook, hookIndex) => {
+    if (!hook || hook.type !== "command" || typeof hook.command !== "string") {
+      throw new Error(`hook command not found for ${eventName}[${chainIndex}].hooks[${hookIndex}]`);
+    }
+
+    return hook.command;
+  });
+}
+
 function latestJsonlEntry(logDir) {
   if (!fileExists(logDir)) {
     return null;
@@ -1138,32 +1153,68 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
     const hooksConfig = readHooksConfig(projectDir);
     fs.rmSync(path.join(projectDir, ".codex", "logs"), { recursive: true, force: true });
 
+    if (scenario.task_context && typeof scenario.task_context === "object") {
+      writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), scenario.task_context);
+    }
+
     scenario.steps.forEach((step, index) => {
       const label = `${scenario.id || "<unknown>"} step ${index + 1}`;
       const cwdRelative = typeof step.cwd_relative === "string" ? step.cwd_relative.trim() : "";
       const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
       fs.mkdirSync(stepCwd, { recursive: true });
 
-      const command = getHookCommand(
-        hooksConfig,
-        step.hook_event || "SessionStart",
-        Number.isInteger(step.chain_index) ? step.chain_index : 0,
-        Number.isInteger(step.hook_index) ? step.hook_index : 0
-      );
+      if (step.task_context && typeof step.task_context === "object") {
+        writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), step.task_context);
+      }
 
-      const result = runHookCommand(command, {
-        cwd: stepCwd,
-        env: buildScenarioEnv(step.env, {
-          projectDir,
-          useEnvProjectDir: step.use_env_project_dir === true
-        }),
-        input: buildScenarioInput(step.input, {
-          projectDir,
-          stepCwd,
-          useInputProjectDir: step.use_input_project_dir === true,
-          useInputCwd: step.use_input_cwd === true
-        })
+      const eventName = step.hook_event || "SessionStart";
+      const chainIndex = Number.isInteger(step.chain_index) ? step.chain_index : 0;
+      const commands = step.run_entire_chain === true
+        ? getHookChainCommands(hooksConfig, eventName, chainIndex)
+        : [
+            getHookCommand(
+              hooksConfig,
+              eventName,
+              chainIndex,
+              Number.isInteger(step.hook_index) ? step.hook_index : 0
+            )
+          ];
+
+      const stepInput = buildScenarioInput(step.input, {
+        projectDir,
+        stepCwd,
+        useInputProjectDir: step.use_input_project_dir === true,
+        useInputCwd: step.use_input_cwd === true
       });
+
+      if (Array.isArray(step.transcript_entries)) {
+        const transcriptPath = path.join(tempRoot, `${scenario.id || "hook-scenario"}-step-${index + 1}.jsonl`);
+        writeJsonlFile(transcriptPath, step.transcript_entries);
+        if (!stepInput.transcript_path) {
+          stepInput.transcript_path = transcriptPath;
+        }
+      }
+
+      let result = {
+        status: 0,
+        stdout: "",
+        stderr: ""
+      };
+
+      for (const command of commands) {
+        result = runHookCommand(command, {
+          cwd: stepCwd,
+          env: buildScenarioEnv(step.env, {
+            projectDir,
+            useEnvProjectDir: step.use_env_project_dir === true
+          }),
+          input: stepInput
+        });
+
+        if ((result.status ?? 1) !== 0) {
+          break;
+        }
+      }
 
       const expect = step.expect || {};
 
@@ -1195,6 +1246,65 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
           errors.push(
             `${label}: expected root_entry_project_dir_relative=${expect.root_entry_project_dir_relative}, got ${actualRelative}`
           );
+        }
+      }
+
+      const state = readTaskContextState(projectDir);
+      compareExpectedObject({
+        actual: state?.task,
+        expected: expect.state_task_fields,
+        baseLabel: `${label}: expected state.task`,
+        errors
+      });
+      compareExpectedArrayFields({
+        actual: state?.task,
+        expected: expect.state_task_array_fields,
+        baseLabel: `${label}: expected state.task`,
+        errors
+      });
+      compareExpectedRelativePathFields({
+        baseDir: projectDir,
+        actual: state?.task,
+        expected: expect.state_task_relative_path_fields,
+        baseLabel: `${label}: expected state.task`,
+        errors
+      });
+      assertPresentFields({
+        actual: state?.task,
+        fields: expect.state_task_present_fields,
+        label: `${label}: expected state.task`,
+        errors
+      });
+
+      const lifecycleLogEntry = latestJsonlEntry(path.join(projectDir, ".codex", "logs", "task-lifecycle"));
+      compareExpectedNestedFields({
+        actual: lifecycleLogEntry,
+        expected: expect.latest_lifecycle_log_fields,
+        baseLabel: `${label}: expected latest_lifecycle_log`,
+        errors
+      });
+
+      for (const relativePath of expect.project_paths_exist || []) {
+        if (!fileExists(path.join(projectDir, relativePath))) {
+          errors.push(`${label}: expected project path to exist "${relativePath}"`);
+        }
+      }
+
+      for (const relativePath of expect.project_paths_absent || []) {
+        if (fileExists(path.join(projectDir, relativePath))) {
+          errors.push(`${label}: expected project path to be absent "${relativePath}"`);
+        }
+      }
+
+      const projectDirContains = expect.project_dir_contains && typeof expect.project_dir_contains === "object"
+        ? expect.project_dir_contains
+        : {};
+      for (const [relativeDir, expectedText] of Object.entries(projectDirContains)) {
+        const targetDir = path.join(projectDir, relativeDir);
+        const files = listFilesRecursive(targetDir, () => true);
+        const matched = files.some((filePath) => readText(filePath).includes(String(expectedText)));
+        if (!matched) {
+          errors.push(`${label}: expected some file under ${relativeDir} to contain ${JSON.stringify(expectedText)}`);
         }
       }
     });
@@ -1231,6 +1341,12 @@ function writeJsonFile(filePath, value) {
 function writeTextFile(filePath, value) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, String(value || ""), "utf8");
+}
+
+function writeJsonlFile(filePath, entries) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const lines = Array.isArray(entries) ? entries.map((entry) => JSON.stringify(entry)) : [];
+  fs.writeFileSync(filePath, lines.length > 0 ? `${lines.join("\n")}\n` : "", "utf8");
 }
 
 function runShellSetup(command, cwd) {
@@ -1669,7 +1785,11 @@ const executorDefinitions = Object.freeze({
     layer: "contract",
     assertionKind: "behavior",
     requiresProof: true,
-    runActive: ({ repoRoot }) => validateHookRootBehaviorContracts({ repoRoot }),
+    runActive: ({ repoRoot, check }) =>
+      validateHookRootBehaviorContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check?.scenario_root || path.join("fixtures", "codex-starter-dev", "hook-root-pass"))
+      }),
     runProof: ({ repoRoot, check }) =>
       validateHookRootBehaviorContracts({
         repoRoot,
