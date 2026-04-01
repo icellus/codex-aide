@@ -3,7 +3,7 @@
   "budgets": {
     "max_active_checks": 14,
     "max_fixture_files": 26,
-    "max_fixture_bytes": 36500
+    "max_fixture_bytes": 48000
   },
   "checks": [
     {
@@ -96,7 +96,7 @@
       "executor": "task-state-behavior",
       "proof_fixture_root": "fixtures/codex-starter-dev/task-state-invalid",
       "expected_error_patterns": [
-        "expected exit_status=0"
+        "product_manager_architect_without_product_decision_is_rejected step 1: expected exit_status=0"
       ]
     },
     {
@@ -200,7 +200,9 @@
       "scenario_root": "fixtures/codex-starter-dev/stop-hook-pass",
       "proof_fixture_root": "fixtures/codex-starter-dev/hook-root-invalid",
       "expected_error_patterns": [
-        "expected state.task.status=completed"
+        "missing_role_is_rejected step 1: expected state.task.status=completed",
+        "product_manager_product_without_architect_handoff_is_rejected step 1: expected state.task.next_owner=technical_manager",
+        "architect_non_blocked_return_to_product_manager_is_rejected step 1: expected state.task.next_owner=product_manager"
       ]
     },
     {

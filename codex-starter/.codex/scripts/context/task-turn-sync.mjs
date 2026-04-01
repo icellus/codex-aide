@@ -7,8 +7,13 @@ import { spawnSync } from "node:child_process";
 import { getProjectContext } from "../shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { ensureDir, startRuntimeInvocationLogging } from "../shared/logging.mjs";
-import { defaultTaskState, hasTrackedTask, normalizeTaskStatus, readTaskContext } from "../shared/task-context.mjs";
-import { collectTurnEntries, latestAssistantMessage, latestStructuredResult, readTranscriptLines } from "../shared/transcript.mjs";
+import { defaultTaskState, hasTrackedTask, normalizeProductDecision, normalizeTaskStatus, readTaskContext } from "../shared/task-context.mjs";
+import {
+  collectTurnEntries,
+  latestAssistantMessage,
+  latestStructuredResult,
+  readTranscriptLines
+} from "../shared/transcript.mjs";
 
 function normalizeText(value) {
   return String(value || "").replace(/\r/g, "").trim();
@@ -24,6 +29,59 @@ function normalizeStringList(value) {
   }
 
   return value.map((item) => normalizeText(item)).filter(Boolean);
+}
+
+function extractStructuredResultsFromText(text) {
+  const matches = Array.from(String(text || "").matchAll(/## Structured Result\s*```json\s*([\s\S]*?)\s*```/g));
+  return matches
+    .map((match) => {
+      try {
+        return JSON.parse(match[1]);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function callNameById(entries) {
+  const mapping = new Map();
+  for (const entry of entries) {
+    if (entry?.type !== "response_item" || entry?.payload?.type !== "function_call") {
+      continue;
+    }
+
+    const callId = normalizeText(entry.payload.call_id);
+    const name = normalizeText(entry.payload.name);
+    if (callId && name) {
+      mapping.set(callId, name);
+    }
+  }
+
+  return mapping;
+}
+
+function waitAgentStructuredResults(entries) {
+  const mapping = callNameById(entries);
+  const results = [];
+
+  for (const entry of entries) {
+    if (entry?.type !== "response_item" || entry?.payload?.type !== "function_call_output") {
+      continue;
+    }
+
+    const callId = normalizeText(entry.payload.call_id);
+    if (!callId || mapping.get(callId) !== "wait_agent") {
+      continue;
+    }
+
+    const output = String(entry.payload.output || "");
+    for (const structured of extractStructuredResultsFromText(output)) {
+      results.push(structured);
+    }
+  }
+
+  return results;
 }
 
 function latestJsonObjectFromStdout(stdout) {
@@ -161,6 +219,193 @@ function buildTaskPatch(currentTask, taskUpdate) {
   return patch;
 }
 
+function validateExpectedRole(currentTask, role, turnLines = []) {
+  const normalizedRole = normalizeText(role);
+  if (!normalizedRole) {
+    return {
+      code: "missing-role",
+      message: "structured result for a routed task must declare role"
+    };
+  }
+
+  if (normalizedRole === "coder" || normalizedRole === "tester") {
+    return {
+      code: "invalid-main-thread-role",
+      message: `${normalizedRole} must report through subagent wait output, not the main assistant final message`
+    };
+  }
+
+  if (!["Aide", "product_manager", "architect", "technical_manager", "product_assistant", "qc", "submit"].includes(normalizedRole)) {
+    return {
+      code: "unknown-role",
+      message: `unknown routed role ${normalizedRole}`
+    };
+  }
+
+  const currentStatus = normalizeTaskStatus(currentTask.status, "idle");
+  const expectedRole = normalizeText(currentTask.next_owner);
+  const delegatedResults = new Set(waitAgentStructuredResults(turnLines).map((result) => normalizeText(result?.role)));
+  if (
+    currentStatus === "handoff" &&
+    (expectedRole === "coder" || expectedRole === "tester") &&
+    normalizedRole === "technical_manager" &&
+    delegatedResults.has(expectedRole)
+  ) {
+    return null;
+  }
+
+  if (currentStatus === "handoff" && expectedRole && expectedRole !== "Aide" && expectedRole !== normalizedRole) {
+    return {
+      code: "unexpected-role",
+      message: `expected handoff owner ${expectedRole}, got ${normalizedRole}`
+    };
+  }
+
+  return null;
+}
+
+function deriveRoutePatch({ currentTask, structuredResult, taskUpdate, turnLines }) {
+  const normalizedRole = normalizeText(structuredResult?.role);
+  const structuredStatus = normalizeText(structuredResult?.status).toLowerCase();
+  const routePatch = {};
+
+  if (normalizedRole === "technical_manager") {
+    const briefPath = normalizeText(structuredResult?.brief_path);
+    if (briefPath) {
+      routePatch.implementation_brief_path = briefPath;
+    }
+
+    const subagentResults = waitAgentStructuredResults(turnLines);
+    const activatedRoles = [];
+    const completedRoles = [];
+    const subagentRoles = [];
+    for (const result of subagentResults) {
+      const role = normalizeText(result?.role);
+      const status = normalizeText(result?.status).toLowerCase();
+      if (role === "coder" || role === "tester") {
+        activatedRoles.push(role);
+        if (status === "complete") {
+          completedRoles.push(role);
+          subagentRoles.push(role);
+        }
+      }
+    }
+
+    if (activatedRoles.length > 0) {
+      routePatch.activated_roles = activatedRoles;
+    }
+
+    if (completedRoles.length > 0) {
+      routePatch.completed_roles = completedRoles;
+      routePatch.subagent_roles = subagentRoles;
+    }
+
+    const nextOwner = normalizeText(taskUpdate?.next_owner);
+    if (nextOwner === "architect") {
+      return {
+        error: {
+          code: "invalid-technical-manager-route",
+          message: "technical_manager must escalate to Aide instead of handing off directly to architect"
+        }
+      };
+    }
+
+    if (nextOwner === "tester") {
+      const roleSet = new Set([
+        ...normalizeStringList(currentTask?.completed_roles),
+        ...completedRoles
+      ]);
+      const subagentRoleSet = new Set([
+        ...normalizeStringList(currentTask?.subagent_roles),
+        ...subagentRoles
+      ]);
+      if (!roleSet.has("coder") || !subagentRoleSet.has("coder")) {
+        return {
+          error: {
+            code: "missing-coder-subagent-proof",
+            message: "technical_manager may hand off to tester only after coder subagent evidence is present"
+          }
+        };
+      }
+    }
+
+    return { patch: routePatch };
+  }
+
+  if (normalizedRole === "product_manager") {
+    if (structuredStatus === "blocked") {
+      return { patch: routePatch };
+    }
+
+    const selectedOutcome = normalizeProductDecision(
+      structuredResult?.selected_outcome || structuredResult?.outcome || structuredResult?.product_decision,
+      ""
+    );
+    if (!selectedOutcome || selectedOutcome === "none") {
+      return {
+        error: {
+          code: "missing-product-manager-outcome",
+          message: "product_manager must return selected_outcome=skip|product"
+        }
+      };
+    }
+
+    routePatch.completed_roles = ["product_manager"];
+    routePatch.product_decision = selectedOutcome;
+    const prdPath = normalizeText(structuredResult?.prd_path);
+    if (prdPath) {
+      routePatch.prd_path = prdPath;
+    }
+
+    const nextOwner = normalizeText(taskUpdate?.next_owner);
+    if (selectedOutcome === "product" && nextOwner !== "architect") {
+      return {
+        error: {
+          code: "invalid-product-manager-product-handoff",
+          message: "product_manager with product outcome must hand off to architect"
+        }
+      };
+    }
+
+    if (selectedOutcome === "skip" && nextOwner !== "technical_manager") {
+      return {
+        error: {
+          code: "invalid-product-manager-skip-handoff",
+          message: "product_manager with skip outcome must hand off to technical_manager"
+        }
+      };
+    }
+
+    return { patch: routePatch };
+  }
+
+  if (normalizedRole === "architect") {
+    if (structuredStatus === "blocked") {
+      return { patch: routePatch };
+    }
+
+    routePatch.completed_roles = ["architect"];
+    const architecturePath = normalizeText(structuredResult?.architecture_path);
+    if (architecturePath) {
+      routePatch.architecture_path = architecturePath;
+    }
+
+    const nextOwner = normalizeText(taskUpdate?.next_owner);
+    if (nextOwner && nextOwner !== "technical_manager" && nextOwner !== "product_manager") {
+      return {
+        error: {
+          code: "invalid-architect-handoff",
+          message: "architect may hand off only to technical_manager, or back to product_manager when blocked"
+        }
+      };
+    }
+
+    return { patch: routePatch };
+  }
+
+  return { patch: routePatch };
+}
+
 function hasTaskUpdateOverrides(taskUpdate) {
   if (!taskUpdate || typeof taskUpdate !== "object") {
     return false;
@@ -205,6 +450,18 @@ function decideSync({ currentTask, transcriptPath, turnId }) {
   const role = normalizeText(structuredResult?.role);
   const taskUpdate = normalizeTaskUpdate(structuredResult?.task_update);
   const hasOverrides = hasTaskUpdateOverrides(taskUpdate);
+  const expectedRoleError = validateExpectedRole(currentTask, role, snapshot.turnLines);
+
+  if (expectedRoleError) {
+    return {
+      action: "reject-sync",
+      reason: expectedRoleError.code,
+      snapshot,
+      structuredResult,
+      role,
+      error: expectedRoleError
+    };
+  }
 
   if (currentStatus === "completed" || currentStatus === "cancelled") {
     if (taskUpdate?.sync && hasOverrides) {
@@ -287,6 +544,25 @@ async function main() {
 
     if (decision.action === "sync-task-state") {
       const taskPatch = buildTaskPatch(currentTask, decision.taskUpdate || {});
+      const routePatchResult = deriveRoutePatch({
+        currentTask,
+        structuredResult: decision.structuredResult || {},
+        taskUpdate: decision.taskUpdate || {},
+        turnLines: decision.snapshot?.turnLines || []
+      });
+      if (routePatchResult?.error) {
+        process.stderr.write(`task-turn-sync route gate error: ${routePatchResult.error.message}\n`);
+        logger.finalize({
+          status: "error",
+          metadata: {
+            decision: decision.action,
+            reason: decision.reason,
+            routeGate: routePatchResult.error.code
+          }
+        });
+        process.exit(1);
+      }
+      Object.assign(taskPatch, routePatchResult?.patch || {});
       const taskStateInput = {
         action: "set",
         actor: decision.role || "runtime-hook",
@@ -302,6 +578,16 @@ async function main() {
       invocation = runTaskState(projectDir, {
         action: "record-interruption"
       });
+    } else if (decision.action === "reject-sync") {
+      process.stderr.write(decision.error?.message || "task-turn-sync: route gate rejected current turn\n");
+      logger.finalize({
+        status: "error",
+        metadata: {
+          decision: decision.action,
+          reason: decision.reason
+        }
+      });
+      process.exit(1);
     }
 
     if ((invocation.status ?? 0) !== 0) {

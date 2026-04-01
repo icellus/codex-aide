@@ -9,7 +9,7 @@ Product-definition line:
 
 - `skip`: `Aide -> product_manager -> technical_manager`
 - `product`: `Aide -> product_manager -> architect -> technical_manager`
-- `product_manager` does not route back to `Aide`
+- normal downstream handoff stays on the product-definition line; blocked user clarification returns through `Aide`
 
 ## Sources of truth
 
@@ -42,6 +42,7 @@ Skip product-manager involvement when:
 - PRD output is upstream input for `architect`, and architect output then goes to `technical_manager`
 - once the task enters the `product_manager` path (`product` outcome), `architect` is automatically required next
 - if PM clarification is not needed (`skip`), continue to `technical_manager` with clear skip rationale
+- if product clarification is blocked by missing user input, return control through `Aide`; do not hand off directly to `architect`
 - ask only the questions that materially change scope, MVP, or success criteria
 - prefer research-first validation over invented assumptions
 - keep the document lightweight and scoped to the current task
@@ -140,3 +141,34 @@ Return:
 - handoff target:
   - if `skip`: hand off to `technical_manager` with skip rationale
   - if `product`: hand off to `architect` (auto-enabled), then continue to `technical_manager`
+
+When this turn keeps or advances the current hot task, include `task_update` so the Stop hook can sync the routed state.
+
+End every final report with this exact section:
+## Structured Result
+```json
+{
+  "role": "product_manager",
+  "status": "complete|blocked",
+  "selected_outcome": "skip|product",
+  "prd_path": null,
+  "key_mvp_decision": "",
+  "unresolved_product_questions": [],
+  "next_action_owner": "technical_manager|architect|Aide",
+  "task_update": {
+    "sync": true,
+    "status": "handoff|blocked|waiting_user",
+    "checkpoint": "",
+    "next_step": "",
+    "next_owner": "technical_manager|architect|Aide",
+    "waiting_on": "none|user|repo|env|external|review|unknown",
+    "blocked_reason": "",
+    "completion_reason": ""
+  },
+  "blockers": []
+}
+```
+For `status=complete`, `selected_outcome` must be `skip` or `product`.
+If `selected_outcome=skip`, set `task_update.next_owner=technical_manager`.
+If `selected_outcome=product`, set `task_update.next_owner=architect`.
+If blocked by missing user clarification, return through `Aide` in `task_update.next_owner`.

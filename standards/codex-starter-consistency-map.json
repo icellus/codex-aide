@@ -75,6 +75,123 @@
       ]
     },
     {
+      "id": "architect_only_after_product_manager",
+      "kind": "handoff",
+      "intent": "Keep architect activation restricted to the product-manager product outcome path.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "`architect` may only be activated by `product_manager` after a `product` outcome in the product-definition line.",
+            "`technical_manager` must not directly route to `product_manager` or `architect`."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/aide/SKILL.md",
+          "all_of": [
+            "`Aide` must not hand off directly to `architect`",
+            "if `technical_manager` reports execution is not ready because HOW is still unstable, `Aide` reopens the route at `product_manager` instead of handing off directly to `architect`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/product_manager/SKILL.md",
+          "all_of": [
+            "once the task enters the `product_manager` path (`product` outcome), `architect` is automatically required next",
+            "If `selected_outcome=product`, set `task_update.next_owner=architect`."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/architect/SKILL.md",
+          "all_of": [
+            "You may be activated only from:",
+            "- `product_manager` when the outcome is `product`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "if system-level HOW is still unstable, or if product-definition uncertainty is reintroduced, escalate to `Aide` for re-triage instead of routing directly to `architect`"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "coder_tester_require_subagent_evidence",
+      "kind": "handoff",
+      "intent": "Keep coder and tester evidence delegated to their dedicated subagents.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "`coder` and `tester` completion evidence must come from delegated subagent results; main-thread role emulation does not satisfy the route contract."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/technical_manager/SKILL.md",
+          "all_of": [
+            "`coder` and `tester` must run as delegated subagents; main-thread role emulation does not satisfy the route contract"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/coder.toml",
+          "all_of": [
+            "You are always run as a delegated implementation subagent. Main-thread summaries do not replace this subagent evidence."
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/agents/tester.toml",
+          "all_of": [
+            "You are always run as a delegated validation subagent. Main-thread summaries do not replace this subagent evidence."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "route_evidence_fields_stay_documented",
+      "kind": "integration-wiring",
+      "intent": "Keep routed task evidence fields aligned across runtime state, owner docs, and human-readable progress output.",
+      "targets": [
+        {
+          "path": "codex-starter/.codex/state/task-context.demo.json",
+          "all_of": [
+            "\"activated_roles\": []",
+            "\"completed_roles\": []",
+            "\"subagent_roles\": []",
+            "\"product_decision\": \"none\"",
+            "\"prd_path\": \"\"",
+            "\"architecture_path\": \"\""
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/skills/aide/SKILL.md",
+          "all_of": [
+            "`activated_roles`, `completed_roles`, and `subagent_roles`",
+            "`prd_path`, `architecture_path`, and `implementation_brief_path`",
+            "`product_decision`"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/policies/routing-policy.md",
+          "all_of": [
+            "route evidence (`activated_roles`, `completed_roles`, `subagent_roles`)",
+            "current chain artifacts (`prd_path`, `architecture_path`, `implementation_brief_path`)"
+          ]
+        },
+        {
+          "path": "codex-starter/.codex/scripts/shared/task-progress.mjs",
+          "all_of": [
+            "Activated Roles",
+            "Completed Roles",
+            "Subagent Evidence",
+            "Product Decision",
+            "PRD",
+            "Architecture",
+            "Implementation Brief"
+          ]
+        }
+      ]
+    },
+    {
       "id": "qc_optional_but_not_replacement",
       "kind": "handoff",
       "intent": "Keep QC risk-based and downstream of the required tester handoff.",

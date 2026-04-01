@@ -65,6 +65,14 @@ function parseDirtyPaths(statusLines) {
     .map((value) => value.replace(/^"|"$/g, ""));
 }
 
+function normalizeStringList(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((item) => normalizeText(item)).filter(Boolean);
+}
+
 function isRuntimeLocalPath(filePath) {
   const normalized = normalizeText(filePath).replace(/\\/g, "/");
   if (normalized.startsWith(".codex/logs/")) {
@@ -143,6 +151,38 @@ function evaluateQc(task, input) {
     required: qcRequired,
     status
   };
+}
+
+function routeGateForSubmit(task) {
+  const blockers = [];
+  const activatedRoles = normalizeStringList(task?.activated_roles);
+  const completedRoles = normalizeStringList(task?.completed_roles);
+  const subagentRoles = normalizeStringList(task?.subagent_roles);
+  const productDecision = normalizeText(task?.product_decision).toLowerCase() || "none";
+
+  if (productDecision === "product" && !completedRoles.includes("architect")) {
+    blockers.push("product-decision-requires-architect");
+  }
+
+  if (activatedRoles.includes("coder")) {
+    if (!completedRoles.includes("tester")) {
+      blockers.push("coder-chain-requires-tester");
+    }
+    if (!subagentRoles.includes("coder")) {
+      blockers.push("coder-must-be-subagent");
+    }
+  }
+
+  if (activatedRoles.includes("tester")) {
+    if (!subagentRoles.includes("tester")) {
+      blockers.push("tester-must-be-subagent");
+    }
+    if (!completedRoles.includes("tester")) {
+      blockers.push("tester-handoff-must-complete");
+    }
+  }
+
+  return blockers;
 }
 
 function evaluateCommit({ policy, preferences, git, qc, task, input }) {
@@ -310,8 +350,14 @@ function inspectDelivery({ projectDir, input }) {
   const git = gitState(projectDir);
   const fallback = policy?.fallback || {};
   const qc = evaluateQc(task, input);
-  const commitGate = evaluateCommit({ policy, preferences, git, qc, task, input });
-  const pushGate = evaluatePush({ projectDir, policy, preferences, git, input, commitGate });
+  const routeBlockers = routeGateForSubmit(task);
+  const routeGateReason = routeBlockers[0] || "";
+  const commitGate = routeBlockers.length > 0
+    ? { status: "blocked", reason: routeGateReason }
+    : evaluateCommit({ policy, preferences, git, qc, task, input });
+  const pushGate = routeBlockers.length > 0
+    ? { status: "blocked", reason: routeGateReason, remote: "", branch: git.branch }
+    : evaluatePush({ projectDir, policy, preferences, git, input, commitGate });
   const notify = evaluatePostPushStage(policy?.notify, pushGate.status, input.push_status, fallback);
   const ci = evaluatePostPushStage(policy?.ci, pushGate.status, input.push_status, fallback);
   const release = evaluatePostPushStage(policy?.release, pushGate.status, input.push_status, fallback);
@@ -333,6 +379,7 @@ function inspectDelivery({ projectDir, input }) {
       current_task: normalizeText(task.current_task)
     },
     blockers: [
+      ...routeBlockers,
       ...blockersFromGates(qc, commitGate, pushGate),
       ...[notify, ci, release].filter((stage) => stage.status === "blocked").map((stage) => stage.reason)
     ]

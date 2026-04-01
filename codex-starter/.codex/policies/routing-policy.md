@@ -25,13 +25,14 @@ Plain-language intent should map to the same routes.
 - Keep discussion, Q&A, option comparison, and recommendation-only analysis in `Aide`.
 - `Aide` selects first hop by deliverable type and scope stability.
 - `Aide` remains the user-facing integrator even when hot-task follow-up ownership is sticky to another role line.
-- `product_manager` is the product-definition owner; it does not route back to `Aide`.
+- `product_manager` is the product-definition owner; normal downstream handoff stays on the product-definition line, while blocked user clarification returns through `Aide`.
+- `architect` may only be activated by `product_manager` after a `product` outcome in the product-definition line.
 - In the product-definition line:
   - `skip` outcome continues to `technical_manager`.
   - `product` outcome continues to `architect`, then `technical_manager`.
 - `technical_manager` owns the technical-delivery line only.
 - If `technical_manager` detects unresolved product scope or non-technical ownership mismatch, escalate back to `Aide` for re-triage.
-- `technical_manager` must not directly route to `product_manager`.
+- `technical_manager` must not directly route to `product_manager` or `architect`.
 - `product_assistant` receives non-code delivery work from `Aide` and returns results to `Aide`.
 - `product_assistant` should not auto-enter the submit path; only explicit user intent enables governed submit for non-code work.
 - if `.codex/state/task-context.json` marks `sticky_owner=technical_manager`, same-task source-code follow-up should stay on the technical-delivery line by default even when phrased as Q&A.
@@ -40,6 +41,8 @@ Plain-language intent should map to the same routes.
 - If `coder` or `tester` lacks a readable `Implementation Brief`, they must return `blocked` to `technical_manager`.
 - If `coder` is active, downstream `tester` handoff is mandatory before settlement or submit.
 - `coder` / `tester` / `qc` report only to `technical_manager` in the technical-delivery line.
+- `coder` and `tester` completion evidence must come from delegated subagent results; main-thread role emulation does not satisfy the route contract.
+- `technical_manager` may prepare or adjust repository-local configuration needed for delivery, but must not write delivery code or task-level tests.
 - on first contact, if `.codex/state/repo-context.json` is missing, or `.codex/policies/validation-profile.json` is missing or still `not-set`, `Aide` runs an independent `technical_manager` repository scan and waits before normal routing continues.
 - if the user indicates the repository was initialized, reinitialized, replaced, or reset, `Aide` reruns that scan and replaces `.codex/state/repo-context.json` plus `.codex/policies/validation-profile.json`.
 - repository scan completes only when `technical_manager` returns `status=complete` with both `repo_context` and `validation_profile`.
@@ -160,7 +163,7 @@ For `exploration`, `analysis`, and discussion-shaped work with no durable artifa
 - if `product_manager` outcome is `product`, require `architect` as the next step, then `technical_manager`
 - enter `technical_manager` when the task needs code/config/runtime changes, implementation ownership, task-level validation ownership, durable technical handoff, or governed delivery
 - if `technical_manager` cannot proceed because ownership is not technical or product scope is still unstable, escalate to `Aide` for re-triage
-- if interfaces, boundaries, or integration design are unstable inside the technical-delivery line, `technical_manager` may enable `architect`
+- if interfaces, boundaries, or integration design are unstable inside the technical-delivery line, `technical_manager` must escalate to `Aide` for re-triage instead of routing directly to `architect`
 - require `technical_manager` to produce or refresh the `Implementation Brief` before any `coder`/`tester` work
 - enable `product_assistant` when the primary deliverable is a non-code artifact
 - enable `coder` for implementation ownership, followed by required downstream `tester`
@@ -194,7 +197,7 @@ Environment setup decisions and preparation belong to `technical_manager`.
 
 ## Durable Coordination Files
 
-- `.codex/state/task-context.json`: hot task state
+- `.codex/state/task-context.json`: hot task state, including route evidence (`activated_roles`, `completed_roles`, `subagent_roles`) plus current chain artifacts (`prd_path`, `architecture_path`, `implementation_brief_path`)
 - `.codex/logs/task-lifecycle/*.jsonl`: normalized per-turn task lifecycle sync log
 - `.codex/state/governance-context.json`: active governance items maintained by `Aide`
 - `.codex/state/submit-preferences.json`: repo-local submit preferences

@@ -5,6 +5,7 @@ import path from "node:path";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
 import { getProjectContext } from "../shared/project-context.mjs";
+import { normalizeTaskStatus, readTaskContext } from "../shared/task-context.mjs";
 
 const gitGlobalOptionsWithValue = new Set(["-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path"]);
 const gitGlobalOptionsWithInlineValue = ["--git-dir=", "--work-tree=", "--namespace=", "--exec-path="];
@@ -218,6 +219,132 @@ function isGitExecutable(token) {
   return path.basename(String(token || "")) === "git";
 }
 
+function firstNonOption(args, startIndex = 0) {
+  let index = startIndex;
+  while (index < args.length) {
+    const token = String(args[index] || "");
+    if (!token) {
+      index += 1;
+      continue;
+    }
+    if (token === "--") {
+      index += 1;
+      continue;
+    }
+    if (token.startsWith("-")) {
+      index += 1;
+      continue;
+    }
+    return token;
+  }
+
+  return "";
+}
+
+function isTestInvocation(tokens) {
+  if (!Array.isArray(tokens) || tokens.length === 0) {
+    return false;
+  }
+
+  const executable = resolveExecutable(tokens);
+  if (!executable) {
+    return false;
+  }
+
+  const binary = path.basename(String(executable.executable || ""));
+  const args = tokens.slice(executable.index + 1);
+
+  if (["pytest", "jest", "vitest", "ctest", "phpunit"].includes(binary)) {
+    return true;
+  }
+
+  if (binary === "npm" || binary === "pnpm" || binary === "yarn" || binary === "bun") {
+    const first = String(args[0] || "");
+    const second = String(args[1] || "");
+    return first === "test" || first === "vitest" || first === "jest" || (first === "run" && ["test", "vitest", "jest"].includes(second));
+  }
+
+  if (binary === "go" || binary === "cargo") {
+    return String(args[0] || "") === "test";
+  }
+
+  if (binary === "python" || binary === "python3") {
+    return String(args[0] || "") === "-m" && String(args[1] || "") === "pytest";
+  }
+
+  if (binary === "node") {
+    return args.includes("--test");
+  }
+
+  if (binary === "npx") {
+    return ["jest", "vitest", "pytest"].includes(firstNonOption(args));
+  }
+
+  if (binary === "uv" || binary === "poetry") {
+    return String(args[0] || "") === "run" && ["pytest", "jest", "vitest"].includes(firstNonOption(args, 1));
+  }
+
+  if (binary === "mvn" || binary === "mvnw") {
+    return args.some((arg) => ["test", "verify", "integration-test"].includes(String(arg || "")));
+  }
+
+  if (binary === "gradle" || binary === "gradlew") {
+    return args.some((arg) => ["test", "check", "integrationTest"].includes(String(arg || "")));
+  }
+
+  return false;
+}
+
+function commandContainsTests(command, depth = 0) {
+  if (depth > 2) {
+    return false;
+  }
+
+  for (const rawSegment of splitShellSegments(command)) {
+    const segment = stripLeadingShellKeywords(rawSegment);
+    const tokens = tokenizeShellCommand(segment);
+    if (tokens.length === 0) {
+      continue;
+    }
+
+    const executable = resolveExecutable(tokens);
+    if (!executable) {
+      continue;
+    }
+
+    if (isShellExecutable(executable.executable)) {
+      const nestedCommand = extractShellScriptArg(tokens, executable.index);
+      if (nestedCommand && commandContainsTests(nestedCommand, depth + 1)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (isTestInvocation(tokens)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function technicalManagerOwnsCurrentTurn(projectDir) {
+  const task = readTaskContext(projectDir)?.task || {};
+  const status = normalizeTaskStatus(task.status, "idle");
+  const nextOwner = String(task.next_owner || "").trim();
+  const stickyOwner = String(task.sticky_owner || "").trim();
+
+  if (!["active", "handoff", "blocked"].includes(status)) {
+    return false;
+  }
+
+  if (["coder", "tester", "qc", "submit"].includes(nextOwner)) {
+    return false;
+  }
+
+  return nextOwner === "technical_manager" || stickyOwner === "technical_manager";
+}
+
 function startsWithAny(value, prefixes) {
   return prefixes.some((prefix) => String(value || "").startsWith(prefix));
 }
@@ -351,6 +478,10 @@ function decisionForInvocation(invocation) {
 }
 
 function commandDecision(command, projectDir) {
+  if (technicalManagerOwnsCurrentTurn(projectDir) && commandContainsTests(command)) {
+    return permissionResponse("technical_manager must not run task-level tests on the main thread. Hand off to tester instead.");
+  }
+
   const decisions = collectGitInvocations(command)
     .map((invocation) => decisionForInvocation(invocation, projectDir))
     .filter(Boolean);

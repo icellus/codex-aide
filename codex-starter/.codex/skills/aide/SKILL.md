@@ -69,7 +69,9 @@ Hard boundaries:
 - product-definition routes continue as:
   - `skip`: `Aide -> product_manager -> technical_manager`
   - `product`: `Aide -> product_manager -> architect -> technical_manager`
+- `Aide` must not hand off directly to `architect`
 - if `technical_manager` escalates ownership/scope mismatch, `Aide` performs re-triage
+- if `technical_manager` reports execution is not ready because HOW is still unstable, `Aide` reopens the route at `product_manager` instead of handing off directly to `architect`
 - `product_assistant` returns outcomes to `Aide`
 
 ## Read Order
@@ -150,6 +152,9 @@ Maintain `.codex/state/task-context.json` with:
 
 - task, status, class, risk, delivery mode, and route rationale
 - active modules and roles
+- route evidence for the current chain, including `activated_roles`, `completed_roles`, and `subagent_roles`
+- durable planning artifacts for the current chain, including `prd_path`, `architecture_path`, and `implementation_brief_path`
+- product-definition decision truth for the current chain through `product_decision`
 - QC and submit policy
 - open questions and collaboration preferences
 - checkpoint, next step, next owner, and `waiting_on`

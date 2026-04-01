@@ -423,18 +423,32 @@ function validateGovernanceFlowContracts({
   return { ok: errors.length === 0, errors };
 }
 
+function normalizeScenarioEntries(filePath, scenarioValue) {
+  if (Array.isArray(scenarioValue)) {
+    return scenarioValue.map((scenario, index) => ({
+      filePath: `${filePath}#${index + 1}`,
+      scenario
+    }));
+  }
+
+  return [
+    {
+      filePath,
+      scenario: scenarioValue
+    }
+  ];
+}
+
 function loadTaskStateScenarios(scenarioRoot) {
-  return listFilesRecursive(scenarioRoot, (filePath) => filePath.endsWith(".json")).map((filePath) => ({
-    filePath,
-    scenario: readJson(filePath)
-  }));
+  return listFilesRecursive(scenarioRoot, (filePath) => filePath.endsWith(".json")).flatMap((filePath) =>
+    normalizeScenarioEntries(filePath, readJson(filePath))
+  );
 }
 
 function loadScenarioFiles(scenarioRoot) {
-  return listFilesRecursive(scenarioRoot, (filePath) => filePath.endsWith(".json")).map((filePath) => ({
-    filePath,
-    scenario: readJson(filePath)
-  }));
+  return listFilesRecursive(scenarioRoot, (filePath) => filePath.endsWith(".json")).flatMap((filePath) =>
+    normalizeScenarioEntries(filePath, readJson(filePath))
+  );
 }
 
 function isPresentValue(value) {
@@ -1386,6 +1400,10 @@ function validateGitScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
     for (const command of scenario.setup_commands || []) {
       runShellSetup(String(command || ""), projectDir);
+    }
+
+    if (scenario.task_context && typeof scenario.task_context === "object") {
+      writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), scenario.task_context);
     }
 
     const scriptPath = path.join(projectDir, ".codex", "scripts", "guards", "validate-git.mjs");

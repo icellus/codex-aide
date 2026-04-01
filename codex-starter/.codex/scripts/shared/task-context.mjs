@@ -17,6 +17,7 @@ const TASK_STATUS_VALUES = [
 
 const WAITING_ON_VALUES = ["none", "user", "repo", "env", "external", "review", "unknown"];
 const STICKY_OWNER_VALUES = ["", "Aide", "technical_manager", "product_manager", "product_assistant", "architect"];
+const PRODUCT_DECISION_VALUES = ["none", "skip", "product"];
 
 const TERMINAL_TASK_STATUSES = new Set(["completed", "cancelled"]);
 const INTERRUPTIBLE_TASK_STATUSES = new Set(["active", "handoff", "blocked"]);
@@ -47,6 +48,11 @@ function normalizeWaitingOn(value, fallback = "none") {
 function normalizeStickyOwner(value, fallback = "") {
   const normalized = normalizeText(value);
   return STICKY_OWNER_VALUES.includes(normalized) ? normalized : fallback;
+}
+
+function normalizeProductDecision(value, fallback = "none") {
+  const normalized = normalizeText(value).toLowerCase();
+  return PRODUCT_DECISION_VALUES.includes(normalized) ? normalized : fallback;
 }
 
 function normalizeTimestamp(value) {
@@ -136,6 +142,12 @@ function defaultTaskState() {
     waiting_on: "none",
     blocked_reason: "",
     completion_reason: "",
+    activated_roles: [],
+    completed_roles: [],
+    subagent_roles: [],
+    product_decision: "none",
+    prd_path: "",
+    architecture_path: "",
     implementation_brief_path: "",
     progress_path: "",
     created_at: null,
@@ -165,6 +177,12 @@ function defaultRecentTask() {
     waiting_on: "none",
     blocked_reason: "",
     completion_reason: "",
+    activated_roles: [],
+    completed_roles: [],
+    subagent_roles: [],
+    product_decision: "none",
+    prd_path: "",
+    architecture_path: "",
     implementation_brief_path: "",
     progress_path: "",
     created_at: null,
@@ -224,6 +242,12 @@ function normalizeTask(task = {}, projectDir = "") {
     waiting_on: normalizeWaitingOn(task.waiting_on, defaults.waiting_on),
     blocked_reason: normalizeText(task.blocked_reason),
     completion_reason: normalizeText(task.completion_reason),
+    activated_roles: normalizeStringList(task.activated_roles),
+    completed_roles: normalizeStringList(task.completed_roles),
+    subagent_roles: normalizeStringList(task.subagent_roles),
+    product_decision: normalizeProductDecision(task.product_decision, defaults.product_decision),
+    prd_path: normalizeRuntimePath(projectDir, task.prd_path),
+    architecture_path: normalizeRuntimePath(projectDir, task.architecture_path),
     implementation_brief_path: normalizeRuntimePath(projectDir, task.implementation_brief_path),
     progress_path: normalizeRuntimePath(projectDir, task.progress_path),
     created_at: normalizeTimestamp(task.created_at),
@@ -256,6 +280,12 @@ function normalizeRecentTask(task = {}, projectDir = "") {
     waiting_on: normalizeWaitingOn(task.waiting_on, defaults.waiting_on),
     blocked_reason: normalizeText(task.blocked_reason),
     completion_reason: normalizeText(task.completion_reason),
+    activated_roles: normalizeStringList(task.activated_roles),
+    completed_roles: normalizeStringList(task.completed_roles),
+    subagent_roles: normalizeStringList(task.subagent_roles),
+    product_decision: normalizeProductDecision(task.product_decision, defaults.product_decision),
+    prd_path: normalizeRuntimePath(projectDir, task.prd_path),
+    architecture_path: normalizeRuntimePath(projectDir, task.architecture_path),
     implementation_brief_path: normalizeRuntimePath(projectDir, task.implementation_brief_path),
     progress_path: normalizeRuntimePath(projectDir, task.progress_path),
     created_at: normalizeTimestamp(task.created_at),
@@ -343,6 +373,7 @@ export {
   isInterruptibleTaskStatus,
   isTerminalTaskStatus,
   normalizeRecentTask,
+  normalizeProductDecision,
   normalizeStickyOwner,
   normalizeTask,
   normalizeTaskContext,

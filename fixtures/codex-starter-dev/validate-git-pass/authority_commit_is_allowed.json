@@ -1,13 +1,1 @@
-{
-  "id": "authority_commit_is_allowed",
-  "setup_commands": [
-    "git add AGENTS.md"
-  ],
-  "input": {
-    "command": "git commit -m \"save authority\""
-  },
-  "expect": {
-    "exit_status": 0,
-    "decision": "allow"
-  }
-}
+[{"id":"authority_commit_is_allowed","setup_commands":["git add AGENTS.md"],"input":{"command":"git commit -m \"save authority\""},"expect":{"exit_status":0,"decision":"allow"}},{"id":"tester_test_command_is_allowed_when_handoff_owned","task_context":{"version":1,"task":{"current_task":"Argentina launch","task_id":"arg-launch","status":"handoff","next_owner":"tester","sticky_owner":"technical_manager"}},"input":{"command":"npm test -- payment"},"expect":{"exit_status":0,"decision":"allow"}}]

@@ -14,6 +14,7 @@ import {
   isInterruptibleTaskStatus,
   isTerminalTaskStatus,
   normalizeRecentTask,
+  normalizeProductDecision,
   normalizeStickyOwner,
   normalizeTaskStatus,
   normalizeWaitingOn,
@@ -34,6 +35,10 @@ function normalizeStringList(value) {
   }
 
   return value.map((item) => normalizeText(item)).filter(Boolean);
+}
+
+function uniqueStringList(value) {
+  return Array.from(new Set(normalizeStringList(value)));
 }
 
 function timestampToken(timestamp) {
@@ -120,6 +125,12 @@ function normalizePatch(projectDir, inputTask = {}) {
     waiting_on: readOptionalLowerText(inputTask, "waiting_on"),
     blocked_reason: readOptionalText(inputTask, "blocked_reason"),
     completion_reason: readOptionalText(inputTask, "completion_reason"),
+    activated_roles: readOptionalStringList(inputTask, "activated_roles"),
+    completed_roles: readOptionalStringList(inputTask, "completed_roles"),
+    subagent_roles: readOptionalStringList(inputTask, "subagent_roles"),
+    product_decision: readOptionalLowerText(inputTask, "product_decision"),
+    prd_path: absolutizeOptionalRuntimePath(projectDir, readOptionalText(inputTask, "prd_path")),
+    architecture_path: absolutizeOptionalRuntimePath(projectDir, readOptionalText(inputTask, "architecture_path")),
     implementation_brief_path: absolutizeOptionalRuntimePath(projectDir, readOptionalText(inputTask, "implementation_brief_path")),
     progress_path: absolutizeOptionalRuntimePath(projectDir, readOptionalText(inputTask, "progress_path")),
     retire_current_as: readOptionalLowerText(inputTask, "retire_current_as"),
@@ -187,6 +198,163 @@ function summarizeTask(task = {}) {
 const TECHNICAL_CHAIN_ROLES = new Set(["technical_manager", "coder", "tester", "qc", "submit"]);
 const PRODUCT_CHAIN_ROLES = new Set(["product_manager", "architect"]);
 const NON_CODE_CHAIN_ROLES = new Set(["product_assistant"]);
+const KNOWN_ROLE_VALUES = new Set([
+  "Aide",
+  "product_manager",
+  "architect",
+  "technical_manager",
+  "coder",
+  "tester",
+  "qc",
+  "submit",
+  "product_assistant"
+]);
+const AIDE_ALLOWED_NEXT_OWNERS = new Set(["", "Aide", "product_manager", "technical_manager", "product_assistant"]);
+const TECHNICAL_MANAGER_ALLOWED_NEXT_OWNERS = new Set(["", "Aide", "technical_manager", "coder", "tester", "qc", "submit"]);
+const PRODUCT_MANAGER_ALLOWED_NEXT_OWNERS = new Set(["", "Aide", "product_manager", "technical_manager", "architect"]);
+const ARCHITECT_ALLOWED_NEXT_OWNERS = new Set(["", "architect", "product_manager", "technical_manager"]);
+const CODER_ALLOWED_NEXT_OWNERS = new Set(["", "technical_manager"]);
+const TESTER_ALLOWED_NEXT_OWNERS = new Set(["", "technical_manager"]);
+const SUBMIT_ALLOWED_NEXT_OWNERS = new Set(["", "technical_manager", "Aide"]);
+
+function mergeRoleLists(previousRoles = [], patchRoles = []) {
+  return Array.from(new Set([...normalizeStringList(previousRoles), ...normalizeStringList(patchRoles)]));
+}
+
+function allowedNextOwnersForActor(actor) {
+  const normalizedActor = normalizeText(actor);
+  if (normalizedActor === "Aide") {
+    return AIDE_ALLOWED_NEXT_OWNERS;
+  }
+  if (normalizedActor === "technical_manager") {
+    return TECHNICAL_MANAGER_ALLOWED_NEXT_OWNERS;
+  }
+  if (normalizedActor === "product_manager") {
+    return PRODUCT_MANAGER_ALLOWED_NEXT_OWNERS;
+  }
+  if (normalizedActor === "architect") {
+    return ARCHITECT_ALLOWED_NEXT_OWNERS;
+  }
+  if (normalizedActor === "coder") {
+    return CODER_ALLOWED_NEXT_OWNERS;
+  }
+  if (normalizedActor === "tester") {
+    return TESTER_ALLOWED_NEXT_OWNERS;
+  }
+  if (normalizedActor === "submit") {
+    return SUBMIT_ALLOWED_NEXT_OWNERS;
+  }
+
+  return null;
+}
+
+function routeGateBlockers({ task, nextStatus, nextOwner }) {
+  const blockers = [];
+  const activatedRoles = uniqueStringList(task.activated_roles);
+  const completedRoles = uniqueStringList(task.completed_roles);
+  const subagentRoles = uniqueStringList(task.subagent_roles);
+  const productDecision = normalizeProductDecision(task.product_decision, "none");
+  const enforceTechnicalSettlement = isTerminalTaskStatus(nextStatus) || nextOwner === "submit" || nextOwner === "technical_manager";
+
+  if (productDecision === "product" && !completedRoles.includes("architect") && (isTerminalTaskStatus(nextStatus) || nextOwner === "technical_manager" || nextOwner === "submit")) {
+    blockers.push("product-decision-requires-architect");
+  }
+
+  if (activatedRoles.includes("coder")) {
+    if (!completedRoles.includes("tester") && enforceTechnicalSettlement) {
+      blockers.push("coder-chain-requires-tester");
+    }
+
+    if (!subagentRoles.includes("coder") && (enforceTechnicalSettlement || nextOwner === "tester")) {
+      blockers.push("coder-must-be-subagent");
+    }
+  }
+
+  if (activatedRoles.includes("tester")) {
+    if (!subagentRoles.includes("tester") && enforceTechnicalSettlement) {
+      blockers.push("tester-must-be-subagent");
+    }
+
+    if (!completedRoles.includes("tester") && enforceTechnicalSettlement) {
+      blockers.push("tester-handoff-must-complete");
+    }
+  }
+
+  return blockers;
+}
+
+function validateRoutingOwnership({ actor, task, nextStatus }) {
+  const normalizedActor = normalizeText(actor);
+  const nextOwner = normalizeText(task.next_owner);
+  const allowed = allowedNextOwnersForActor(normalizedActor);
+  if (!nextOwner) {
+    return null;
+  }
+
+  if (!KNOWN_ROLE_VALUES.has(nextOwner)) {
+    return {
+      code: "unknown-next-owner",
+      message: `unknown next_owner ${nextOwner}`
+    };
+  }
+
+  if (!allowed) {
+    return {
+      code: "unknown-routing-actor",
+      message: `unknown routing actor ${normalizedActor || "<missing>"}`
+    };
+  }
+
+  if (!allowed.has(nextOwner)) {
+    return {
+      code: "invalid-next-owner",
+      message: `${normalizedActor} must not hand off directly to ${nextOwner}`
+    };
+  }
+
+  if (normalizedActor === "product_manager") {
+    const productDecision = normalizeProductDecision(task.product_decision, "none");
+    if (nextOwner === "Aide" && nextStatus !== "blocked" && nextStatus !== "waiting_user") {
+      return {
+        code: "invalid-product-manager-aide-route",
+        message: "product_manager may return to Aide only when blocked by missing clarification"
+      };
+    }
+    if (nextOwner === "architect" && productDecision !== "product") {
+      return {
+        code: "missing-product-manager-product-decision",
+        message: "product_manager must set product_decision=product before handing off to architect"
+      };
+    }
+    if (nextOwner === "technical_manager" && nextStatus !== "blocked" && nextStatus !== "waiting_user" && productDecision !== "skip") {
+      return {
+        code: "missing-product-manager-skip-decision",
+        message: "product_manager must set product_decision=skip before handing off to technical_manager"
+      };
+    }
+    if (productDecision === "product" && nextOwner !== "architect") {
+      return {
+        code: "invalid-product-manager-product-route",
+        message: "product_manager with product decision must hand off to architect"
+      };
+    }
+    if (productDecision === "skip" && nextOwner !== "technical_manager") {
+      return {
+        code: "invalid-product-manager-skip-route",
+        message: "product_manager with skip decision must hand off to technical_manager"
+      };
+    }
+  }
+
+  if (normalizedActor === "architect" && nextOwner === "product_manager" && nextStatus !== "blocked") {
+    return {
+      code: "invalid-architect-return-route",
+      message: "architect may return to product_manager only when blocked by upstream product input"
+    };
+  }
+
+  return null;
+}
 
 function inferStickyOwner({ patch, previousTask, newIdentity }) {
   const explicitStickyOwner = normalizeStickyOwner(patch.sticky_owner, "");
@@ -475,6 +643,36 @@ function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEven
   if (patch.completion_reason !== undefined) {
     nextTask.completion_reason = patch.completion_reason;
   }
+  const inferredActivatedRoles = [];
+  if (nextStatus === "handoff" && normalizeText(nextTask.next_owner) && normalizeText(nextTask.next_owner) !== "Aide") {
+    inferredActivatedRoles.push(normalizeText(nextTask.next_owner));
+  }
+  if (patch.activated_roles !== undefined) {
+    nextTask.activated_roles = mergeRoleLists(
+      previousTask.activated_roles,
+      [...patch.activated_roles, ...inferredActivatedRoles, ...(patch.completed_roles || []), ...(patch.subagent_roles || [])]
+    );
+  } else if (inferredActivatedRoles.length > 0 || patch.completed_roles !== undefined || patch.subagent_roles !== undefined) {
+    nextTask.activated_roles = mergeRoleLists(
+      previousTask.activated_roles,
+      [...inferredActivatedRoles, ...(patch.completed_roles || []), ...(patch.subagent_roles || [])]
+    );
+  }
+  if (patch.completed_roles !== undefined) {
+    nextTask.completed_roles = mergeRoleLists(previousTask.completed_roles, patch.completed_roles);
+  }
+  if (patch.subagent_roles !== undefined) {
+    nextTask.subagent_roles = mergeRoleLists(previousTask.subagent_roles, patch.subagent_roles);
+  }
+  if (patch.product_decision !== undefined) {
+    nextTask.product_decision = normalizeProductDecision(patch.product_decision, previousTask.product_decision || "none");
+  }
+  if (patch.prd_path !== undefined) {
+    nextTask.prd_path = patch.prd_path;
+  }
+  if (patch.architecture_path !== undefined) {
+    nextTask.architecture_path = patch.architecture_path;
+  }
   if (patch.implementation_brief_path !== undefined) {
     nextTask.implementation_brief_path = patch.implementation_brief_path;
   }
@@ -513,6 +711,28 @@ function applySetTask({ projectDir, state, patch, timestamp, actor, explicitEven
   const normalizedContinuation = normalizeTerminalContinuation({ nextTask, nextStatus });
   nextStatus = normalizedContinuation.status;
   nextTask.waiting_on = normalizedContinuation.waiting_on;
+
+  const routingOwnershipError = validateRoutingOwnership({ actor, task: nextTask, nextStatus });
+  if (routingOwnershipError) {
+    return {
+      error: {
+        ...routingOwnershipError,
+        current_task: summarizeTask(previousTask)
+      }
+    };
+  }
+
+  const blockers = routeGateBlockers({ task: nextTask, nextStatus, nextOwner: nextTask.next_owner });
+  if (blockers.length > 0) {
+    return {
+      error: {
+        code: "route-gate-blocked",
+        message: `route gate blocked by ${blockers.join(", ")}`,
+        blockers,
+        current_task: summarizeTask(previousTask)
+      }
+    };
+  }
 
   if (nextStatus !== "blocked" && patch.blocked_reason === undefined) {
     nextTask.blocked_reason = "";

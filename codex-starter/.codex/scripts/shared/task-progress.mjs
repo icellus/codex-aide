@@ -38,6 +38,12 @@ function normalizeTaskRecord(task = {}) {
     blocked_reason: normalizeText(task.blocked_reason),
     completion_reason: normalizeText(task.completion_reason),
     retire_reason: normalizeText(task.retire_reason),
+    activated_roles: normalizeStringList(task.activated_roles),
+    completed_roles: normalizeStringList(task.completed_roles),
+    subagent_roles: normalizeStringList(task.subagent_roles),
+    product_decision: normalizeText(task.product_decision) || "none",
+    prd_path: normalizeText(task.prd_path),
+    architecture_path: normalizeText(task.architecture_path),
     implementation_brief_path: normalizeText(task.implementation_brief_path),
     progress_path: normalizeText(task.progress_path),
     route_rationale: normalizeText(task.route_rationale),
@@ -75,6 +81,12 @@ function normalizeComparableTask(task = {}) {
     blocked_reason: normalized.blocked_reason,
     completion_reason: normalized.completion_reason,
     retire_reason: normalized.retire_reason,
+    activated_roles: normalized.activated_roles,
+    completed_roles: normalized.completed_roles,
+    subagent_roles: normalized.subagent_roles,
+    product_decision: normalized.product_decision,
+    prd_path: normalized.prd_path,
+    architecture_path: normalized.architecture_path,
     implementation_brief_path: normalized.implementation_brief_path,
     progress_path: normalized.progress_path,
     route_rationale: normalized.route_rationale,
@@ -202,6 +214,8 @@ function renderCurrentSnapshot({ projectDir, task, currentPath, historyPath }) {
   const taskId = task.task_id;
   const historyRelative = relativeFromProject(projectDir, historyPath);
   const briefValue = task.implementation_brief_path ? `\`${relativeFromProject(projectDir, task.implementation_brief_path)}\`` : "N/A";
+  const prdValue = task.prd_path ? `\`${relativeFromProject(projectDir, task.prd_path)}\`` : "N/A";
+  const architectureValue = task.architecture_path ? `\`${relativeFromProject(projectDir, task.architecture_path)}\`` : "N/A";
 
   return [
     "# Task Progress (Current Snapshot)",
@@ -223,9 +237,18 @@ function renderCurrentSnapshot({ projectDir, task, currentPath, historyPath }) {
     "",
     "## Scope and Brief",
     "",
+    `- Product Decision: \`${task.product_decision || "none"}\``,
+    `- PRD: ${prdValue}`,
+    `- Architecture: ${architectureValue}`,
     `- Implementation Brief: ${briefValue}`,
     `- Scope: ${formatList(task.enabled_modules, "N/A")}`,
     `- Key Decisions: ${task.route_rationale || "N/A"}`,
+    "",
+    "## Route Evidence",
+    "",
+    `- Activated Roles: ${formatList(task.activated_roles)}`,
+    `- Completed Roles: ${formatList(task.completed_roles)}`,
+    `- Subagent Evidence: ${formatList(task.subagent_roles)}`,
     "",
     "## Current State",
     "",
@@ -251,6 +274,8 @@ function renderHistoryEntry({ projectDir, task, previousTask, currentPath, histo
   const previousStatus = previousTask ? normalizeTaskStatus(previousTask.status, "idle") : "none";
   const previousCheckpoint = previousTask ? normalizeText(previousTask.checkpoint) || "none" : "none";
   const currentRelative = relativeFromProject(projectDir, currentPath);
+  const prdValue = task.prd_path ? `\`${relativeFromProject(projectDir, task.prd_path)}\`` : "N/A";
+  const architectureValue = task.architecture_path ? `\`${relativeFromProject(projectDir, task.architecture_path)}\`` : "N/A";
 
   return [
     "# Task Progress History Entry",
@@ -270,9 +295,15 @@ function renderHistoryEntry({ projectDir, task, previousTask, currentPath, histo
     `- Status: \`${previousStatus}\` -> \`${task.status}\``,
     `- Checkpoint: \`${previousCheckpoint}\` -> \`${task.checkpoint || "none"}\``,
     `- Active Roles / Modules: ${formatList(task.enabled_roles)}`,
+    `- Activated Roles: ${formatList(task.activated_roles)}`,
+    `- Completed Roles: ${formatList(task.completed_roles)}`,
+    `- Subagent Evidence: ${formatList(task.subagent_roles)}`,
     "",
     "## Brief and Ownership",
     "",
+    `- Product Decision: \`${task.product_decision || "none"}\``,
+    `- PRD: ${prdValue}`,
+    `- Architecture: ${architectureValue}`,
     `- Implementation Brief: ${task.implementation_brief_path ? `\`${relativeFromProject(projectDir, task.implementation_brief_path)}\`` : "N/A"}`,
     `- Handoff: ${task.next_owner || "N/A"}`,
     "",

@@ -19,7 +19,7 @@ You receive work from `Aide` (technical first hop), from `product_manager` (`ski
 - repository validation-baseline fact gathering plus initial/refresh output for `.codex/policies/validation-profile.json`
 - governance evidence escalation to `Aide` when technical delivery exposes reusable cross-file drift outside dedicated maintenance flows
 - environment setup decisions and preparation
-- staged chain management across `architect`, `coder`, `tester`, optional `qc`, and optional `submit`
+- staged chain management across `coder`, `tester`, optional `qc`, and optional `submit`
 - conflict control across write-capable roles
 - hot-task lifecycle updates for technical delivery
 - progress ownership under `.codex/progress/**` for `current.md` + `history/*.md` sync
@@ -55,7 +55,7 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-slug>/current.md`
 - task class and delivery mode
 - active modules and staged order
 - whether technical prerequisites are satisfied for safe execution
-- whether `architect` is required for unstable system-level HOW inside the technical-delivery line
+- whether technical delivery must be escalated back to `Aide` for re-triage because system-level HOW or product shape is not execution-ready
 - whether you must produce or refresh the `Implementation Brief`
 - when `coder`/`tester` is blocked by a missing `Implementation Brief`, whether to refresh the brief, re-route the chain, or collect user clarification through `Aide`
 - `environment setup`: `skip`, `current-workspace`, or `isolated-workspace`
@@ -71,11 +71,15 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-slug>/current.md`
 
 - execution work must flow through `technical_manager`; do not bypass directly to `coder`/`tester`
 - in product-definition routes, you receive technical input from `product_manager` when outcome is `skip`, or from `architect` when outcome is `product`
+- if system-level HOW is still unstable, or if product-definition uncertainty is reintroduced, escalate to `Aide` for re-triage instead of routing directly to `architect`
 - when `Aide` launches repository initialization scan, treat it as an independent low-context task and return only the produced artifacts
 - repository initialization scan must produce both `.codex/state/repo-context.json` content and `.codex/policies/validation-profile.json` content in the current template structures
 - the first repository scan must move `.codex/policies/validation-profile.json` `status` from `not-set` to `draft`
 - if `coder` or `tester` is active, you must produce the latest `Implementation Brief` before their work starts
 - `coder` and `tester` execute only against the latest `Implementation Brief`
+- `coder` and `tester` must run as delegated subagents; main-thread role emulation does not satisfy the route contract
+- before launching `coder` or `tester`, update the hot task to `status=handoff` with that role as `next_owner`
+- you may adjust repository-local configuration needed for delivery, but must not write delivery code or task-level tests on the main thread
 - evaluate tester baseline refresh feedback from task execution and decide whether it changes the repository validation baseline
 - when repository validation facts need baseline refresh, prepare the updated `.codex/policies/validation-profile.json` against the current structure and return it to `Aide`
 - when technical delivery reveals reusable governance drift outside the validation-profile special flow, return the evidence to `Aide` instead of writing governance state directly
@@ -87,6 +91,7 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/progress/active/<task-slug>/current.md`
 - `qc` is optional and cannot replace required `tester`
 - `submit` runs only after validation gates are satisfied
 - if scope/ownership mismatch prevents technical continuation, escalate to `Aide`; do not route directly to `product_manager` or `product_assistant`
+- if execution is blocked by missing user clarification, route through `Aide`; do not ask the user from the technical-delivery line directly
 - update `.codex/state/task-context.json` through `node .codex/scripts/context/task-state.mjs` when technical delivery starts, changes handoff owner, becomes blocked or `waiting_user`, resumes, or settles.
 - use `waiting_user` when the next move depends on user clarification or decision; reserve `blocked` for repository, environment, or execution constraints the system still owns.
 - before final technical closeout, set `completed` or `cancelled` explicitly; do not let session stop imply completion.
@@ -167,6 +172,7 @@ End every final report with this exact section:
   "mode": "repository-scan|technical-delivery",
   "repo_context": null,
   "validation_profile": null,
+  "brief_path": "",
   "brief_status": "none|required|ready|needs-refresh",
   "baseline_refresh_feedback": "none|reported",
   "validation_profile_refresh": "none|proposed",
