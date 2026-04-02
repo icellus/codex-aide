@@ -524,7 +524,7 @@ function assertAbsentFields({ actual, fields, label, errors }) {
 }
 
 function readTaskContextState(projectDir) {
-  const stateFilePath = path.join(projectDir, ".codex", "state", "task-context.json");
+  const stateFilePath = path.join(projectDir, ".codex", "aide", "state", "task-context.json");
   if (!fileExists(stateFilePath)) {
     return null;
   }
@@ -533,7 +533,7 @@ function readTaskContextState(projectDir) {
 }
 
 function readRepoContextState(projectDir) {
-  const stateFilePath = path.join(projectDir, ".codex", "state", "repo-context.json");
+  const stateFilePath = path.join(projectDir, ".codex", "aide", "state", "repo-context.json");
   if (!fileExists(stateFilePath)) {
     return null;
   }
@@ -542,7 +542,7 @@ function readRepoContextState(projectDir) {
 }
 
 function readSubmitPreferencesState(projectDir) {
-  const stateFilePath = path.join(projectDir, ".codex", "state", "submit-preferences.json");
+  const stateFilePath = path.join(projectDir, ".codex", "aide", "state", "submit-preferences.json");
   if (!fileExists(stateFilePath)) {
     return null;
   }
@@ -562,7 +562,7 @@ function initGitRepo(projectDir) {
 }
 
 function readHooksConfig(projectDir) {
-  return readJson(path.join(projectDir, ".codex", "hooks.json"));
+  return readJson(path.join(projectDir, ".codex", "aide", "hooks.json"));
 }
 
 function getHookCommand(hooksConfig, eventName, chainIndex = 0, hookIndex = 0) {
@@ -676,11 +676,15 @@ function runGit(cwd, args) {
 }
 
 function withTempProject(repoRoot, prefix, callback) {
-  const sourceProjectDir = path.join(repoRoot, "codex-aide");
+  const sourceRuntimeDir = path.join(repoRoot, "starter", "aide");
+  const sourceAgentsPath = path.join(repoRoot, "starter", "AGENTS.md");
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   const projectDir = path.join(tempRoot, "codex-aide");
 
-  fs.cpSync(sourceProjectDir, projectDir, { recursive: true });
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.cpSync(sourceAgentsPath, path.join(projectDir, "AGENTS.md"));
+  fs.mkdirSync(path.join(projectDir, ".codex"), { recursive: true });
+  fs.cpSync(sourceRuntimeDir, path.join(projectDir, ".codex", "aide"), { recursive: true });
 
   try {
     return callback({ projectDir, tempRoot });

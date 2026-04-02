@@ -1,55 +1,112 @@
-# agent-skills
+# @icellus/codex-aide
 
-[简体中文](docs/README.zh-CN.md)
+Codex Aide is a governed repository starter for Codex-based execution, validation, and delivery workflows.
 
-This repository currently maintains `codex-aide` only.
-English root documents are the default display and canonical versions for this repository.
+It installs a Codex runtime into an existing repository so work can run with explicit authority files, durable runtime state, validation baselines, and governed delivery rules.
 
-After installation, runtime authority lives in:
+- npm package: `@icellus/codex-aide`
+- repository: <https://github.com/icellus/codex-aide>
+- Chinese introduction: [docs/README.zh-CN.md](docs/README.zh-CN.md)
 
-- `AGENTS.md`
-- `.codex/skills/*/SKILL.md`
-- `.codex/policies/routing-policy.md`
+## What You Get
 
-Source entrypoints:
+After installation, the target repository gets:
 
-- [codex-aide/README.md](codex-aide/README.md)
-- [codex-aide/AGENTS.md](codex-aide/AGENTS.md)
+- a project-level `AGENTS.md`
+- a `.codex/aide/` runtime with policies, skills, agents, hooks, templates, and helper scripts
+- durable runtime state for task tracking, governance context, submit preferences, and progress records
+- a governed path for validation, commit, push, and delivery follow-through
 
-Project documents:
+## Quick Start
 
-- [Contributing](CONTRIBUTING.md)
-- [Testing](TESTING.md)
-- [Support](SUPPORT.md)
-- [Security](SECURITY.md)
-- [Code Of Conduct](CODE_OF_CONDUCT.md)
+Target:
 
-## Repository Layout
+- a repository root where the runtime should be installed
 
-- [codex-aide](codex-aide): starter content shipped to downstream repositories
-- [scripts](scripts): repository maintenance scripts and development validation entrypoints
-- [tests](tests): development validation assets, including standards and fixtures
-- [docs](docs): supplemental repository documentation and Chinese mirror files
-- [.githooks](.githooks): local Git hook wiring
-- [.github](.github): GitHub automation and contribution templates
+### Install With npm
 
-Notes:
+Requirements:
 
-- Legacy fixed test-runner assumptions have been removed from this repository
-- Generic repository maintenance still uses the smallest task-relevant validation available, or an explicit "not validated" note
-- `codex-aide` development validation follows [TESTING.md](TESTING.md)
+- Node.js `>=20`
 
-`claude-starter` now lives as a standalone repository: <https://github.com/icellus/claude-starter>
+```bash
+npm i -g @icellus/codex-aide
+code-aide install
+```
 
-## Community
+Optional:
 
-- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Support boundaries: [SUPPORT.md](SUPPORT.md)
-- Security reporting: [SECURITY.md](SECURITY.md)
-- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+```bash
+code-aide install --target /path/to/repo
+code-aide install --dry-run
+```
 
-Supplemental repository documents and Simplified Chinese mirrors live under [docs](docs).
+### Manual Install
+
+If you do not want to use npm or Node.js at install time, copy the starter files into the target repository manually.
+
+```bash
+git clone https://github.com/icellus/codex-aide.git
+cd codex-aide
+
+cp starter/AGENTS.md /path/to/repo/AGENTS.md
+mkdir -p /path/to/repo/.codex
+cp -R starter/aide /path/to/repo/.codex/aide
+```
+
+Manual installation uses the same layout as the installer, but it does not apply the installer's safety checks. It will not reject an existing `AGENTS.md`, and it will not preserve runtime-local files automatically.
+
+## Installed Layout
+
+The published package ships:
+
+```text
+starter/AGENTS.md
+starter/aide/**
+```
+
+The installer maps that into:
+
+```text
+starter/AGENTS.md   -> <repo>/AGENTS.md
+starter/aide/**     -> <repo>/.codex/aide/**
+```
+
+## Upgrade
+
+The current `code-aide install` command should be treated as a first-install entrypoint, not as a general in-place upgrade command.
+
+- it exits if the target repository root already has `AGENTS.md`
+- it is best suited for a clean target repository
+- if a repository is already using Codex Aide, the safer upgrade path today is a manual merge from the latest starter files
+
+When doing a manual upgrade, preserve these runtime-local paths instead of replacing them from the package:
+
+- `.codex/aide/state/*.json`, except `*.demo.json`
+- `.codex/aide/context/project-profile.md`
+- `.codex/aide/policies/validation-profile.json`
+- `.codex/aide/progress/**`
+- `.codex/aide/logs/**`
+- `.codex/aide/artifacts/**`
+- `.codex/aide/product/**`
+
+Package-owned static files such as `.codex/aide/policies/routing-policy.md` can usually be refreshed from the latest starter.
+
+## CLI
+
+```bash
+code-aide --help
+code-aide --version
+code-aide install [--target <dir>] [--dry-run]
+```
+
+## Development
+
+```bash
+node scripts/validate-codex-aide-dev.mjs full
+npm pack --dry-run
+```
 
 ## License
 
-This repository is licensed under the [MIT License](LICENSE).
+MIT

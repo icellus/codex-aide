@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { validateAuthority } from "../../validate-codex-aide-authority.mjs";
-import { validateGovernanceTarget } from "../../../codex-aide/.codex/scripts/guards/validate-governance-target.mjs";
+import { validateGovernanceTarget } from "../../../starter/aide/scripts/guards/validate-governance-target.mjs";
 
 import {
   defaultRepoRoot,
@@ -161,7 +161,7 @@ const executorDefinitions = Object.freeze({
     runActive: ({ repoRoot }) => validateGovernanceTargetContracts({ repoRoot }),
     runProof: ({ repoRoot, check }) =>
       validateGovernanceTarget({
-        projectDir: path.join(repoRoot, check.proof_fixture_root, check.proof_project_path || "codex-aide"),
+        projectDir: path.join(repoRoot, check.proof_fixture_root, check.proof_project_path || "."),
         targetPath: check.proof_target_path
       })
   }),

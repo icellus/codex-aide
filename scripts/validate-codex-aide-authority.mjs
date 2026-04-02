@@ -78,13 +78,12 @@ function loadTextFile(repoRoot, filePath, errors) {
 
 function collectAuthorityFiles(repoRoot) {
   const files = [];
-  const starterRoot = path.join(repoRoot, "codex-aide");
   const include = [
-    path.join(starterRoot, "AGENTS.md"),
-    path.join(starterRoot, ".codex", "policies"),
-    path.join(starterRoot, ".codex", "skills"),
-    path.join(starterRoot, ".codex", "agents"),
-    path.join(starterRoot, ".codex", "context")
+    path.join(repoRoot, "starter", "AGENTS.md"),
+    path.join(repoRoot, "starter", "aide", "policies"),
+    path.join(repoRoot, "starter", "aide", "skills"),
+    path.join(repoRoot, "starter", "aide", "agents"),
+    path.join(repoRoot, "starter", "aide", "context")
   ];
 
   for (const candidate of include) {

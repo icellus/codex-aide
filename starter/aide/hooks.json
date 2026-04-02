@@ -1,0 +1,81 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/hooks/log-event.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/scripts/context/task-overview.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/scripts/context/task-reconcile.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/scripts/context/task-progress-sync.mjs\"'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/hooks/log-event.mjs\"'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/hooks/log-event.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/scripts/context/task-turn-sync.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/hooks/ingest-governance.mjs\"'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/hooks/log-event.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/scripts/guards/dispatch-bash-guard.mjs\"'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/aide/hooks/log-event.mjs\"'"
+          }
+        ]
+      }
+    ]
+  }
+}

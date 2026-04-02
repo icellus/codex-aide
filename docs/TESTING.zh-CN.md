@@ -54,7 +54,7 @@
   - 执行入口应尽早建立唯一、规范化的绝对 `projectDir`
   - 写入运行时状态的机器消费路径应保持绝对路径
   - 宿主维护期的校验入口必须运行在仓库隔离镜像中，而不是直接跑在宿主工作树上
-  - 开发校验不得在宿主工作区创建 repo 根级 `.codex/`、`.codex/state/*.json`、`.codex/logs/**`、`.codex/progress/**` 等运行态产物
+  - 开发校验不得在宿主工作区创建 repo 根级 `.codex/`、`.codex/aide/state/*.json`、`.codex/aide/logs/**`、`.codex/aide/progress/**` 等运行态产物
 
 - `consistency`
   - 跨文件的一致性检查，覆盖所有权、边界、handoff、路径约定、特殊流程和接线

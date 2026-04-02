@@ -54,13 +54,13 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
     initGitRepo(projectDir);
     const hooksConfig = readHooksConfig(projectDir);
-    fs.rmSync(path.join(projectDir, ".codex", "logs"), { recursive: true, force: true });
+    fs.rmSync(path.join(projectDir, ".codex", "aide", "logs"), { recursive: true, force: true });
 
     const taskContextDefaults = isPlainObject(scenario.task_context_defaults) ? scenario.task_context_defaults : undefined;
 
     if (scenario.task_context && typeof scenario.task_context === "object") {
       writeJsonFile(
-        path.join(projectDir, ".codex", "state", "task-context.json"),
+        path.join(projectDir, ".codex", "aide", "state", "task-context.json"),
         mergeJsonValue(taskContextDefaults, scenario.task_context)
       );
     }
@@ -74,7 +74,7 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
       if (step.task_context && typeof step.task_context === "object") {
         writeJsonFile(
-          path.join(projectDir, ".codex", "state", "task-context.json"),
+          path.join(projectDir, ".codex", "aide", "state", "task-context.json"),
           mergeJsonValue(taskContextDefaults, step.task_context)
         );
       }
@@ -82,7 +82,7 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
       if (step.pending_task_turn_result && typeof step.pending_task_turn_result === "object") {
         writePendingResultFile(
           projectDir,
-          path.join(".codex", "state", "pending-task-turn-result.json"),
+          path.join(".codex", "aide", "state", "pending-task-turn-result.json"),
           step.pending_task_turn_result,
           {
             writtenAt: step.pending_task_turn_result_written_at,
@@ -100,7 +100,7 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
       if (step.pending_governance_result && typeof step.pending_governance_result === "object") {
         writePendingResultFile(
           projectDir,
-          path.join(".codex", "state", "pending-governance-result.json"),
+          path.join(".codex", "aide", "state", "pending-governance-result.json"),
           step.pending_governance_result,
           {
             writtenAt: step.pending_governance_result_written_at,
@@ -171,8 +171,8 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
         errors.push(`${label}: expected exit_status=${expect.exit_status}, got ${result.status ?? 1}`);
       }
 
-      const rootLogDir = path.join(projectDir, ".codex", "logs", "codex-hooks");
-      const deepLogDir = path.join(stepCwd, ".codex", "logs", "codex-hooks");
+      const rootLogDir = path.join(projectDir, ".codex", "aide", "logs", "codex-hooks");
+      const deepLogDir = path.join(stepCwd, ".codex", "aide", "logs", "codex-hooks");
 
       if (typeof expect.root_log_exists === "boolean" && fileExists(rootLogDir) !== expect.root_log_exists) {
         errors.push(`${label}: expected root_log_exists=${expect.root_log_exists}, got ${fileExists(rootLogDir)}`);
@@ -225,7 +225,7 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
         errors
       });
 
-      const lifecycleLogEntry = latestJsonlEntry(path.join(projectDir, ".codex", "logs", "task-lifecycle"));
+      const lifecycleLogEntry = latestJsonlEntry(path.join(projectDir, ".codex", "aide", "logs", "task-lifecycle"));
       compareExpectedNestedFields({
         actual: lifecycleLogEntry,
         expected: expect.latest_lifecycle_log_fields,
@@ -255,12 +255,12 @@ function validateGitScenario({ repoRoot = defaultRepoRoot, scenario }) {
     runSetupCommands(scenario.setup_commands, projectDir);
 
     if (scenario.task_context && typeof scenario.task_context === "object") {
-      writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), scenario.task_context);
+      writeJsonFile(path.join(projectDir, ".codex", "aide", "state", "task-context.json"), scenario.task_context);
     }
 
     const requestedScript = typeof scenario.script === "string" ? scenario.script.trim() : "";
     const normalizedScript = requestedScript.replace(/^\.?\//, "");
-    const scriptPath = path.join(projectDir, normalizedScript || ".codex/scripts/guards/validate-git.mjs");
+    const scriptPath = path.join(projectDir, normalizedScript || ".codex/aide/scripts/guards/validate-git.mjs");
     const invocation = runNodeJsonScript(scriptPath, projectDir, scenario.input || {});
     const parsed = invocation.parsed;
     const expect = scenario.expect || {};
@@ -301,14 +301,14 @@ function validateTaskProgressSyncScenario({ repoRoot = defaultRepoRoot, scenario
     runSetupCommands(scenario.setup_commands, projectDir);
 
     if (scenario.task_context && typeof scenario.task_context === "object") {
-      writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), scenario.task_context);
+      writeJsonFile(path.join(projectDir, ".codex", "aide", "state", "task-context.json"), scenario.task_context);
     }
 
     if (typeof scenario.progress_path === "string" && scenario.progress_path.trim()) {
       writeTextFile(path.join(projectDir, scenario.progress_path), scenario.progress_text || "");
     }
 
-    const scriptPath = path.join(projectDir, ".codex", "scripts", "context", "task-progress-sync.mjs");
+    const scriptPath = path.join(projectDir, ".codex", "aide", "scripts", "context", "task-progress-sync.mjs");
     const cwdRelative = typeof scenario.cwd_relative === "string" ? scenario.cwd_relative.trim() : "";
     const stepCwd = cwdRelative ? path.join(projectDir, cwdRelative) : projectDir;
     fs.mkdirSync(stepCwd, { recursive: true });

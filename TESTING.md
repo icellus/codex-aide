@@ -52,7 +52,7 @@ Development validation is organized along two axes: `layer` and `assertion_kind`
   - Execution entrypoints should establish one canonical absolute `projectDir` up front.
   - Machine-consumed runtime paths should remain absolute once they are written into runtime state.
   - Host-maintenance validation entrypoints must run inside an isolated temporary mirror of the repository, not against the live host worktree.
-  - Development validation must not create host runtime artifacts such as repo-root `.codex/`, `.codex/state/*.json`, `.codex/logs/**`, or `.codex/progress/**`.
+  - Development validation must not create host runtime artifacts such as repo-root `.codex/`, `.codex/aide/state/*.json`, `.codex/aide/logs/**`, or `.codex/aide/progress/**`.
 
 - `consistency`
   - Cross-file alignment for ownership, boundaries, handoff rules, path conventions, special-flow routing, and integration wiring.

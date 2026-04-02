@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { validateGovernanceTarget } from "../../../codex-aide/.codex/scripts/guards/validate-governance-target.mjs";
+import { validateGovernanceTarget } from "../../../starter/aide/scripts/guards/validate-governance-target.mjs";
 
 import {
   assertProjectArtifacts,
@@ -92,7 +92,7 @@ function validateGovernanceFlowScenario({ repoRoot = defaultRepoRoot, scenario }
       if (scenario.pending_governance_result && typeof scenario.pending_governance_result === "object") {
         writePendingResultFile(
           projectDir,
-          path.join(".codex", "state", "pending-governance-result.json"),
+          path.join(".codex", "aide", "state", "pending-governance-result.json"),
           scenario.pending_governance_result,
           {
             writtenAt: scenario.pending_governance_result_written_at,
@@ -118,9 +118,9 @@ function validateGovernanceFlowScenario({ repoRoot = defaultRepoRoot, scenario }
         ingestInput.transcript_path = transcriptPath;
       }
 
-      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "hooks", "ingest-governance.mjs"), projectDir, ingestInput);
+      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "aide", "hooks", "ingest-governance.mjs"), projectDir, ingestInput);
     } else if (scenario.mode === "writeback") {
-      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "scripts", "governance", "writeback.mjs"), projectDir, {
+      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "aide", "scripts", "governance", "writeback.mjs"), projectDir, {
         projectDir,
         actor_role: scenario.actor_role || "Aide",
         candidate: scenario.candidate || {}
@@ -152,7 +152,7 @@ function validateGovernanceFlowScenario({ repoRoot = defaultRepoRoot, scenario }
       errors.push(`${scenario.id}: expected target to remove "${expect.target_not_contains}"`);
     }
 
-    const stateFilePath = path.join(projectDir, ".codex", "state", "governance-context.json");
+    const stateFilePath = path.join(projectDir, ".codex", "aide", "state", "governance-context.json");
     const governanceStateExists = fileExists(stateFilePath);
     if (typeof expect.governance_state_exists === "boolean" && governanceStateExists !== expect.governance_state_exists) {
       errors.push(`${scenario.id}: expected governance_state_exists=${expect.governance_state_exists}, got ${governanceStateExists}`);
@@ -198,7 +198,7 @@ function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
       return invalidStepsResult(scenario);
     }
 
-    const scriptPath = path.join(projectDir, ".codex", "scripts", "context", "task-state.mjs");
+    const scriptPath = path.join(projectDir, ".codex", "aide", "scripts", "context", "task-state.mjs");
     const stepDefaults = isPlainObject(scenario.step_defaults) ? scenario.step_defaults : undefined;
 
     scenario.steps.forEach((rawStep, index) => {
@@ -352,7 +352,7 @@ function validateRepoContextScenario({ repoRoot = defaultRepoRoot, scenario }) {
       return invalidStepsResult(scenario);
     }
 
-    const scriptPath = path.join(projectDir, ".codex", "scripts", "context", "repo-context.mjs");
+    const scriptPath = path.join(projectDir, ".codex", "aide", "scripts", "context", "repo-context.mjs");
 
     scenario.steps.forEach((step, index) => {
       const label = `${scenario.id || "<unknown>"} step ${index + 1}`;
@@ -436,7 +436,7 @@ function validateProjectContextScenario({ repoRoot = defaultRepoRoot, scenario }
       return invalidStepsResult(scenario);
     }
 
-    const modulePath = path.join(projectDir, ".codex", "scripts", "shared", "project-context.mjs");
+    const modulePath = path.join(projectDir, ".codex", "aide", "scripts", "shared", "project-context.mjs");
 
     scenario.steps.forEach((step, index) => {
       const label = `${scenario.id || "<unknown>"} step ${index + 1}`;

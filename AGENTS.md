@@ -4,15 +4,15 @@ Repository-level maintenance guidance for this repo.
 
 ## Scope
 
-- This repository currently maintains `codex-aide` only.
+- This repository currently maintains the starter-packaged `codex-aide` runtime.
 - `claude-starter` now lives as a standalone repository at <https://github.com/icellus/claude-starter>.
 - This root-level `AGENTS.md` is for maintaining this repository itself.
 - It is not the runtime authority shipped into target repositories by `codex-aide`.
-- The shipped runtime authority for the starter lives at [codex-aide/AGENTS.md](codex-aide/AGENTS.md).
+- The shipped runtime authority for the starter lives at [starter/AGENTS.md](starter/AGENTS.md).
 
 ## Host Isolation Hard Constraint
 
-- While maintaining this repository, treat `codex-aide/**` as the development target, not the active authority for the current maintenance session.
+- While maintaining this repository, treat `starter/**` as the development target, not the active authority for the current maintenance session.
 - Do not let `codex-aide` runtime defaults (for example assistant persona, route aliases, or routing rules) leak back into host maintenance sessions unless this root guide or explicit user instruction says so.
 - This isolation rule does not weaken `codex-aide` runtime authority after it is installed into a target repository.
 
@@ -20,7 +20,7 @@ Repository-level maintenance guidance for this repo.
 
 - Reply to the user in Chinese by default.
 - Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
-- Changes to `codex-aide/AGENTS.md`, `.codex/policies/**`, `.codex/skills/**`, `.codex/agents/**`, or `.codex/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
+- Changes to `starter/AGENTS.md`, `starter/aide/policies/**`, `starter/aide/skills/**`, `starter/aide/agents/**`, or `starter/aide/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
 - Legacy repo-level fixed test-runner assumptions have been removed; do not assume a single historical runner still exists.
 - For generic host-maintenance work, validation should use the smallest task-relevant command or script available in the current repo state.
 - For `codex-aide` development work, do not treat an isolated minimal check as sufficient when the change can cause cross-file rule drift; follow the governed development-validation rules in this file.
@@ -35,7 +35,7 @@ Repository-level maintenance guidance for this repo.
 
 ## Authority Drift Prevention
 
-- For `codex-aide` runtime-boundary changes, define the boundary first in the owner set: `codex-aide/AGENTS.md`, `codex-aide/.codex/policies/routing-policy.md`, and the owned runtime artifact.
+- For `codex-aide` runtime-boundary changes, define the boundary first in the owner set: `starter/AGENTS.md`, `starter/aide/policies/routing-policy.md`, and the owned runtime artifact.
 - Prefer positive authority statements such as `runtime authority lives in X` over repeated negative warnings in downstream skills or agents.
 - Repeat a boundary in downstream skills or agents only when it changes executable read order or write ownership.
 - Keep demo/example files semantically distinct from live files through naming and owner-file documentation; introduce fallback semantics only when a shipped script really implements them.

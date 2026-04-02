@@ -36,45 +36,45 @@ function bootstrapDeliveryGateRoundtrip(projectDir) {
   runShellSetup("git remote add origin ../remote.git", projectDir);
 
   writeTextFile(
-    path.join(projectDir, ".codex", "bin", "notify.sh"),
+    path.join(projectDir, ".codex", "aide", "bin", "notify.sh"),
     `#!/usr/bin/env bash
 set -euo pipefail
-if [ -f .codex/artifacts/delivery/fail-notify.flag ]; then
+if [ -f .codex/aide/artifacts/delivery/fail-notify.flag ]; then
   echo notify-stage-failed >&2
   exit 1
 fi
-printf '%s %s %s\n' "$CODEX_DELIVERY_STAGE" "$CODEX_DELIVERY_REMOTE" "$CODEX_DELIVERY_BRANCH" >> .codex/artifacts/delivery/notify.log
+printf '%s %s %s\n' "$CODEX_DELIVERY_STAGE" "$CODEX_DELIVERY_REMOTE" "$CODEX_DELIVERY_BRANCH" >> .codex/aide/artifacts/delivery/notify.log
 `
   );
   writeTextFile(
-    path.join(projectDir, ".codex", "bin", "ci.sh"),
+    path.join(projectDir, ".codex", "aide", "bin", "ci.sh"),
     `#!/usr/bin/env bash
 set -euo pipefail
-printf '%s %s\n' "$CODEX_DELIVERY_STAGE" "$CODEX_DELIVERY_BRANCH" >> .codex/artifacts/delivery/ci.log
+printf '%s %s\n' "$CODEX_DELIVERY_STAGE" "$CODEX_DELIVERY_BRANCH" >> .codex/aide/artifacts/delivery/ci.log
 `
   );
   writeTextFile(
-    path.join(projectDir, ".codex", "bin", "release.sh"),
+    path.join(projectDir, ".codex", "aide", "bin", "release.sh"),
     `#!/usr/bin/env bash
 set -euo pipefail
-printf '%s %s\n' "$CODEX_DELIVERY_STAGE" "\${#CODEX_DELIVERY_COMMIT_SHA}" >> .codex/artifacts/delivery/release.log
+printf '%s %s\n' "$CODEX_DELIVERY_STAGE" "\${#CODEX_DELIVERY_COMMIT_SHA}" >> .codex/aide/artifacts/delivery/release.log
 `
   );
-  fs.chmodSync(path.join(projectDir, ".codex", "bin", "notify.sh"), 0o755);
-  fs.chmodSync(path.join(projectDir, ".codex", "bin", "ci.sh"), 0o755);
-  fs.chmodSync(path.join(projectDir, ".codex", "bin", "release.sh"), 0o755);
+  fs.chmodSync(path.join(projectDir, ".codex", "aide", "bin", "notify.sh"), 0o755);
+  fs.chmodSync(path.join(projectDir, ".codex", "aide", "bin", "ci.sh"), 0o755);
+  fs.chmodSync(path.join(projectDir, ".codex", "aide", "bin", "release.sh"), 0o755);
 
-  const deliveryPolicyPath = path.join(projectDir, ".codex", "policies", "delivery-policy.json");
+  const deliveryPolicyPath = path.join(projectDir, ".codex", "aide", "policies", "delivery-policy.json");
   const deliveryPolicy = readJson(deliveryPolicyPath);
   deliveryPolicy.notify.enabled = true;
-  deliveryPolicy.notify.command = "bash .codex/bin/notify.sh";
+  deliveryPolicy.notify.command = "bash .codex/aide/bin/notify.sh";
   deliveryPolicy.ci.enabled = true;
-  deliveryPolicy.ci.command = "bash .codex/bin/ci.sh";
+  deliveryPolicy.ci.command = "bash .codex/aide/bin/ci.sh";
   deliveryPolicy.release.enabled = true;
-  deliveryPolicy.release.command = "bash .codex/bin/release.sh";
+  deliveryPolicy.release.command = "bash .codex/aide/bin/release.sh";
   writeJsonFile(deliveryPolicyPath, deliveryPolicy);
 
-  writeJsonFile(path.join(projectDir, ".codex", "state", "task-context.json"), {
+  writeJsonFile(path.join(projectDir, ".codex", "aide", "state", "task-context.json"), {
     version: 1,
     updated_at: null,
     collaboration: {
@@ -131,7 +131,7 @@ function validateSubmitDeliveryScenario({ repoRoot = defaultRepoRoot, scenario }
 
       if (step.task_context && typeof step.task_context === "object") {
         writeJsonFile(
-          path.join(projectDir, ".codex", "state", "task-context.json"),
+          path.join(projectDir, ".codex", "aide", "state", "task-context.json"),
           mergeJsonValue(taskContextDefaults, step.task_context)
         );
       }
@@ -140,6 +140,7 @@ function validateSubmitDeliveryScenario({ repoRoot = defaultRepoRoot, scenario }
       const scriptPath = path.join(
         projectDir,
         ".codex",
+        "aide",
         "scripts",
         "submit",
         stepScript === "execute" ? "execute-delivery.mjs" : "plan-delivery.mjs"

@@ -1,0 +1,46 @@
+{
+  "name": "@icellus/codex-aide",
+  "version": "0.1.0",
+  "description": "Codex Aide is a governed repository starter for Codex-based execution, validation, and delivery workflows.",
+  "keywords": [
+    "codex",
+    "codex-aide",
+    "aide",
+    "repository-starter",
+    "workflow",
+    "governance",
+    "execution",
+    "validation",
+    "delivery",
+    "multi-agent"
+  ],
+  "type": "module",
+  "bin": {
+    "code-aide": "bin/code-aide.mjs"
+  },
+  "files": [
+    "bin",
+    "scripts/npm",
+    "starter",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "validate:aide-dev": "node scripts/validate-codex-aide-dev.mjs full"
+  },
+  "author": "icellus",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icellus/codex-aide.git"
+  },
+  "homepage": "https://github.com/icellus/codex-aide",
+  "bugs": {
+    "url": "https://github.com/icellus/codex-aide/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT"
+}

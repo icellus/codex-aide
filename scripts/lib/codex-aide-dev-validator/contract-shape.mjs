@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { validateGovernanceTarget } from "../../../codex-aide/.codex/scripts/guards/validate-governance-target.mjs";
+import { validateGovernanceTarget } from "../../../starter/aide/scripts/guards/validate-governance-target.mjs";
 
 import {
   defaultRepoRoot,
@@ -21,7 +21,7 @@ const validConsistencyKinds = new Set([
 ]);
 
 function collectJsonFiles(repoRoot) {
-  const roots = [path.join(repoRoot, "tests", "standards"), path.join(repoRoot, "codex-aide", ".codex")];
+  const roots = [path.join(repoRoot, "tests", "standards"), path.join(repoRoot, "starter", "aide")];
   return roots.flatMap((rootDir) => listFilesRecursive(rootDir, (filePath) => filePath.endsWith(".json")));
 }
 
@@ -182,12 +182,12 @@ function validateConsistency({
 
 function validateGovernanceTargetContracts({ repoRoot = defaultRepoRoot } = {}) {
   const errors = [];
-  const projectDir = path.join(repoRoot, "codex-aide");
+  const projectDir = repoRoot;
   const targets = [
-    "AGENTS.md",
-    ".codex/policies/routing-policy.md",
-    ".codex/policies/aide-governance-policy.md",
-    ".codex/context/project-profile.md"
+    "starter/AGENTS.md",
+    "starter/aide/policies/routing-policy.md",
+    "starter/aide/policies/aide-governance-policy.md",
+    "starter/aide/context/project-profile.md"
   ];
 
   for (const targetPath of targets) {

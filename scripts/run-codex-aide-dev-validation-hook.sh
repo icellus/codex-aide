@@ -8,8 +8,8 @@ matches_validation_scope() {
   local file_path="$1"
 
   case "$file_path" in
-    codex-aide/AGENTS.md|\
-    codex-aide/.codex/*|\
+    starter/AGENTS.md|\
+    starter/aide/*|\
     tests/standards/codex-aide-authority-map.json|\
     tests/standards/codex-aide-consistency-map.json|\
     tests/standards/codex-aide-test-registry.json|\
