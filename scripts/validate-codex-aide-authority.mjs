@@ -241,7 +241,7 @@ function validateAuthorityKeywords(repoRoot, spec, authorityFiles, errors) {
 
 function validateAuthority({
   repoRoot = defaultRepoRoot,
-  specPath = path.join(repoRoot, "standards", "codex-aide-authority-map.json")
+  specPath = path.join(repoRoot, "tests", "standards", "codex-aide-authority-map.json")
 } = {}) {
   const errors = [];
   const spec = loadJsonFile(repoRoot, specPath, errors);

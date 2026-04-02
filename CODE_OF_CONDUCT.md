@@ -1,6 +1,6 @@
 # Code Of Conduct
 
-[简体中文](CODE_OF_CONDUCT.zh-CN.md)
+[简体中文](docs/CODE_OF_CONDUCT.zh-CN.md)
 
 This repository aims to keep discussions direct, professional, and workable.
 

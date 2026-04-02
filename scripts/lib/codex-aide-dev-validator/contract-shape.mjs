@@ -21,7 +21,7 @@ const validConsistencyKinds = new Set([
 ]);
 
 function collectJsonFiles(repoRoot) {
-  const roots = [path.join(repoRoot, "standards"), path.join(repoRoot, "codex-aide", ".codex")];
+  const roots = [path.join(repoRoot, "tests", "standards"), path.join(repoRoot, "codex-aide", ".codex")];
   return roots.flatMap((rootDir) => listFilesRecursive(rootDir, (filePath) => filePath.endsWith(".json")));
 }
 
@@ -96,22 +96,22 @@ function validateConsistency({
   if (!Array.isArray(spec.rules) || spec.rules.length === 0) {
     return {
       ok: false,
-      errors: ["standards/codex-aide-consistency-map.json: rules must be a non-empty array"]
+      errors: ["tests/standards/codex-aide-consistency-map.json: rules must be a non-empty array"]
     };
   }
 
   if (spec.path_aliases !== undefined && (!spec.path_aliases || typeof spec.path_aliases !== "object" || Array.isArray(spec.path_aliases))) {
-    errors.push("standards/codex-aide-consistency-map.json: path_aliases must be an object when provided");
+    errors.push("tests/standards/codex-aide-consistency-map.json: path_aliases must be an object when provided");
   }
 
   for (const rule of spec.rules) {
     if (!rule.id) {
-      errors.push("standards/codex-aide-consistency-map.json: every rule must declare id");
+      errors.push("tests/standards/codex-aide-consistency-map.json: every rule must declare id");
       continue;
     }
 
     if (seenRuleIds.has(rule.id)) {
-      errors.push(`standards/codex-aide-consistency-map.json: duplicate rule id "${rule.id}"`);
+      errors.push(`tests/standards/codex-aide-consistency-map.json: duplicate rule id "${rule.id}"`);
       continue;
     }
     seenRuleIds.add(rule.id);

@@ -1,6 +1,6 @@
 # Contributing
 
-[简体中文](CONTRIBUTING.zh-CN.md)
+[简体中文](docs/CONTRIBUTING.zh-CN.md)
 
 ## Commit Message
 
@@ -17,7 +17,7 @@ Source of truth: `scripts/commit-policy.mjs`
 Keep it simple:
 
 - one-line subject
-- 90 chars or fewer
+- 120 chars or fewer
 - no trailing punctuation
 - say what changed, not `wip`, `misc`, or `update`
 

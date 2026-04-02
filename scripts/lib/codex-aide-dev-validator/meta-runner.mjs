@@ -31,7 +31,7 @@ import { validateSubmitDeliveryBehaviorContracts } from "./behavior-submit.mjs";
 const runnableStatuses = new Set(["active", "temporary"]);
 const behaviorFilterBypassPaths = new Set([
   "scripts/validate-codex-aide-dev.mjs",
-  "standards/codex-aide-test-registry.json"
+  "tests/standards/codex-aide-test-registry.json"
 ]);
 
 function normalizeAliasMap(registry, errors) {
@@ -40,7 +40,7 @@ function normalizeAliasMap(registry, errors) {
   }
 
   if (!registry.path_aliases || typeof registry.path_aliases !== "object" || Array.isArray(registry.path_aliases)) {
-    errors.push("standards/codex-aide-test-registry.json: path_aliases must be an object when provided");
+    errors.push("tests/standards/codex-aide-test-registry.json: path_aliases must be an object when provided");
     return {};
   }
 
@@ -200,14 +200,14 @@ function validateRegistryExecutionShape({ repoRoot, registryFilePath = getRegist
   const registry = normalizeRegistry(rawRegistry, errors);
 
   if (!Array.isArray(registry.checks) || registry.checks.length === 0) {
-    errors.push("standards/codex-aide-test-registry.json: checks must be a non-empty array");
+    errors.push("tests/standards/codex-aide-test-registry.json: checks must be a non-empty array");
     return { ok: false, errors, registry };
   }
 
   for (const check of registry.checks) {
     for (const field of ["id", "layer", "assertion_kind", "status", "executor"]) {
       if (!check[field]) {
-        errors.push(`standards/codex-aide-test-registry.json: check is missing ${field}`);
+        errors.push(`tests/standards/codex-aide-test-registry.json: check is missing ${field}`);
       }
     }
 
@@ -248,15 +248,15 @@ function validateRegistry({
   const registry = normalizeRegistry(rawRegistry, errors);
 
   if (!Number.isInteger(registry.version) || registry.version < 1) {
-    errors.push("standards/codex-aide-test-registry.json: version must be an integer >= 1");
+    errors.push("tests/standards/codex-aide-test-registry.json: version must be an integer >= 1");
   }
 
   if (!registry.budgets || typeof registry.budgets !== "object") {
-    errors.push("standards/codex-aide-test-registry.json: budgets must be an object");
+    errors.push("tests/standards/codex-aide-test-registry.json: budgets must be an object");
   }
 
   if (!Array.isArray(registry.checks) || registry.checks.length === 0) {
-    errors.push("standards/codex-aide-test-registry.json: checks must be a non-empty array");
+    errors.push("tests/standards/codex-aide-test-registry.json: checks must be a non-empty array");
     return { ok: false, errors, registry };
   }
 
@@ -270,7 +270,7 @@ function validateRegistry({
   for (const check of registry.checks) {
     for (const field of ["id", "layer", "assertion_kind", "rule_id", "failure_mode", "owner", "status", "executor"]) {
       if (!check[field]) {
-        errors.push(`standards/codex-aide-test-registry.json: check is missing ${field}`);
+        errors.push(`tests/standards/codex-aide-test-registry.json: check is missing ${field}`);
       }
     }
 
@@ -280,7 +280,7 @@ function validateRegistry({
 
     if (check.id) {
       if (seenIds.has(check.id)) {
-        errors.push(`standards/codex-aide-test-registry.json: duplicate check id "${check.id}"`);
+        errors.push(`tests/standards/codex-aide-test-registry.json: duplicate check id "${check.id}"`);
       }
       seenIds.add(check.id);
     }
@@ -358,31 +358,31 @@ function validateRegistry({
 
   for (const layer of validLayers) {
     if ((runnableLayers.get(layer) || 0) === 0) {
-      errors.push(`standards/codex-aide-test-registry.json: no runnable checks registered for layer "${layer}"`);
+      errors.push(`tests/standards/codex-aide-test-registry.json: no runnable checks registered for layer "${layer}"`);
     }
   }
 
   const maxActiveChecks = registry.budgets?.max_active_checks;
   if (typeof maxActiveChecks !== "number" || maxActiveChecks < 1) {
-    errors.push("standards/codex-aide-test-registry.json: budgets.max_active_checks must be >= 1");
+    errors.push("tests/standards/codex-aide-test-registry.json: budgets.max_active_checks must be >= 1");
   } else if (runnableChecks > maxActiveChecks) {
     errors.push(`runnable checks ${runnableChecks} exceed budget ${maxActiveChecks}`);
   }
 
-  const fixtureFiles = listFilesRecursive(path.join(repoRoot, "fixtures", "codex-aide-dev"));
+  const fixtureFiles = listFilesRecursive(path.join(repoRoot, "tests", "fixtures", "codex-aide-dev"));
   const fixtureBytes = fixtureFiles.reduce((total, filePath) => total + fs.statSync(filePath).size, 0);
 
   const maxFixtureFiles = registry.budgets?.max_fixture_files;
   const maxFixtureBytes = registry.budgets?.max_fixture_bytes;
 
   if (typeof maxFixtureFiles !== "number" || maxFixtureFiles < 1) {
-    errors.push("standards/codex-aide-test-registry.json: budgets.max_fixture_files must be >= 1");
+    errors.push("tests/standards/codex-aide-test-registry.json: budgets.max_fixture_files must be >= 1");
   } else if (fixtureFiles.length > maxFixtureFiles) {
     errors.push(`fixture files ${fixtureFiles.length} exceed budget ${maxFixtureFiles}`);
   }
 
   if (typeof maxFixtureBytes !== "number" || maxFixtureBytes < 1) {
-    errors.push("standards/codex-aide-test-registry.json: budgets.max_fixture_bytes must be >= 1");
+    errors.push("tests/standards/codex-aide-test-registry.json: budgets.max_fixture_bytes must be >= 1");
   } else if (fixtureBytes > maxFixtureBytes) {
     errors.push(`fixture bytes ${fixtureBytes} exceed budget ${maxFixtureBytes}`);
     const largestFixtures = fixtureFiles
@@ -460,7 +460,7 @@ function loadRunnableChecksForLayer({ repoRoot = defaultRepoRoot, layer }) {
   if (checks.length === 0) {
     return {
       ok: false,
-      errors: [`standards/codex-aide-test-registry.json: no runnable checks available for layer "${layer}"`],
+      errors: [`tests/standards/codex-aide-test-registry.json: no runnable checks available for layer "${layer}"`],
       checks: []
     };
   }

@@ -242,7 +242,7 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
 function validateHookRootBehaviorContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "hook-root-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "hook-root-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateHookRootScenario });
 }
@@ -289,7 +289,7 @@ function validateGitScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
 function validateValidateGitBehaviorContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "validate-git-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "validate-git-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateGitScenario });
 }
@@ -342,7 +342,7 @@ function validateTaskProgressSyncScenario({ repoRoot = defaultRepoRoot, scenario
 
 function validateTaskProgressSyncBehaviorContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "task-progress-sync-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "task-progress-sync-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateTaskProgressSyncScenario });
 }

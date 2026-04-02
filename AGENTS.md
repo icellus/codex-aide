@@ -21,7 +21,7 @@ Repository-level maintenance guidance for this repo.
 - Reply to the user in Chinese by default.
 - Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
 - Changes to `codex-aide/AGENTS.md`, `.codex/policies/**`, `.codex/skills/**`, `.codex/agents/**`, or `.codex/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
-- Legacy repo-level test scripts under `tests/codex-aide/` have been removed; do not assume a fixed runner exists.
+- Legacy repo-level fixed test-runner assumptions have been removed; do not assume a single historical runner still exists.
 - For generic host-maintenance work, validation should use the smallest task-relevant command or script available in the current repo state.
 - For `codex-aide` development work, do not treat an isolated minimal check as sufficient when the change can cause cross-file rule drift; follow the governed development-validation rules in this file.
 - If no reliable automated validation exists for the current task, record that explicitly instead of inventing coverage.
@@ -59,18 +59,18 @@ Repository-level maintenance guidance for this repo.
 
 ## Validation
 
-- The legacy `tests/codex-aide/` runner and scripts have been removed from this repository.
+- The legacy fixed test-runner layout has been removed from this repository.
 - For repo-maintenance work, choose the lightest validation that still produces real evidence from the current repo state.
 - Acceptable validation may be syntax checks, command-level sanity checks, or targeted manual evidence when those are the only reliable options.
 - If a task intentionally ships without automated validation, state that clearly together with the reason and residual risk.
 
-## Codex-Starter Development Test Governance
+## Codex-Aide Development Test Governance
 
 - `TESTING.md` is the dedicated policy document for `codex-aide` development validation in this repository.
 - The default development-validation entrypoint is `node scripts/validate-codex-aide-dev.mjs`.
 - The development-validation rules apply to all contributors and must remain usable without Codex-specific runtime assumptions.
 - Keep development validation layered as `contract`, `consistency`, and `meta`; do not let local minimal iteration checks replace full closeout for multi-file rule changes.
-- All active development-validation checks must be registered in [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json).
+- All active development-validation checks must be registered in [tests/standards/codex-aide-test-registry.json](tests/standards/codex-aide-test-registry.json).
 - Prefer updating existing rule data or fixtures over adding new executors or standalone scripts.
 - Do not add new default checks unless a stable new rule or a real escaped regression requires them.
 - If no new check is added for a `codex-aide` development change, record the reason in a change summary, PR description, review note, or validation note.

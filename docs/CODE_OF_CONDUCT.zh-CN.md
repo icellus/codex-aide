@@ -1,6 +1,6 @@
 # 行为准则
 
-[English](CODE_OF_CONDUCT.md)
+[English](../CODE_OF_CONDUCT.md)
 
 如有歧义，以英文主文件为准。
 

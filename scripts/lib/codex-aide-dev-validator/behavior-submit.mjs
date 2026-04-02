@@ -278,7 +278,7 @@ function validateSubmitDeliveryScenario({ repoRoot = defaultRepoRoot, scenario }
 
 function validateSubmitDeliveryBehaviorContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "submit-delivery-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "submit-delivery-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateSubmitDeliveryScenario });
 }

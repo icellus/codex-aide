@@ -10,10 +10,10 @@ matches_validation_scope() {
   case "$file_path" in
     codex-aide/AGENTS.md|\
     codex-aide/.codex/*|\
-    standards/codex-aide-authority-map.json|\
-    standards/codex-aide-consistency-map.json|\
-    standards/codex-aide-test-registry.json|\
-    fixtures/codex-aide-dev/*|\
+    tests/standards/codex-aide-authority-map.json|\
+    tests/standards/codex-aide-consistency-map.json|\
+    tests/standards/codex-aide-test-registry.json|\
+    tests/fixtures/codex-aide-dev/*|\
     TESTING.md|\
     scripts/validate-codex-aide-authority.mjs|\
     scripts/validate-codex-aide-dev.mjs|\

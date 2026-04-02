@@ -185,7 +185,7 @@ function validateGovernanceFlowScenario({ repoRoot = defaultRepoRoot, scenario }
 
 function validateGovernanceFlowContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "governance-flow-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "governance-flow-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateGovernanceFlowScenario });
 }
@@ -338,7 +338,7 @@ function validateTaskStateScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
 function validateTaskStateBehaviorContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "task-state-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "task-state-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateTaskStateScenario });
 }
@@ -422,7 +422,7 @@ function validateRepoContextScenario({ repoRoot = defaultRepoRoot, scenario }) {
 
 function validateRepoContextBehaviorContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "repo-context-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "repo-context-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateRepoContextScenario });
 }
@@ -491,7 +491,7 @@ function validateProjectContextScenario({ repoRoot = defaultRepoRoot, scenario }
 
 function validateProjectContextBehaviorContracts({
   repoRoot = defaultRepoRoot,
-  scenarioRoot = path.join(repoRoot, "fixtures", "codex-aide-dev", "project-context-pass")
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "project-context-pass")
 } = {}) {
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateProjectContextScenario });
 }

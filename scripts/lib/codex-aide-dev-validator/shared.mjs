@@ -74,11 +74,11 @@ function pathCoversRelativeTarget(repoRoot, sourcePath, relativeTarget) {
 }
 
 function getConsistencySpecPath(repoRoot) {
-  return path.join(repoRoot, "standards", "codex-aide-consistency-map.json");
+  return path.join(repoRoot, "tests", "standards", "codex-aide-consistency-map.json");
 }
 
 function getRegistryPath(repoRoot) {
-  return path.join(repoRoot, "standards", "codex-aide-test-registry.json");
+  return path.join(repoRoot, "tests", "standards", "codex-aide-test-registry.json");
 }
 
 function loadJsonFile(repoRoot, filePath, errors) {

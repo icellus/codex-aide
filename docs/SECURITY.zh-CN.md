@@ -1,6 +1,6 @@
 # 安全策略
 
-[English](SECURITY.md)
+[English](../SECURITY.md)
 
 如有歧义，以英文主文件为准。
 

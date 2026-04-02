@@ -1,5 +1,5 @@
 const allowedTypes = ["feat", "fix", "refactor", "docs", "test", "chore", "ci", "build", "perf", "revert"];
-const maxSubjectLength = 90;
+const maxSubjectLength = 120;
 
 const conventionalPattern = new RegExp(`^(?<type>${allowedTypes.join("|")}): (?<subject>.+)$`);
 

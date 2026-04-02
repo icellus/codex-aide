@@ -1,6 +1,6 @@
 # 测试与开发校验
 
-[English](TESTING.md)
+[English](../TESTING.md)
 
 如有歧义，以英文主文件为准。
 
@@ -12,7 +12,7 @@
 - 安装后目标仓库中的运行期用户工作流
 - 运行时权威本身
 
-像 `standards/*.json`、`fixtures/codex-aide-dev/**`、`scripts/validate-*.mjs` 这样的文件都属于开发治理资产。
+像 `tests/standards/*.json`、`tests/fixtures/codex-aide-dev/**`、`scripts/validate-*.mjs` 这样的文件都属于开发治理资产。
 它们用于校验运行时权威与实现是否一致，并不是运行时权威本身。
 
 ## 原则
@@ -95,23 +95,23 @@ Hook 范围规则：
 
 - 若当前 staged 集合或 push 引用中没有校验维护文件，hook 可以跳过校验
 - changed-file 范围可以过滤昂贵的 `contract` `behavior`，但不能跳过仍属于当前模式的 `shape`、`consistency` 或 `meta`
-- 当 `scripts/validate-codex-aide-dev.mjs` 或 `standards/codex-aide-test-registry.json` 变更时，不得按 changed files 过滤 `contract` `behavior`
+- 当 `scripts/validate-codex-aide-dev.mjs` 或 `tests/standards/codex-aide-test-registry.json` 变更时，不得按 changed files 过滤 `contract` `behavior`
 
-`standards/codex-aide-test-registry.json` 是默认套件的分发表。
+`tests/standards/codex-aide-test-registry.json` 是默认套件的分发表。
 如果无法读取注册表，开发校验必须失败，而不是假装套件仍然已知。
 
 ## 权威来源
 
 开发校验由以下文件定义：
 
-- [AGENTS.md](AGENTS.md)
+- [AGENTS.md](../AGENTS.md)
 - [TESTING.zh-CN.md](TESTING.zh-CN.md)
-- [scripts/validate-codex-aide-dev.mjs](scripts/validate-codex-aide-dev.mjs)
-- [scripts/validate-codex-aide-authority.mjs](scripts/validate-codex-aide-authority.mjs)
-- [standards/codex-aide-authority-map.json](standards/codex-aide-authority-map.json)
-- [standards/codex-aide-consistency-map.json](standards/codex-aide-consistency-map.json)
-- [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json)
-- [fixtures/codex-aide-dev](fixtures/codex-aide-dev)
+- [scripts/validate-codex-aide-dev.mjs](../scripts/validate-codex-aide-dev.mjs)
+- [scripts/validate-codex-aide-authority.mjs](../scripts/validate-codex-aide-authority.mjs)
+- [tests/standards/codex-aide-authority-map.json](../tests/standards/codex-aide-authority-map.json)
+- [tests/standards/codex-aide-consistency-map.json](../tests/standards/codex-aide-consistency-map.json)
+- [tests/standards/codex-aide-test-registry.json](../tests/standards/codex-aide-test-registry.json)
+- [tests/fixtures/codex-aide-dev](../tests/fixtures/codex-aide-dev)
 
 在这个模型里：
 
@@ -185,7 +185,7 @@ Hook 范围规则：
 
 ## 注册表规则
 
-每个有效的开发校验检查都必须登记到 [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json)。
+每个有效的开发校验检查都必须登记到 [tests/standards/codex-aide-test-registry.json](../tests/standards/codex-aide-test-registry.json)。
 
 最少字段：
 
@@ -211,7 +211,7 @@ Hook 范围规则：
 
 ## 一致性范围
 
-`standards/codex-aide-consistency-map.json` 只允许表达以下跨文件一致性类别：
+`tests/standards/codex-aide-consistency-map.json` 只允许表达以下跨文件一致性类别：
 
 - `ownership`
 - `handoff`

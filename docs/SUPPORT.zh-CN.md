@@ -1,6 +1,6 @@
 # 支持说明
 
-[English](SUPPORT.md)
+[English](../SUPPORT.md)
 
 如有歧义，以英文主文件为准。
 

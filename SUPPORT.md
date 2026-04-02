@@ -1,6 +1,6 @@
 # Support
 
-[简体中文](SUPPORT.zh-CN.md)
+[简体中文](docs/SUPPORT.zh-CN.md)
 
 ## Good Issue Candidates
 

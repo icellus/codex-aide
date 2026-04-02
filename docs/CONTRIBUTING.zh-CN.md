@@ -1,6 +1,6 @@
 # 贡献指南
 
-[English](CONTRIBUTING.md)
+[English](../CONTRIBUTING.md)
 
 如有歧义，以英文主文件为准。
 
@@ -30,7 +30,7 @@
 建议保持简单：
 
 - 单行 subject
-- 不超过 90 个字符
+- 不超过 120 个字符
 - 末尾不要带标点
 - 直接说明改了什么，不要写 `wip`、`misc`、`update`
 
@@ -59,5 +59,5 @@ node scripts/validate-codex-aide-dev.mjs full
 
 开发校验器会在隔离的临时镜像中运行，不应在宿主工作区生成 repo 根级 `.codex/` 等运行态目录。
 
-开发校验策略与测试资产规则见 [TESTING.zh-CN.md](TESTING.zh-CN.md)。
+开发校验策略与测试资产规则见 [../TESTING.md](../TESTING.md) 与 [TESTING.zh-CN.md](TESTING.zh-CN.md)。
 这些命令在手工执行、通过 Codex 执行、通过其他 AI 助手执行，或在 CI 中执行时都应保持一致。

@@ -1,6 +1,6 @@
 # Testing
 
-[简体中文](TESTING.zh-CN.md)
+[简体中文](docs/TESTING.zh-CN.md)
 
 This document defines the development-time validation model for `codex-aide` inside this repository.
 
@@ -10,7 +10,7 @@ It does not define:
 - installed-runtime user workflows inside target repositories
 - runtime authority itself
 
-Files such as `standards/*.json`, `fixtures/codex-aide-dev/**`, and `scripts/validate-*.mjs` belong to development governance only.
+Files such as `tests/standards/*.json`, `tests/fixtures/codex-aide-dev/**`, and `scripts/validate-*.mjs` belong to development governance only.
 They validate runtime authority and implementation alignment; they are not runtime authority.
 
 ## Principles
@@ -93,9 +93,9 @@ Hook-scoped execution rules:
 
 - if no validation-maintenance files are present in the current staged set or pushed refs, the hook may skip running the validator
 - changed-file scoping may filter expensive `contract` `behavior` checks, but must not skip `shape`, `consistency`, or `meta` layers that still belong to the selected mode
-- when `scripts/validate-codex-aide-dev.mjs` or `standards/codex-aide-test-registry.json` changes, do not filter `contract` behavior checks by changed files
+- when `scripts/validate-codex-aide-dev.mjs` or `tests/standards/codex-aide-test-registry.json` changes, do not filter `contract` behavior checks by changed files
 
-`standards/codex-aide-test-registry.json` is the dispatch table for the default suite.
+`tests/standards/codex-aide-test-registry.json` is the dispatch table for the default suite.
 If the registry cannot be read, development validation must fail instead of pretending the suite is still known.
 
 ## Source Of Truth
@@ -106,10 +106,10 @@ Development validation is defined by:
 - [TESTING.md](TESTING.md)
 - [scripts/validate-codex-aide-dev.mjs](scripts/validate-codex-aide-dev.mjs)
 - [scripts/validate-codex-aide-authority.mjs](scripts/validate-codex-aide-authority.mjs)
-- [standards/codex-aide-authority-map.json](standards/codex-aide-authority-map.json)
-- [standards/codex-aide-consistency-map.json](standards/codex-aide-consistency-map.json)
-- [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json)
-- [fixtures/codex-aide-dev](fixtures/codex-aide-dev)
+- [tests/standards/codex-aide-authority-map.json](tests/standards/codex-aide-authority-map.json)
+- [tests/standards/codex-aide-consistency-map.json](tests/standards/codex-aide-consistency-map.json)
+- [tests/standards/codex-aide-test-registry.json](tests/standards/codex-aide-test-registry.json)
+- [tests/fixtures/codex-aide-dev](tests/fixtures/codex-aide-dev)
 
 Within this model:
 
@@ -183,7 +183,7 @@ Delete or merge a check when any of the following is true:
 
 ## Registry Rules
 
-Every active development-validation check must be registered in [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json).
+Every active development-validation check must be registered in [tests/standards/codex-aide-test-registry.json](tests/standards/codex-aide-test-registry.json).
 
 Minimum fields:
 
@@ -209,7 +209,7 @@ Additional rules:
 
 ## Consistency Scope
 
-`standards/codex-aide-consistency-map.json` may only express these cross-file consistency classes:
+`tests/standards/codex-aide-consistency-map.json` may only express these cross-file consistency classes:
 
 - `ownership`
 - `handoff`
