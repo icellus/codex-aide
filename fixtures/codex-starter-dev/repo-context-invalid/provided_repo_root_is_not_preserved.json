@@ -1,0 +1,1 @@
+{"id":"provided_repo_root_is_not_preserved","steps":[{"cwd_relative":"worktrees/one/two/three/four/five/six","input":{"projectDir":".","scan_reason":"initial-scan","repo_context":{"repo_root":"/tmp/should-not-stick","project_type":"Node"}},"expect":{"exit_status":0,"ok":true,"action":"write-scan","state_fields":{"repo_root":"/tmp/should-not-stick"}}}]}

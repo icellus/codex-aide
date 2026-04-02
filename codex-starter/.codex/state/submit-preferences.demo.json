@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "updated_at": null,
+  "commit": {
+    "auto_commit": null,
+    "tasks": {
+      "<task-id>": {
+        "auto_commit_count": 0,
+        "last_commit_sha": "",
+        "last_commit_at": null
+      }
+    }
+  },
+  "push": {
+    "remotes": {}
+  }
+}

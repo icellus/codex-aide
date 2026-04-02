@@ -38,4 +38,9 @@ bash scripts/install-git-hooks.sh
 ```bash
 node scripts/validate-commit-msg.mjs --message "fix: split oversized smoke coverage"
 node scripts/validate-commit-msg.mjs --range HEAD~5..HEAD
+node scripts/validate-codex-starter-dev.mjs contract
+node scripts/validate-codex-starter-dev.mjs full
 ```
+
+Development validation policy and test-asset rules live in [TESTING.md](/workspace/agent-skills/TESTING.md).
+These commands are the same whether you work manually, through Codex, through another AI assistant, or through CI automation.

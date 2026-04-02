@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "updated_at": null,
+  "items": [
+    {
+      "id": "",
+      "task_ref": "",
+      "issue": "",
+      "authority_target": "",
+      "source_roles": [],
+      "evidence": [],
+      "note": "",
+      "level": "unset|G1|G2|G3",
+      "impact": "",
+      "recommended_action": "",
+      "disposition": "auto-fix|ask-user|special-flow|rejected",
+      "status": "accepted|ask-user|special-flow",
+      "created_at": null,
+      "updated_at": null
+    }
+  ]
+}

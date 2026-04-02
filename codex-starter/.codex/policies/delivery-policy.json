@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "status": "starter-default",
+  "ownership": {
+    "maintained_by": "Aide",
+    "purpose": "submit orchestration and guarded post-validation delivery defaults",
+    "notes": [
+      "The submit path owns commit, push, and optional post-push delivery stages.",
+      "The project itself still owns real CI, release, and notification integrations."
+    ]
+  },
+  "submit": {
+    "enabled": true,
+    "queue_after": {
+      "tester_complete_without_qc": true,
+      "qc_pass_after_tester": true,
+      "task_settled_without_qc": true,
+      "task_settled_after_qc": true
+    },
+    "notes": [
+      "Automatic submit queueing applies to technical-delivery routes unless a runtime guard blocks it.",
+      "Non-code delivery stays out of the submit path unless the user explicitly asks for governed delivery.",
+      "submit_policy=manual suppresses automatic queueing only; explicit commit/push requests still use governed submit."
+    ]
+  },
+  "commit": {
+    "mode": "ask_once",
+    "protected_branches": ["main", "master"],
+    "blocked_branches": [],
+    "allow_current_branch_prefixes": ["feat/", "fix/", "chore/", "refactor/"],
+    "create_branch_when_needed": "ask",
+    "max_auto_commits_per_task": 1,
+    "allow_amend": false,
+    "message_template": "{type}: {summary}"
+  },
+  "push": {
+    "mode": "ask_once",
+    "set_upstream": "ask",
+    "create_remote_branch_when_missing": "ask",
+    "stop_on_rejection": true
+  },
+  "notify": {
+    "enabled": false,
+    "trigger": "after_push",
+    "channels": [],
+    "command": "",
+    "notes": [
+      "启用条件：enabled=true 且 command 非空。",
+      "command 在 push 成功后执行，适合发 IM/邮件/Webhook 通知。",
+      "可用环境变量：CODEX_PROJECT_DIR、CODEX_DELIVERY_STAGE、CODEX_DELIVERY_REMOTE、CODEX_DELIVERY_BRANCH、CODEX_DELIVERY_COMMIT_SHA。",
+      "如需本地阶段产物，优先写到 .codex/artifacts/delivery/，避免后续 submit inspect 把它当成待提交改动。"
+    ],
+    "example_command": "bash .codex/bin/notify.sh"
+  },
+  "ci": {
+    "enabled": false,
+    "source": "project-signals",
+    "mode": "report-only",
+    "command": "",
+    "notes": [
+      "启用条件：enabled=true 且 command 非空。",
+      "command 在 push 成功且 notify 未阻断时执行，适合触发项目 CI 或做轻量校验。",
+      "默认推荐保持 report-first，先接可观测命令，再决定是否做更强自动化。",
+      "如需本地阶段产物，优先写到 .codex/artifacts/delivery/，避免后续 submit inspect 把它当成待提交改动。"
+    ],
+    "example_command": "bash .codex/bin/ci.sh"
+  },
+  "release": {
+    "enabled": false,
+    "mode": "report-only",
+    "targets": [],
+    "command": "",
+    "notes": [
+      "启用条件：enabled=true 且 command 非空。",
+      "command 在 push 成功且前置 post-push 阶段未阻断时执行，适合发布登记、制品提升或部署触发。",
+      "默认不建议直接接高风险发布动作，除非项目自己确认了回滚和审批边界。",
+      "如需本地阶段产物，优先写到 .codex/artifacts/delivery/，避免后续 submit inspect 把它当成待提交改动。"
+    ],
+    "example_command": "bash .codex/bin/release.sh"
+  },
+  "fallback": {
+    "on_missing_config": "skip-step",
+    "on_environment_blocker": "report-and-stop",
+    "on_repeat_failure": "report-and-stop",
+    "on_partial_delivery": "report-current-state"
+  }
+}

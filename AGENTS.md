@@ -21,22 +21,25 @@ Repository-level maintenance guidance for this repo.
 
 - Reply to the user in Chinese by default.
 - Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
-- For repo-maintenance changes, do not hand-pick overlapping test files.
-- Use the root test runner as the default validation entrypoint:
-  `node tests/codex-starter/run.mjs`
-- For bounded subagent-owned work, prefer targeted validation with explicit files instead of whole-worktree guessing:
-  `node tests/codex-starter/run.mjs --file <path> --file <path>`
-- Use explicit suites only when you deliberately need them:
-  `--suite contract`, `--suite smoke`, `--suite full`
-- If the runner, manifest, shared test helpers, or multiple runtime/test layers changed together, run:
-  `node tests/codex-starter/run.mjs --suite full`
+- Changes to `codex-starter/AGENTS.md`, `.codex/policies/**`, `.codex/skills/**`, `.codex/agents/**`, or `.codex/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
+- Legacy repo-level test scripts under `tests/codex-starter/` have been removed; do not assume a fixed runner exists.
+- For generic host-maintenance work, validation should use the smallest task-relevant command or script available in the current repo state.
+- For `codex-starter` development work, do not treat an isolated minimal check as sufficient when the change can cause cross-file rule drift; follow the governed development-validation rules in this file.
+- If no reliable automated validation exists for the current task, record that explicitly instead of inventing coverage.
 
 ## Context And Token Discipline
 
 - Prefer minimal complete task briefs for subagents.
-- Do not default to `fork_context: true`; only use it when inherited thread context is genuinely required.
-- When a subagent owns a clear write set, pass the owned files and let it validate with `--file` for those paths.
-- Prefer one authoritative test entrypoint over long file lists in prompts.
+- When a subtask is clear, bounded, and independent, prefer `fork_context: false` to keep execution focused and reliable.
+- When a subagent owns a clear write set, pass the owned files and state the intended validation boundary explicitly.
+- Do not assume one repository-wide validation entrypoint exists after the legacy test-script cleanup.
+
+## Authority Drift Prevention
+
+- For `codex-starter` runtime-boundary changes, define the boundary first in the owner set: `codex-starter/AGENTS.md`, `codex-starter/.codex/policies/routing-policy.md`, and the owned runtime artifact.
+- Prefer positive authority statements such as `runtime authority lives in X` over repeated negative warnings in downstream skills or agents.
+- Repeat a boundary in downstream skills or agents only when it changes executable read order or write ownership.
+- Keep demo/example files semantically distinct from live files through naming and owner-file documentation; introduce fallback semantics only when a shipped script really implements them.
 
 ## Review Timing In Host Maintenance
 
@@ -46,29 +49,30 @@ Repository-level maintenance guidance for this repo.
 - If review runs in parallel before real implementation lands, classify it as design review / solution review only, not implementation review.
 - Design/solution review cannot replace the post-implementation review pass for real delivered changes.
 
-## Discussion Context Sync
+## Systemic Fix Strategy
 
-- Root-level `discussion/` is the lightweight cross-session context mechanism for this repository.
-- Do not require the user to remember an exact magic command. Treat `同步disc` and semantically equivalent natural-language requests as the same intent when the user is clearly asking to sync session context.
-- This intent covers both directions:
-  load context when the user wants to resume/continue,
-  and write context when the user wants to wrap up/leave notes for next time.
-- Common valid phrasings include shorthand, mixed Chinese/English, and spoken variants such as:
-  `同步disc`、`同步 discussion`、`续一下上次`、`接着上轮继续`、`记一下这次留给下次`、`把这次进展记进去`
-- When the intent is to resume, read `discussion/prefs.md` then `discussion/current.md`, and only read the history files referenced by `current.md` when needed.
-- When the intent is to wrap up, append a record under `discussion/history/YYYY-MM-DD-HHMM-<slug>.md`, then update `discussion/current.md`.
-- Only update `discussion/prefs.md` when the user is changing durable preferences or stable workflow rules.
-- If the user provides extra points to remember, next-step guidance, or risks to watch, merge them into the new history record and the refreshed current state.
-- Prefer intent recognition over literal command matching. If the user's wording is clearly about syncing the session context, just do it.
+- Do not optimize for the smallest local patch when the escaped issue is systemic. Fix the governing contract first, then update the dependent implementation.
+- Do not preserve a flawed abstraction only because it reduces immediate diff size. Prefer the structurally correct model when the old shape is the source of recurring drift.
+- When multiple defects share the same root cause, solve them as one repair cluster instead of shipping a series of isolated symptom patches.
+- Prefer a shared contract plus aligned consumers over repeated local heuristics. This applies especially to runtime root resolution, task-state transitions, delivery gates, and governance routing.
+- When an old field or rule still carries design value but is not yet consumed by execution, do not silently delete it. Mark its status explicitly so design intent is preserved without pretending it is live behavior.
+- When a report or review introduces new repair groupings, keep the mapping back to the original issue identifiers so later follow-up does not lose the original anchor.
 
-## Testing
+## Validation
 
-- Repository-level tests live under `tests/codex-starter/`.
-- `node tests/codex-starter/run.mjs` auto-selects the minimal mapped suites from the current git worktree.
-- `node tests/codex-starter/run.mjs --file ...` does the same for an explicit file set.
-- Docs-only changes may legitimately map to no test suite; do not invent fake coverage.
-- Keep the test inventory intentionally small and executable.
-- New test files or larger test bodies require an explicit budget update in the contract gate; do not let `tests/` grow by drift.
-- For feature work, keep only the highest-signal checks. If a test file is getting large, split it by domain or delete lower-value coverage instead of piling on.
-- Do not keep temporary, debug-only, migration-only, or incident-oneoff tests in the long-term tree once the core behavior is covered.
-- Prefer updating an existing core test over adding a new test file. If a new test is only useful during local diagnosis, do not merge it.
+- The legacy `tests/codex-starter/` runner and scripts have been removed from this repository.
+- For repo-maintenance work, choose the lightest validation that still produces real evidence from the current repo state.
+- Acceptable validation may be syntax checks, command-level sanity checks, or targeted manual evidence when those are the only reliable options.
+- If a task intentionally ships without automated validation, state that clearly together with the reason and residual risk.
+
+## Codex-Starter Development Test Governance
+
+- `TESTING.md` is the dedicated policy document for `codex-starter` development validation in this repository.
+- The default development-validation entrypoint is `node scripts/validate-codex-starter-dev.mjs`.
+- The development-validation rules apply to all contributors and must remain usable without Codex-specific runtime assumptions.
+- Keep development validation layered as `contract`, `consistency`, and `meta`; do not let local minimal iteration checks replace full closeout for multi-file rule changes.
+- All active development-validation checks must be registered in [standards/codex-starter-test-registry.json](/workspace/agent-skills/standards/codex-starter-test-registry.json).
+- Prefer updating existing rule data or fixtures over adding new executors or standalone scripts.
+- Do not add new default checks unless a stable new rule or a real escaped regression requires them.
+- If no new check is added for a `codex-starter` development change, record the reason in a change summary, PR description, review note, or validation note.
+- Validators must keep a maintained failing proof path; pass-only checks are not sufficient.

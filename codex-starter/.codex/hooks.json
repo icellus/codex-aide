@@ -10,7 +10,15 @@
           },
           {
             "type": "command",
-            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/startup-context.mjs\"'"
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/context/task-overview.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/context/task-reconcile.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/context/task-progress-sync.mjs\"'"
           }
         ]
       }
@@ -31,6 +39,14 @@
           {
             "type": "command",
             "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/hooks/log-event.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/context/task-turn-sync.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/hooks/ingest-governance.mjs\"'"
           }
         ]
       }
@@ -42,6 +58,10 @@
           {
             "type": "command",
             "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/hooks/log-event.mjs\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -lc 'repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd); node \"$repo/.codex/scripts/guards/dispatch-bash-guard.mjs\"'"
           }
         ]
       }
