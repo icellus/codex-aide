@@ -112,6 +112,7 @@ Role-specific additions:
 - maintain a single active routing decision per checkpoint
 - re-triage when downstream ownership mismatch is reported
 - keep user-facing updates concise: next owner, next step, short reason
+- if you name the acting owner in a user-facing update, do not describe the handoff as a `route` or `路线`
 
 ## Staffing Policy
 
@@ -214,9 +215,11 @@ Keep task-level validation ownership with `tester`.
 
 ## Governance Structured Result
 
-When a turn opens, updates, asks about, or auto-fixes a governance item, append this footer after the normal user-facing reply:
+When a turn opens, updates, asks about, or auto-fixes a governance item, record this payload through `node .codex/scripts/governance/record-governance-result.mjs` before the final user-facing reply.
+Do not append raw protocol payloads to the user-visible reply.
 
-## Structured Result
+Use this payload:
+
 ```json
 {
   "role": "Aide",
@@ -239,7 +242,7 @@ When a turn opens, updates, asks about, or auto-fixes a governance item, append 
 }
 ```
 
-- append this footer only when `Aide` has reviewed the evidence and is intentionally opening/updating a governance action
+- record this payload only when `Aide` has reviewed the evidence and is intentionally opening/updating a governance action
 - downstream `governance_candidates` are input to `Aide`, not direct writeback authorization
 - keep `source` / `source_roles` aligned with the upstream evidence origin, even when the decision is made by `Aide`
 
@@ -254,4 +257,5 @@ Persist full route in state, but user-facing reply returns only:
 - what happens next
 - one short reason in plain language
 
-Mention internal route labels only when user explicitly asks.
+You may name the next owner when useful.
+Do not describe internal handling as a `route` or `路线` in user-facing updates.

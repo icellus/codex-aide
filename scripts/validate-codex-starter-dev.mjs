@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -53,6 +55,39 @@ function parseArgs(argv) {
   };
 }
 
+function shouldCopyValidationPath(sourceRepoRoot, candidatePath) {
+  const relativePath = path.relative(sourceRepoRoot, candidatePath).replace(/\\/g, "/");
+  if (!relativePath) {
+    return true;
+  }
+
+  if (relativePath === ".git" || relativePath.startsWith(".git/")) {
+    return false;
+  }
+
+  if (relativePath === ".codex" || relativePath.startsWith(".codex/")) {
+    return false;
+  }
+
+  return true;
+}
+
+function withIsolatedRepoRoot(sourceRepoRoot, callback) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "agent-skills-validator-"));
+  const isolatedRepoRoot = path.join(tempRoot, "repo");
+
+  fs.cpSync(sourceRepoRoot, isolatedRepoRoot, {
+    recursive: true,
+    filter: (src) => shouldCopyValidationPath(sourceRepoRoot, path.resolve(src))
+  });
+
+  try {
+    return callback(isolatedRepoRoot);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
 function runCli(argv = process.argv.slice(2)) {
   let options;
 
@@ -66,9 +101,11 @@ function runCli(argv = process.argv.slice(2)) {
     return 2;
   }
 
-  const layerResults = runLayers(options.mode, options.repoRoot, {
-    changedFiles: options.changedFiles
-  });
+  const layerResults = withIsolatedRepoRoot(options.repoRoot, (isolatedRepoRoot) =>
+    runLayers(options.mode, isolatedRepoRoot, {
+      changedFiles: options.changedFiles
+    })
+  );
   let hasErrors = false;
 
   for (const [layerName, result] of layerResults) {

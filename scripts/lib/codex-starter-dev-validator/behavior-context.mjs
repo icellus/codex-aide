@@ -4,8 +4,8 @@ import path from "node:path";
 import { validateGovernanceTarget } from "../../../codex-starter/.codex/scripts/guards/validate-governance-target.mjs";
 
 import {
-  assertPresentFields,
   assertProjectArtifacts,
+  assertPresentFields,
   buildScenarioEnv,
   buildScenarioInput,
   collectScenarioErrors,
@@ -31,6 +31,25 @@ import {
   writeStructuredTranscript
 } from "./shared.mjs";
 
+function writePendingResultFile(projectDir, relativePath, result, options = {}) {
+  fs.mkdirSync(path.dirname(path.join(projectDir, relativePath)), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectDir, relativePath),
+    `${JSON.stringify(
+      {
+        version: 1,
+        written_at: options.writtenAt || "2026-04-01T00:00:01.000Z",
+        session_id: options.sessionId || null,
+        turn_id: options.turnId || null,
+        result
+      },
+      null,
+      2
+    )}\n`,
+    "utf8"
+  );
+}
+
 function applyGovernanceScenarioMutation(projectDir, mutation) {
   const relativePath = mutation?.path;
   if (!relativePath) {
@@ -44,6 +63,11 @@ function applyGovernanceScenarioMutation(projectDir, mutation) {
 
   if (mutation.type === "append-text") {
     fs.appendFileSync(filePath, String(mutation.text || ""), "utf8");
+    return;
+  }
+
+  if (mutation.type === "delete-file") {
+    fs.rmSync(filePath, { force: true });
     return;
   }
 
@@ -65,13 +89,36 @@ function validateGovernanceFlowScenario({ repoRoot = defaultRepoRoot, scenario }
     let invocation = null;
 
     if (scenario.mode === "ingest") {
-      const transcriptPath = path.join(tempRoot, `${scenario.id || "scenario"}.jsonl`);
-      writeStructuredTranscript(transcriptPath, scenario.structured_result || {});
-      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "hooks", "ingest-governance.mjs"), projectDir, {
+      if (scenario.pending_governance_result && typeof scenario.pending_governance_result === "object") {
+        writePendingResultFile(
+          projectDir,
+          path.join(".codex", "state", "pending-governance-result.json"),
+          scenario.pending_governance_result,
+          {
+            writtenAt: scenario.pending_governance_result_written_at,
+            sessionId: scenario.pending_governance_result_session_id || scenario.session_id || scenario.id || "scenario-session",
+            turnId: scenario.pending_governance_result_turn_id || scenario.turn_id || scenario.turnId || "turn-governance"
+          }
+        );
+      }
+
+      const ingestInput = {
         projectDir,
-        transcript_path: transcriptPath,
-        session_id: scenario.session_id || scenario.id || "scenario-session"
-      });
+        session_id: scenario.session_id || scenario.id || "scenario-session",
+        turn_id: scenario.turn_id || scenario.turnId || "turn-governance"
+      };
+
+      if (scenario.structured_result && typeof scenario.structured_result === "object") {
+        const transcriptPath = path.join(tempRoot, `${scenario.id || "scenario"}.jsonl`);
+        writeStructuredTranscript(transcriptPath, scenario.structured_result || {});
+        ingestInput.transcript_path = transcriptPath;
+      } else if (scenario.pending_governance_result && typeof scenario.pending_governance_result === "object") {
+        const transcriptPath = path.join(tempRoot, `${scenario.id || "scenario"}.jsonl`);
+        writeStructuredTranscript(transcriptPath, {});
+        ingestInput.transcript_path = transcriptPath;
+      }
+
+      invocation = runNodeJsonScript(path.join(projectDir, ".codex", "hooks", "ingest-governance.mjs"), projectDir, ingestInput);
     } else if (scenario.mode === "writeback") {
       invocation = runNodeJsonScript(path.join(projectDir, ".codex", "scripts", "governance", "writeback.mjs"), projectDir, {
         projectDir,
@@ -129,6 +176,8 @@ function validateGovernanceFlowScenario({ repoRoot = defaultRepoRoot, scenario }
         errors.push(`${scenario.id}: expected target_valid_after=${expect.target_valid_after}, got ${validation.ok}`);
       }
     }
+
+    assertProjectArtifacts({ projectDir, expect, label: scenario.id || "<unknown>", errors });
 
     return finishValidation(errors);
   });

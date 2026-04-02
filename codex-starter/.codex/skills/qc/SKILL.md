@@ -61,10 +61,9 @@ Next Step:
 - [single best next move]
 ````
 
-Then append:
+Then record through `node .codex/scripts/context/record-turn-result.mjs`:
 
 ````markdown
-## Structured Result
 ```json
 {
   "role": "qc",

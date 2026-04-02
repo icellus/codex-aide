@@ -7,11 +7,10 @@ import { spawnSync } from "node:child_process";
 import { getProjectContext } from "../shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../shared/io.mjs";
 import { ensureDir, startRuntimeInvocationLogging } from "../shared/logging.mjs";
+import { clearPendingTaskTurnResult, isPendingResultFresh, readPendingTaskTurnResult } from "../shared/pending-turn-results.mjs";
 import { defaultTaskState, hasTrackedTask, normalizeProductDecision, normalizeTaskStatus, readTaskContext } from "../shared/task-context.mjs";
 import {
   collectTurnEntries,
-  latestAssistantMessage,
-  latestStructuredResult,
   readTranscriptLines
 } from "../shared/transcript.mjs";
 
@@ -133,17 +132,49 @@ function appendLifecycleLog(projectDir, entry) {
   fs.appendFileSync(lifecycleLogPath(projectDir, timestamp), `${JSON.stringify({ ...entry, timestamp })}\n`, "utf8");
 }
 
-function readTurnSnapshot(transcriptPath, turnId) {
+function turnStartedAt(turnLines) {
+  for (const entry of turnLines || []) {
+    const timestamp = normalizeText(entry?.timestamp);
+    if (timestamp) {
+      return timestamp;
+    }
+  }
+
+  return "";
+}
+
+function readTurnSnapshot(projectDir, transcriptPath, turnId, sessionId = "") {
   const lines = readTranscriptLines(transcriptPath);
   const turnLines = collectTurnEntries(lines, turnId);
-  const structured = latestStructuredResult(turnLines, { preferPhase: "final_answer" }) || latestStructuredResult(turnLines);
-  const assistant = latestAssistantMessage(turnLines, { preferPhase: "final_answer" }) || latestAssistantMessage(turnLines);
+  const startedAt = turnStartedAt(turnLines);
+  const pending = readPendingTaskTurnResult(projectDir);
+  if (!pending) {
+    return {
+      turnLines,
+      structuredResult: null,
+      structuredSource: "",
+      pendingState: "missing"
+    };
+  }
+
+  if (!isPendingResultFresh(pending, {
+    session_id: sessionId,
+    turn_id: turnId,
+    turn_started_at: startedAt
+  })) {
+    return {
+      turnLines,
+      structuredResult: null,
+      structuredSource: "",
+      pendingState: "stale"
+    };
+  }
 
   return {
     turnLines,
-    structuredResult: structured?.structured || null,
-    structuredPhase: structured?.phase || "",
-    messageText: structured?.messageText || assistant?.messageText || ""
+    structuredResult: pending.result,
+    structuredSource: "pending-task-turn-result",
+    pendingState: "used"
   };
 }
 
@@ -425,7 +456,7 @@ function hasTaskUpdateOverrides(taskUpdate) {
   ].some((fieldName) => hasOwnField(taskUpdate, fieldName));
 }
 
-function decideSync({ currentTask, transcriptPath, turnId }) {
+function decideSync({ projectDir, currentTask, transcriptPath, turnId, sessionId = "" }) {
   if (!hasTrackedTask(currentTask)) {
     return {
       action: "noop",
@@ -445,12 +476,12 @@ function decideSync({ currentTask, transcriptPath, turnId }) {
     };
   }
 
-  const snapshot = readTurnSnapshot(transcriptPath, turnId);
+  const snapshot = readTurnSnapshot(projectDir, transcriptPath, turnId, sessionId);
   const structuredResult = snapshot.structuredResult;
   const role = normalizeText(structuredResult?.role);
   const taskUpdate = normalizeTaskUpdate(structuredResult?.task_update);
   const hasOverrides = hasTaskUpdateOverrides(taskUpdate);
-  const expectedRoleError = validateExpectedRole(currentTask, role, snapshot.turnLines);
+  const expectedRoleError = structuredResult ? validateExpectedRole(currentTask, role, snapshot.turnLines) : null;
 
   if (expectedRoleError) {
     return {
@@ -529,11 +560,18 @@ async function main() {
     const currentTask = stateBefore.task || defaultTaskState();
     const transcriptPath = normalizeText(input.transcript_path);
     const turnId = normalizeText(input.turn_id || input.turnId);
+    const sessionId = normalizeText(input.session_id || input.sessionId);
     const decision = decideSync({
+      projectDir,
       currentTask,
       transcriptPath,
-      turnId
+      turnId,
+      sessionId
     });
+
+    if (decision.snapshot?.pendingState === "stale") {
+      clearPendingTaskTurnResult(projectDir);
+    }
 
     let invocation = {
       status: 0,
@@ -603,6 +641,10 @@ async function main() {
       process.exit(invocation.status ?? 1);
     }
 
+    if (decision.snapshot?.pendingState === "used") {
+      clearPendingTaskTurnResult(projectDir);
+    }
+
     const stateAfter = readTaskContext(projectDir);
     const afterTask = stateAfter.task || defaultTaskState();
     const structuredStatus = normalizeText(decision.structuredResult?.status);
@@ -617,6 +659,7 @@ async function main() {
       decision: decision.action,
       reason: decision.reason,
       role: decision.role || null,
+      structured_source: decision.snapshot?.structuredSource || null,
       structured_status: structuredStatus || null,
       status_before: normalizeTaskStatus(currentTask.status, "idle"),
       status_after: normalizeTaskStatus(afterTask.status, "idle"),

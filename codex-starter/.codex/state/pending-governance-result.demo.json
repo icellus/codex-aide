@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "written_at": null,
+  "session_id": null,
+  "turn_id": null,
+  "result": {
+    "role": "Aide",
+    "status": "complete",
+    "governance_candidates": []
+  }
+}

@@ -25,6 +25,8 @@ Plain-language intent should map to the same routes.
 - Keep discussion, Q&A, option comparison, and recommendation-only analysis in `Aide`.
 - `Aide` selects first hop by deliverable type and scope stability.
 - `Aide` remains the user-facing integrator even when hot-task follow-up ownership is sticky to another role line.
+- user-visible replies must not include raw `Structured Result` payloads or other machine protocol blocks.
+- user-visible progress may name the acting owner when useful, but must not describe internal handling as a `route` or `路线`.
 - `product_manager` is the product-definition owner; normal downstream handoff stays on the product-definition line, while blocked user clarification returns through `Aide`.
 - `architect` may only be activated by `product_manager` after a `product` outcome in the product-definition line.
 - In the product-definition line:
@@ -78,7 +80,7 @@ Plain-language intent should map to the same routes.
 - `paused` means the task was explicitly paused and should remain resumable outside the hot slot.
 - Do not infer completion from silence, missing follow-up, or session end.
 - if the hot task could not be correctly recovered from `.codex/state/task-context.json` and `.codex/progress/**` without the current turn, do not treat that turn as explanation-only.
-- when a routed turn returns a Structured Result with `task_update.sync=true`, the Stop hook should sync that turn into the hot task state before any interruption fallback.
+- when a main-thread routed turn records `.codex/state/pending-task-turn-result.json` with `task_update.sync=true`, the Stop hook should sync that turn into the hot task state before any interruption fallback.
 - If a session stops while task status is `active`, `handoff`, or `blocked`, runtime hooks should record an interruption timestamp instead of changing task status.
 - Starting a new hot task while another non-terminal task is still open should retire the previous hot task into `recent_tasks` by default as `paused`.
 - Use explicit retirement only when the previous hot task should instead be recorded as `completed` or `cancelled`.
@@ -203,6 +205,8 @@ Environment setup decisions and preparation belong to `technical_manager`.
 ## Durable Coordination Files
 
 - `.codex/state/task-context.json`: hot task state, including route evidence (`activated_roles`, `completed_roles`, `subagent_roles`) plus current chain artifacts (`prd_path`, `architecture_path`, `implementation_brief_path`)
+- `.codex/state/pending-task-turn-result.json`: transient main-thread routed-turn payload consumed by the Stop hook
+- `.codex/state/pending-governance-result.json`: transient `Aide` governance payload consumed by governance ingest on Stop
 - `.codex/logs/task-lifecycle/*.jsonl`: normalized per-turn task lifecycle sync log
 - `.codex/state/governance-context.json`: active governance items maintained by `Aide`
 - `.codex/state/submit-preferences.json`: repo-local submit preferences

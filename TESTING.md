@@ -49,6 +49,8 @@ Development validation is organized along two axes: `layer` and `assertion_kind`
   - Fixture-driven execution checks with outcome assertions.
   - Execution entrypoints should establish one canonical absolute `projectDir` up front.
   - Machine-consumed runtime paths should remain absolute once they are written into runtime state.
+  - Host-maintenance validation entrypoints must run inside an isolated temporary mirror of the repository, not against the live host worktree.
+  - Development validation must not create host runtime artifacts such as repo-root `.codex/`, `.codex/state/*.json`, `.codex/logs/**`, or `.codex/progress/**`.
 
 - `consistency`
   - Cross-file alignment for ownership, boundaries, handoff rules, path conventions, special-flow routing, and integration wiring.
@@ -69,6 +71,8 @@ node scripts/validate-codex-starter-dev.mjs consistency
 node scripts/validate-codex-starter-dev.mjs meta
 node scripts/validate-codex-starter-dev.mjs full
 ```
+
+The default validator runs against an isolated temporary mirror of the repository and must leave the host worktree free of runtime artifact directories such as repo-root `.codex/`.
 
 Default meanings:
 

@@ -108,15 +108,15 @@ Return:
 - release result
 - next recommended step
 
-When the repository already has an open hot task, include `task_update` in the Structured Result so the Stop hook can sync this delivery turn back into the same task.
+When the repository already has an open hot task, record a turn-result payload through `node .codex/scripts/context/record-turn-result.mjs` so the Stop hook can sync this delivery turn back into the same task.
 Use `task_update.sync=true` to keep the current hot task warm even when submit does not change lifecycle semantics.
 Only set `task_update.status` when submit truly changes the hot-task lifecycle.
 Do not mark a task `completed` only because push succeeded; keep `waiting_user` or other non-terminal states when real follow-up still remains.
+Do not append raw protocol payloads to the user-visible reply.
 
-Then append:
+Then record:
 
 ````markdown
-## Structured Result
 ```json
 {
   "role": "submit",

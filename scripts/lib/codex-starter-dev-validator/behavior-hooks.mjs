@@ -34,6 +34,16 @@ import {
   writeTextFile
 } from "./shared.mjs";
 
+function writePendingResultFile(projectDir, relativePath, result, options = {}) {
+  writeJsonFile(path.join(projectDir, relativePath), {
+    version: 1,
+    written_at: options.writtenAt || "2026-04-01T00:00:01.000Z",
+    session_id: options.sessionId || null,
+    turn_id: options.turnId || null,
+    result
+  });
+}
+
 function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
   return withTempProject(repoRoot, "codex-starter-hook-root-", ({ projectDir, tempRoot }) => {
     const errors = [];
@@ -66,6 +76,42 @@ function validateHookRootScenario({ repoRoot = defaultRepoRoot, scenario }) {
         writeJsonFile(
           path.join(projectDir, ".codex", "state", "task-context.json"),
           mergeJsonValue(taskContextDefaults, step.task_context)
+        );
+      }
+
+      if (step.pending_task_turn_result && typeof step.pending_task_turn_result === "object") {
+        writePendingResultFile(
+          projectDir,
+          path.join(".codex", "state", "pending-task-turn-result.json"),
+          step.pending_task_turn_result,
+          {
+            writtenAt: step.pending_task_turn_result_written_at,
+            sessionId:
+              step.pending_task_turn_result_session_id ||
+              step.input?.session_id ||
+              step.input?.sessionId ||
+              scenario.step_defaults?.input?.session_id ||
+              scenario.step_defaults?.input?.sessionId,
+            turnId: step.pending_task_turn_result_turn_id || step.input?.turn_id || step.input?.turnId
+          }
+        );
+      }
+
+      if (step.pending_governance_result && typeof step.pending_governance_result === "object") {
+        writePendingResultFile(
+          projectDir,
+          path.join(".codex", "state", "pending-governance-result.json"),
+          step.pending_governance_result,
+          {
+            writtenAt: step.pending_governance_result_written_at,
+            sessionId:
+              step.pending_governance_result_session_id ||
+              step.input?.session_id ||
+              step.input?.sessionId ||
+              scenario.step_defaults?.input?.session_id ||
+              scenario.step_defaults?.input?.sessionId,
+            turnId: step.pending_governance_result_turn_id || step.input?.turn_id || step.input?.turnId
+          }
         );
       }
 

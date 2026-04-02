@@ -142,10 +142,11 @@ Return:
   - if `skip`: hand off to `technical_manager` with skip rationale
   - if `product`: hand off to `architect` (auto-enabled), then continue to `technical_manager`
 
-When this turn keeps or advances the current hot task, include `task_update` so the Stop hook can sync the routed state.
+When this turn keeps or advances the current hot task, record a turn-result payload through `node .codex/scripts/context/record-turn-result.mjs` so the Stop hook can sync the routed state.
+Do not append raw protocol payloads to the user-visible reply.
 
-End every final report with this exact section:
-## Structured Result
+Record this exact payload:
+
 ```json
 {
   "role": "product_manager",

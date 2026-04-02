@@ -139,9 +139,10 @@ Return:
 - unresolved technical tradeoffs, if any
 - next recommended step (return to `technical_manager` directly)
 
-When this turn keeps or advances the current hot task, include `task_update` so the Stop hook can sync the routed state.
+When this turn keeps or advances the current hot task, record a turn-result payload through `node .codex/scripts/context/record-turn-result.mjs` so the Stop hook can sync the routed state.
+Do not append raw protocol payloads to the user-visible reply.
 
-End every final report with this exact retrospective section before the structured footer:
+End every final report with this exact retrospective section:
 ## Session-End Retrospective
 Decisions Made:
 - [durable design decision]
@@ -152,8 +153,8 @@ Wrong Assumptions:
 Governance Candidates:
 - `[target path or none]` - [why this should or should not become shared guidance]
 
-End every final report with this exact section:
-## Structured Result
+Record this exact payload:
+
 ```json
 {
   "role": "architect",

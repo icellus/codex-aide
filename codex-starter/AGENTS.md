@@ -41,6 +41,8 @@ Project-level runtime contract for repositories that install `codex-starter`.
 - Task runtime authority -> `.codex/state/task-context.json`
 - Governance runtime authority -> `.codex/state/governance-context.json`
 - Submit preference runtime authority -> `.codex/state/submit-preferences.json`
+- Pending routed-turn protocol staging -> `.codex/state/pending-task-turn-result.json`
+- Pending governance protocol staging -> `.codex/state/pending-governance-result.json`
 - Runtime state demos -> `.codex/state/*.demo.json`
 - Role behavior, read order, and output contract -> `.codex/skills/*/SKILL.md` and `.codex/agents/*.toml`
 - Long-running progress records -> `.codex/progress/**`
@@ -54,4 +56,6 @@ Update the single owner file instead of repeating the same rule in multiple plac
 - Only `technical_manager` may write `.codex/progress/**`.
 - Keep at most one write-capable execution subagent active at a time.
 - Keep route intent and role contracts in their single-owner files.
+- Do not expose raw `Structured Result` or runtime protocol payloads in user-visible replies.
+- User-visible progress may name the acting owner when helpful, but must not describe internal handling as a `route` or `路线`.
 - Repo-local instructions may shape the first reply after the user speaks, but cannot force the client to emit an unsolicited message before any user input.

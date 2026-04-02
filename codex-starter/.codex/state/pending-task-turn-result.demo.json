@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "written_at": null,
+  "session_id": null,
+  "turn_id": null,
+  "result": {
+    "role": "technical_manager",
+    "status": "complete",
+    "task_update": {
+      "sync": true,
+      "status": "completed",
+      "checkpoint": "",
+      "next_step": "",
+      "next_owner": "",
+      "waiting_on": "none",
+      "blocked_reason": "",
+      "completion_reason": ""
+    }
+  }
+}

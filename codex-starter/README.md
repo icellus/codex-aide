@@ -70,6 +70,8 @@ bash /path/to/agent-skills/codex-starter/install.sh
 - `.codex/state/repo-context.json`
 - `.codex/state/governance-context.json`
 - `.codex/state/submit-preferences.json`
+- `.codex/state/pending-task-turn-result.json`
+- `.codex/state/pending-governance-result.json`
 - `.codex/logs/**`
 - `.codex/progress/**`
 

@@ -8,7 +8,8 @@ import { spawnSync } from "node:child_process";
 import { getProjectContext } from "../scripts/shared/project-context.mjs";
 import { readJsonStdinEnvelope } from "../scripts/shared/io.mjs";
 import { ensureDir, startRuntimeInvocationLogging } from "../scripts/shared/logging.mjs";
-import { latestStructuredResult, readTranscriptLines } from "../scripts/shared/transcript.mjs";
+import { clearPendingGovernanceResult, isPendingResultFresh, readPendingGovernanceResult } from "../scripts/shared/pending-turn-results.mjs";
+import { collectTurnEntries, readTranscriptLines } from "../scripts/shared/transcript.mjs";
 
 const decidingRoles = new Set(["Aide"]);
 
@@ -55,6 +56,21 @@ function appendIngestLog(projectDir, entry) {
 
 function messageHash(text) {
   return crypto.createHash("sha1").update(text).digest("hex");
+}
+
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function turnStartedAt(turnLines) {
+  for (const entry of turnLines || []) {
+    const timestamp = normalizeText(entry?.timestamp);
+    if (timestamp) {
+      return timestamp;
+    }
+  }
+
+  return "";
 }
 
 function governanceCandidatesFromResult(result) {
@@ -134,6 +150,15 @@ function runWriteback(projectDir, candidate, actorRole) {
   };
 }
 
+function assertWritebackSucceeded(result) {
+  if ((result?.status ?? 1) === 0) {
+    return;
+  }
+
+  const detail = normalizeText(result?.stderr) || normalizeText(result?.stdout) || normalizeText(result?.parsed?.code);
+  throw new Error(detail || "governance writeback failed");
+}
+
 async function main() {
   const envelope = await readJsonStdinEnvelope();
   const input = envelope.value;
@@ -151,30 +176,35 @@ async function main() {
 
   try {
     const transcriptPath = typeof input.transcript_path === "string" ? input.transcript_path.trim() : "";
-    if (!transcriptPath) {
-      logger.finalize({
-        status: "ok",
-        metadata: {
-          skipped: "missing-transcript"
-        }
-      });
-      return;
-    }
+    const sessionId = normalizeText(input.session_id || input.sessionId);
+    const turnId = normalizeText(input.turn_id || input.turnId);
+    const lines = transcriptPath ? readTranscriptLines(transcriptPath) : [];
+    const turnLines = turnId ? collectTurnEntries(lines, turnId) : [];
+    const pending = readPendingGovernanceResult(project.projectDir);
+    const pendingFresh = pending
+      ? isPendingResultFresh(pending, {
+          session_id: sessionId,
+          turn_id: turnId,
+          turn_started_at: turnStartedAt(turnLines)
+        })
+      : false;
+    const latest = pendingFresh ? pending.result : null;
 
-    const lines = readTranscriptLines(transcriptPath);
-    const latest = latestStructuredResult(lines);
     if (!latest) {
+      if (pending) {
+        clearPendingGovernanceResult(project.projectDir);
+      }
       logger.finalize({
         status: "ok",
         metadata: {
-          skipped: "no-structured-result",
+          skipped: pending ? "stale-pending-governance-result" : "missing-pending-governance-result",
           transcriptPath
         }
       });
       return;
     }
 
-    const role = String(latest.structured.role || "").trim();
+    const role = String(latest.role || "").trim();
     if (!decidingRoles.has(role)) {
       logger.finalize({
         status: "ok",
@@ -187,7 +217,7 @@ async function main() {
       return;
     }
 
-    const status = String(latest.structured.status || "").trim();
+    const status = String(latest.status || "").trim();
     if (status && status !== "complete") {
       logger.finalize({
         status: "ok",
@@ -201,9 +231,10 @@ async function main() {
       return;
     }
 
-    const key = `${input.session_id || "unknown-session"}::${role}::${messageHash(latest.messageText)}`;
+    const key = `${input.session_id || "unknown-session"}::${role}::${messageHash(JSON.stringify(latest))}`;
     const processedKeys = listProcessedKeys(project.projectDir);
     if (processedKeys.has(key)) {
+      clearPendingGovernanceResult(project.projectDir);
       logger.finalize({
         status: "ok",
         metadata: {
@@ -215,8 +246,9 @@ async function main() {
       return;
     }
 
-    const rawCandidates = governanceCandidatesFromResult(latest.structured);
+    const rawCandidates = governanceCandidatesFromResult(latest);
     if (rawCandidates.length === 0) {
+      clearPendingGovernanceResult(project.projectDir);
       appendIngestLog(project.projectDir, {
         timestamp: new Date().toISOString(),
         key,
@@ -258,7 +290,9 @@ async function main() {
         continue;
       }
 
-      results.push(runWriteback(project.projectDir, candidate, role).parsed);
+      const writebackResult = runWriteback(project.projectDir, candidate, role);
+      assertWritebackSucceeded(writebackResult);
+      results.push(writebackResult.parsed);
     }
 
     appendIngestLog(project.projectDir, {
@@ -270,6 +304,7 @@ async function main() {
       outcome: "processed",
       results
     });
+    clearPendingGovernanceResult(project.projectDir);
     logger.finalize({
       status: "ok",
       metadata: {
@@ -280,10 +315,12 @@ async function main() {
       }
     });
   } catch (error) {
+    process.stderr.write(`hooks/ingest-governance error: ${error instanceof Error ? error.message : String(error)}\n`);
     logger.finalize({
       status: "error",
       error
     });
+    process.exit(1);
   } finally {
     restoreStreams();
   }

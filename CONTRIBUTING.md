@@ -42,5 +42,7 @@ node scripts/validate-codex-starter-dev.mjs contract
 node scripts/validate-codex-starter-dev.mjs full
 ```
 
+The development validator runs in an isolated temporary mirror and must not create host runtime artifact directories such as repo-root `.codex/`.
+
 Development validation policy and test-asset rules live in [TESTING.md](/workspace/agent-skills/TESTING.md).
 These commands are the same whether you work manually, through Codex, through another AI assistant, or through CI automation.
