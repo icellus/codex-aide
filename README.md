@@ -1,46 +1,57 @@
 # agent-skills
 
-这个仓库当前只维护 `codex-starter`。
+[简体中文](README.zh-CN.md)
 
-## 安装
+This repository currently maintains `codex-aide` only.
+English root documents are the default display and canonical versions for this repository.
 
-在目标项目根目录执行：
-
-```bash
-bash /path/to/agent-skills/codex-starter/install.sh
-```
-
-当前安装器默认会删除目标项目中的 `AGENTS.md`、`.codex/`，以及旧版遗留的 `.agents/`、`.product/`，然后完整复制新的 starter。
-
-安装后的运行时权威以目标仓库中的以下文件为准：
+After installation, runtime authority lives in:
 
 - `AGENTS.md`
 - `.codex/skills/*/SKILL.md`
 - `.codex/policies/routing-policy.md`
 
-源码入口：
+Source entrypoints:
 
-- [install.sh](/workspace/agent-skills/codex-starter/install.sh)
-- [codex-starter/AGENTS.md](/workspace/agent-skills/codex-starter/AGENTS.md)
+- [codex-aide/README.md](codex-aide/README.md)
+- [codex-aide/AGENTS.md](codex-aide/AGENTS.md)
 
-贡献入口：
+Project documents:
 
-- [CONTRIBUTING.md](/workspace/agent-skills/CONTRIBUTING.md)
-- [TESTING.md](/workspace/agent-skills/TESTING.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [TESTING.md](TESTING.md)
+- [SUPPORT.md](SUPPORT.md)
+- [SECURITY.md](SECURITY.md)
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- [CHANGELOG.md](CHANGELOG.md)
 
-## 目录结构
+## Repository Layout
 
-- [codex-starter](/workspace/agent-skills/codex-starter): 对外发布的 starter 产品内容
-- [scripts](/workspace/agent-skills/scripts): 仓库维护脚本与开发校验入口
-- [standards](/workspace/agent-skills/standards): 开发校验使用的规则数据
-- [fixtures](/workspace/agent-skills/fixtures): 开发校验的最小反例资产
-- [.githooks](/workspace/agent-skills/.githooks): 本地 Git hook 接线
-- [.github](/workspace/agent-skills/.github): 仓库自动化配置
+- [codex-aide](codex-aide): starter content shipped to downstream repositories
+- [scripts](scripts): repository maintenance scripts and development validation entrypoints
+- [standards](standards): rule data used by development validation
+- [fixtures](fixtures): minimal failing-proof and behavior fixtures
+- [.githooks](.githooks): local Git hook wiring
+- [.github](.github): GitHub automation and contribution templates
 
-说明：
+Notes:
 
-- 旧的 `tests/codex-starter/` 测试脚本已移除，不再作为仓库默认验证入口
-- 通用仓库维护仍以任务相关的最小验证或明确记录“未验证”为准
-- `codex-starter` 开发校验遵循 [TESTING.md](/workspace/agent-skills/TESTING.md)
+- Legacy `tests/codex-aide/` scripts have been removed and are no longer the default validation entrypoint
+- Generic repository maintenance still uses the smallest task-relevant validation available, or an explicit "not validated" note
+- `codex-aide` development validation follows [TESTING.md](TESTING.md)
 
-`claude-starter` 已从本仓库迁出，归档说明见：[CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md)
+`claude-starter` now lives as a standalone repository: <https://github.com/icellus/claude-starter>
+
+## Community
+
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Support boundaries: [SUPPORT.md](SUPPORT.md)
+- Security reporting: [SECURITY.md](SECURITY.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Release history: [CHANGELOG.md](CHANGELOG.md)
+
+Core repository documents also have Simplified Chinese copies via `*.zh-CN.md`.
+
+## License
+
+This repository is licensed under the [MIT License](LICENSE).

@@ -1,0 +1,56 @@
+name: Bug Report
+description: Report a reproducible defect, regression, or documentation/rule mismatch
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide the smallest reproducible context you can. If the issue involves security-sensitive details, do not post them publicly; use `SECURITY.md` instead. Chinese reports are also welcome.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe expected behavior and actual behavior in 1-3 sentences
+      placeholder: Expected ..., but actually ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Provide the smallest executable reproduction steps
+      placeholder: |
+        1. In ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Paste relevant errors, logs, validation output, or file paths
+      placeholder: Command output, log excerpt, or file path
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Impact Scope
+      options:
+        - Root repository maintenance flow
+        - codex-aide installation output
+        - Both
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide relevant environment details such as OS, Node, Git, and execution entrypoint
+      placeholder: macOS 15 / Ubuntu 24.04 / Node 20 / Git 2.4x / GitHub Actions
+    validations:
+      required: false

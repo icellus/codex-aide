@@ -1,6 +1,8 @@
 # Testing
 
-This document defines the development-time validation model for `codex-starter` inside `/workspace/agent-skills`.
+[简体中文](TESTING.zh-CN.md)
+
+This document defines the development-time validation model for `codex-aide` inside this repository.
 
 It does not define:
 
@@ -8,13 +10,13 @@ It does not define:
 - installed-runtime user workflows inside target repositories
 - runtime authority itself
 
-Files such as `standards/*.json`, `fixtures/codex-starter-dev/**`, and `scripts/validate-*.mjs` belong to development governance only.
+Files such as `standards/*.json`, `fixtures/codex-aide-dev/**`, and `scripts/validate-*.mjs` belong to development governance only.
 They validate runtime authority and implementation alignment; they are not runtime authority.
 
 ## Principles
 
 - These rules apply to every contributor, whether the change is made manually, through Codex, through another AI assistant, or with no AI tooling at all.
-- Treat `codex-starter` as a maintained product, not as a disposable task artifact.
+- Treat `codex-aide` as a maintained product, not as a disposable task artifact.
 - Optimize for durable signal, not for making the current change pass at any cost.
 - Prefer a small number of stable executors plus explicit rule data over a growing pile of one-off scripts.
 - Keep test assets easy to review, easy to delete, and easy to justify.
@@ -66,10 +68,10 @@ Every check in the `contract` layer must be explicitly classified as either `sha
 Use the unified development validator:
 
 ```bash
-node scripts/validate-codex-starter-dev.mjs contract
-node scripts/validate-codex-starter-dev.mjs consistency
-node scripts/validate-codex-starter-dev.mjs meta
-node scripts/validate-codex-starter-dev.mjs full
+node scripts/validate-codex-aide-dev.mjs contract
+node scripts/validate-codex-aide-dev.mjs consistency
+node scripts/validate-codex-aide-dev.mjs meta
+node scripts/validate-codex-aide-dev.mjs full
 ```
 
 The default validator runs against an isolated temporary mirror of the repository and must leave the host worktree free of runtime artifact directories such as repo-root `.codex/`.
@@ -85,28 +87,29 @@ Git hooks use:
 
 - `pre-commit` -> `contract`, scoped to staged files in the validation-maintenance boundary
 - `pre-push` -> `full`, scoped to validation-maintenance files in the refs being pushed
+- repository CI -> `full`, so pull requests and pushes expose the same governed development-validation closeout in GitHub Actions
 
 Hook-scoped execution rules:
 
 - if no validation-maintenance files are present in the current staged set or pushed refs, the hook may skip running the validator
 - changed-file scoping may filter expensive `contract` `behavior` checks, but must not skip `shape`, `consistency`, or `meta` layers that still belong to the selected mode
-- when `scripts/validate-codex-starter-dev.mjs` or `standards/codex-starter-test-registry.json` changes, do not filter `contract` behavior checks by changed files
+- when `scripts/validate-codex-aide-dev.mjs` or `standards/codex-aide-test-registry.json` changes, do not filter `contract` behavior checks by changed files
 
-`standards/codex-starter-test-registry.json` is the dispatch table for the default suite.
+`standards/codex-aide-test-registry.json` is the dispatch table for the default suite.
 If the registry cannot be read, development validation must fail instead of pretending the suite is still known.
 
 ## Source Of Truth
 
 Development validation is defined by:
 
-- [AGENTS.md](/workspace/agent-skills/AGENTS.md)
-- [TESTING.md](/workspace/agent-skills/TESTING.md)
-- [scripts/validate-codex-starter-dev.mjs](/workspace/agent-skills/scripts/validate-codex-starter-dev.mjs)
-- [scripts/validate-codex-starter-authority.mjs](/workspace/agent-skills/scripts/validate-codex-starter-authority.mjs)
-- [standards/codex-starter-authority-map.json](/workspace/agent-skills/standards/codex-starter-authority-map.json)
-- [standards/codex-starter-consistency-map.json](/workspace/agent-skills/standards/codex-starter-consistency-map.json)
-- [standards/codex-starter-test-registry.json](/workspace/agent-skills/standards/codex-starter-test-registry.json)
-- [fixtures/codex-starter-dev](/workspace/agent-skills/fixtures/codex-starter-dev)
+- [AGENTS.md](AGENTS.md)
+- [TESTING.md](TESTING.md)
+- [scripts/validate-codex-aide-dev.mjs](scripts/validate-codex-aide-dev.mjs)
+- [scripts/validate-codex-aide-authority.mjs](scripts/validate-codex-aide-authority.mjs)
+- [standards/codex-aide-authority-map.json](standards/codex-aide-authority-map.json)
+- [standards/codex-aide-consistency-map.json](standards/codex-aide-consistency-map.json)
+- [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json)
+- [fixtures/codex-aide-dev](fixtures/codex-aide-dev)
 
 Within this model:
 
@@ -180,7 +183,7 @@ Delete or merge a check when any of the following is true:
 
 ## Registry Rules
 
-Every active development-validation check must be registered in [standards/codex-starter-test-registry.json](/workspace/agent-skills/standards/codex-starter-test-registry.json).
+Every active development-validation check must be registered in [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json).
 
 Minimum fields:
 
@@ -206,7 +209,7 @@ Additional rules:
 
 ## Consistency Scope
 
-`standards/codex-starter-consistency-map.json` may only express these cross-file consistency classes:
+`standards/codex-aide-consistency-map.json` may only express these cross-file consistency classes:
 
 - `ownership`
 - `handoff`
@@ -232,7 +235,7 @@ Development validators are not trusted on pass cases alone.
 
 ## Review And Delivery
 
-For every `codex-starter` development change, report:
+For every `codex-aide` development change, report:
 
 - which layers were run
 - which assertion kinds ran inside each layer

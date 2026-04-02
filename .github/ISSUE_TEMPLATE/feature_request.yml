@@ -1,0 +1,50 @@
+name: Feature Request
+description: Propose a concrete feature, rule improvement, or collaboration improvement
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem To Solve
+      description: Start with the current pain point instead of only presenting a solution
+      placeholder: Today ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Change
+      description: Describe what you want added or adjusted
+      placeholder: Propose adding/changing ...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe other options you considered but did not choose
+      placeholder: Also considered ...
+    validations:
+      required: false
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact Area
+      options:
+        - Documentation
+        - Scripts
+        - Rules / policies
+        - GitHub collaboration flow
+        - Public release experience
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation Expectation
+      description: If implemented, how should completion be verified?
+      placeholder: This can be validated by ...
+    validations:
+      required: false

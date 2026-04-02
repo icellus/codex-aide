@@ -2,4 +2,4 @@
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
-bash "$repo_root/scripts/run-codex-aide-dev-validation-hook.sh" pre-commit
+bash "$repo_root/scripts/run-codex-aide-dev-validation-hook.sh" "$@"

@@ -4,27 +4,26 @@ Repository-level maintenance guidance for this repo.
 
 ## Scope
 
-- This repository currently maintains `codex-starter` only.
-- `claude-starter` has been archived out of tree at `/workspace/claude-starter`.
-- The in-repo file [CLAUDE_STARTER_ARCHIVE.md](/workspace/agent-skills/CLAUDE_STARTER_ARCHIVE.md) is the archive note, not an active maintenance target.
-- This root-level `AGENTS.md` is for maintaining `/workspace/agent-skills` itself.
-- It is not the runtime authority shipped into target repositories by `codex-starter`.
-- The shipped runtime authority for the starter lives at [codex-starter/AGENTS.md](/workspace/agent-skills/codex-starter/AGENTS.md).
+- This repository currently maintains `codex-aide` only.
+- `claude-starter` now lives as a standalone repository at <https://github.com/icellus/claude-starter>.
+- This root-level `AGENTS.md` is for maintaining this repository itself.
+- It is not the runtime authority shipped into target repositories by `codex-aide`.
+- The shipped runtime authority for the starter lives at [codex-aide/AGENTS.md](codex-aide/AGENTS.md).
 
 ## Host Isolation Hard Constraint
 
-- While maintaining `/workspace/agent-skills`, treat `codex-starter/**` as the development target, not the active authority for the current maintenance session.
-- Do not let `codex-starter` runtime defaults (for example assistant persona, route aliases, or routing rules) leak back into host maintenance sessions unless this root guide or explicit user instruction says so.
-- This isolation rule does not weaken `codex-starter` runtime authority after it is installed into a target repository.
+- While maintaining this repository, treat `codex-aide/**` as the development target, not the active authority for the current maintenance session.
+- Do not let `codex-aide` runtime defaults (for example assistant persona, route aliases, or routing rules) leak back into host maintenance sessions unless this root guide or explicit user instruction says so.
+- This isolation rule does not weaken `codex-aide` runtime authority after it is installed into a target repository.
 
 ## Default Working Rules
 
 - Reply to the user in Chinese by default.
 - Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
-- Changes to `codex-starter/AGENTS.md`, `.codex/policies/**`, `.codex/skills/**`, `.codex/agents/**`, or `.codex/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
-- Legacy repo-level test scripts under `tests/codex-starter/` have been removed; do not assume a fixed runner exists.
+- Changes to `codex-aide/AGENTS.md`, `.codex/policies/**`, `.codex/skills/**`, `.codex/agents/**`, or `.codex/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
+- Legacy repo-level test scripts under `tests/codex-aide/` have been removed; do not assume a fixed runner exists.
 - For generic host-maintenance work, validation should use the smallest task-relevant command or script available in the current repo state.
-- For `codex-starter` development work, do not treat an isolated minimal check as sufficient when the change can cause cross-file rule drift; follow the governed development-validation rules in this file.
+- For `codex-aide` development work, do not treat an isolated minimal check as sufficient when the change can cause cross-file rule drift; follow the governed development-validation rules in this file.
 - If no reliable automated validation exists for the current task, record that explicitly instead of inventing coverage.
 
 ## Context And Token Discipline
@@ -36,14 +35,14 @@ Repository-level maintenance guidance for this repo.
 
 ## Authority Drift Prevention
 
-- For `codex-starter` runtime-boundary changes, define the boundary first in the owner set: `codex-starter/AGENTS.md`, `codex-starter/.codex/policies/routing-policy.md`, and the owned runtime artifact.
+- For `codex-aide` runtime-boundary changes, define the boundary first in the owner set: `codex-aide/AGENTS.md`, `codex-aide/.codex/policies/routing-policy.md`, and the owned runtime artifact.
 - Prefer positive authority statements such as `runtime authority lives in X` over repeated negative warnings in downstream skills or agents.
 - Repeat a boundary in downstream skills or agents only when it changes executable read order or write ownership.
 - Keep demo/example files semantically distinct from live files through naming and owner-file documentation; introduce fallback semantics only when a shipped script really implements them.
 
 ## Review Timing In Host Maintenance
 
-- This section governs `/workspace/agent-skills` host-maintenance workflow only; it is not a runtime-authority rule for `codex-starter`.
+- This section governs host-maintenance workflow for this repository only; it is not a runtime-authority rule for `codex-aide`.
 - Default `code review` / `reviewer` work starts after worker threads produce real code changes in the workspace.
 - Implementation review must be evidence-based on actual diff, implementation outcome, and validation outcomes (for example tests or command checks).
 - If review runs in parallel before real implementation lands, classify it as design review / solution review only, not implementation review.
@@ -60,19 +59,19 @@ Repository-level maintenance guidance for this repo.
 
 ## Validation
 
-- The legacy `tests/codex-starter/` runner and scripts have been removed from this repository.
+- The legacy `tests/codex-aide/` runner and scripts have been removed from this repository.
 - For repo-maintenance work, choose the lightest validation that still produces real evidence from the current repo state.
 - Acceptable validation may be syntax checks, command-level sanity checks, or targeted manual evidence when those are the only reliable options.
 - If a task intentionally ships without automated validation, state that clearly together with the reason and residual risk.
 
 ## Codex-Starter Development Test Governance
 
-- `TESTING.md` is the dedicated policy document for `codex-starter` development validation in this repository.
-- The default development-validation entrypoint is `node scripts/validate-codex-starter-dev.mjs`.
+- `TESTING.md` is the dedicated policy document for `codex-aide` development validation in this repository.
+- The default development-validation entrypoint is `node scripts/validate-codex-aide-dev.mjs`.
 - The development-validation rules apply to all contributors and must remain usable without Codex-specific runtime assumptions.
 - Keep development validation layered as `contract`, `consistency`, and `meta`; do not let local minimal iteration checks replace full closeout for multi-file rule changes.
-- All active development-validation checks must be registered in [standards/codex-starter-test-registry.json](/workspace/agent-skills/standards/codex-starter-test-registry.json).
+- All active development-validation checks must be registered in [standards/codex-aide-test-registry.json](standards/codex-aide-test-registry.json).
 - Prefer updating existing rule data or fixtures over adding new executors or standalone scripts.
 - Do not add new default checks unless a stable new rule or a real escaped regression requires them.
-- If no new check is added for a `codex-starter` development change, record the reason in a change summary, PR description, review note, or validation note.
+- If no new check is added for a `codex-aide` development change, record the reason in a change summary, PR description, review note, or validation note.
 - Validators must keep a maintained failing proof path; pass-only checks are not sufficient.

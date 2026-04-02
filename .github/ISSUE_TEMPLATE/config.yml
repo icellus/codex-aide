@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support Guide
+    url: https://github.com/icellus/agent-skills/blob/master/SUPPORT.md
+    about: Read support boundaries, issue categories, and contribution paths before opening a discussion
+  - name: Security Reporting
+    url: https://github.com/icellus/agent-skills/blob/master/SECURITY.md
+    about: Do not post security vulnerability details publicly
