@@ -12,6 +12,8 @@ AGENTS.md
 .codex/aide/AGENTS.md
 ```
 
+The installer also ensures `.gitignore` covers `AGENTS.md` and `/.codex/`.
+
 ## Preferred path
 
 Use this when Node.js `>=20` is available:

@@ -8,6 +8,9 @@ const sourceAgentsPath = path.join(starterRoot, "AGENTS.md");
 const sourceRuntimeDir = path.join(starterRoot, "aide");
 const managedAgentsStart = "<!-- codex-aide:start -->";
 const managedAgentsEnd = "<!-- codex-aide:end -->";
+const managedGitignoreStart = "# codex-aide:start";
+const managedGitignoreEnd = "# codex-aide:end";
+const managedGitignoreEntries = ["/AGENTS.md", "/.codex/"];
 
 function assertDirectory(dirPath, label) {
   if (!fs.existsSync(dirPath)) {
@@ -60,6 +63,11 @@ function wrapManagedAgentsBlock(text) {
   return `${managedAgentsStart}\n${normalized}\n${managedAgentsEnd}\n`;
 }
 
+function normalizeManagedText(text) {
+  const normalized = normalizeTextFile(text).trimEnd();
+  return normalized ? `${normalized}\n` : "";
+}
+
 function mergeAgentsContract(existingText, managedText) {
   const normalizedExisting = normalizeTextFile(existingText);
   const normalizedManaged = normalizeTextFile(managedText).trimEnd();
@@ -87,6 +95,124 @@ function mergeAgentsContract(existingText, managedText) {
   }
 
   return `${wrappedManaged}\n${normalizedExisting.trimStart()}`.replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "\n");
+}
+
+function stripManagedBlock(text, blockStart, blockEnd) {
+  const normalized = normalizeTextFile(text);
+  const startIndex = normalized.indexOf(blockStart);
+  const endIndex = normalized.indexOf(blockEnd);
+
+  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+    return {
+      text: normalizeManagedText(normalized),
+      hasManagedBlock: false
+    };
+  }
+
+  const before = normalized.slice(0, startIndex).trimEnd();
+  const after = normalized.slice(endIndex + blockEnd.length).trimStart();
+  const parts = [];
+
+  if (before) {
+    parts.push(before);
+  }
+
+  if (after) {
+    parts.push(after);
+  }
+
+  return {
+    text: parts.length > 0 ? `${parts.join("\n\n").replace(/\n{3,}/g, "\n\n")}\n` : "",
+    hasManagedBlock: true
+  };
+}
+
+function gitignoreLineCoversEntry(line, entry) {
+  const normalizedLine = line.trim();
+
+  if (!normalizedLine || normalizedLine.startsWith("#")) {
+    return false;
+  }
+
+  if (entry === "/AGENTS.md") {
+    return normalizedLine === "AGENTS.md" || normalizedLine === "/AGENTS.md";
+  }
+
+  if (entry === "/.codex/") {
+    return (
+      normalizedLine === ".codex/" ||
+      normalizedLine === "/.codex/" ||
+      normalizedLine === ".codex" ||
+      normalizedLine === "/.codex"
+    );
+  }
+
+  return normalizedLine === entry;
+}
+
+function listMissingGitignoreEntries(text) {
+  const lines = normalizeTextFile(text).split(/\n/);
+
+  return managedGitignoreEntries.filter(
+    (entry) => !lines.some((line) => gitignoreLineCoversEntry(line, entry))
+  );
+}
+
+function buildManagedGitignoreBlock(entries) {
+  return `${managedGitignoreStart}\n${entries.join("\n")}\n${managedGitignoreEnd}\n`;
+}
+
+function mergeGitignore(existingText = "") {
+  const { text: unmanagedText, hasManagedBlock } = stripManagedBlock(existingText, managedGitignoreStart, managedGitignoreEnd);
+  const missingEntries = listMissingGitignoreEntries(unmanagedText);
+  const managedBlock = missingEntries.length > 0 ? buildManagedGitignoreBlock(missingEntries) : "";
+
+  if (!managedBlock) {
+    return {
+      text: unmanagedText,
+      hasManagedBlock
+    };
+  }
+
+  if (!unmanagedText.trim()) {
+    return {
+      text: managedBlock,
+      hasManagedBlock
+    };
+  }
+
+  return {
+    text: `${unmanagedText.trimEnd()}\n\n${managedBlock}`,
+    hasManagedBlock
+  };
+}
+
+function manageGitignore(gitignorePath, dryRun) {
+  const fileExists = fs.existsSync(gitignorePath);
+  const existingText = fileExists ? fs.readFileSync(gitignorePath, "utf8") : "";
+  const { text: mergedText, hasManagedBlock } = mergeGitignore(existingText);
+  const normalizedExistingText = normalizeManagedText(existingText);
+  const changed = mergedText !== normalizedExistingText;
+  let action = dryRun ? "would-create" : "created";
+
+  if (fileExists) {
+    if (!changed) {
+      action = dryRun ? "would-keep" : "kept";
+    } else if (hasManagedBlock) {
+      action = dryRun ? "would-update" : "updated";
+    } else {
+      action = dryRun ? "would-update" : "updated";
+    }
+  }
+
+  if (changed && !dryRun) {
+    fs.writeFileSync(gitignorePath, mergedText, "utf8");
+  }
+
+  return {
+    action,
+    changed
+  };
 }
 
 function isProtectedRuntimePath(relativePath) {
@@ -140,6 +266,7 @@ function installRuntime({
   const targetAgentsPath = path.join(resolvedTargetDir, "AGENTS.md");
   const targetCodexDir = path.join(resolvedTargetDir, ".codex");
   const targetRuntimeDir = path.join(targetCodexDir, "aide");
+  const targetGitignorePath = path.join(resolvedTargetDir, ".gitignore");
 
   if (fs.existsSync(targetRuntimeDir) && !fs.statSync(targetRuntimeDir).isDirectory()) {
     throw new Error(`install target runtime path must be a directory: ${formatPath(targetRuntimeDir)}`);
@@ -151,6 +278,7 @@ function installRuntime({
   const overwrittenFiles = [];
   const preservedRuntimeFiles = new Set();
   let agentsAction = dryRun ? "would-install" : "installed";
+  const gitignoreResult = manageGitignore(targetGitignorePath, dryRun);
 
   if (fs.existsSync(targetRuntimeDir)) {
     for (const existingFilePath of listFilesRecursive(targetRuntimeDir)) {
@@ -213,6 +341,7 @@ function installRuntime({
     summary: `${dryRun ? "Dry run complete." : "Install complete."}`,
     details: [
       `${dryRun ? "Would manage" : "Managed"} AGENTS.md -> ${formatPath(targetAgentsPath)} (${agentsAction})`,
+      `${dryRun ? "Would manage" : "Managed"} .gitignore -> ${formatPath(targetGitignorePath)} (${gitignoreResult.action})`,
       `${dryRun ? "Would ensure" : "Ensured"} runtime root -> ${formatPath(targetRuntimeDir)}`,
       `${dryRun ? "Would install" : "Installed"} ${installedFiles.length} runtime file(s)`,
       `${dryRun ? "Would overwrite" : "Overwrote"} ${overwrittenFiles.length} shipped file(s)`,
