@@ -110,7 +110,7 @@ cp -R starter/aide /path/to/repo/.codex/aide
 把下面这句指令发给你的 agent：
 
 ```text
-Follow https://raw.githubusercontent.com/icellus/codex-aide/main/INSTALL.md to install codex-aide into the current repository.
+Follow https://raw.githubusercontent.com/icellus/codex-aide/master/INSTALL.md to install codex-aide into the current repository.
 ```
 
 安装说明位于 [INSTALL.md](../INSTALL.md)。

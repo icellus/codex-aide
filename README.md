@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/codex-aide-hero.svg" alt="codex-aide hero" width="960" />
+  <img src="https://raw.githubusercontent.com/icellus/codex-aide/master/docs/assets/codex-aide-hero.svg" alt="codex-aide hero" width="960" />
 </p>
 
 <h1 align="center">codex-aide</h1>
@@ -18,7 +18,7 @@
     <td align="center"><a href="#installation"><strong>Installation</strong></a></td>
     <td align="center"><a href="#built-for-codex"><strong>Built for Codex</strong></a></td>
     <td align="center"><a href="#repository-docs"><strong>Docs</strong></a></td>
-    <td align="center"><a href="docs/README.zh-CN.md"><strong>中文介绍</strong></a></td>
+    <td align="center"><a href="https://github.com/icellus/codex-aide/blob/master/docs/README.zh-CN.md"><strong>中文介绍</strong></a></td>
   </tr>
 </table>
 
@@ -108,10 +108,10 @@ Use this when you want a coding agent to do the setup in the current repository.
 Give your agent this instruction:
 
 ```text
-Follow https://raw.githubusercontent.com/icellus/codex-aide/main/INSTALL.md to install codex-aide into the current repository.
+Follow https://raw.githubusercontent.com/icellus/codex-aide/master/INSTALL.md to install codex-aide into the current repository.
 ```
 
-The install guide lives in [INSTALL.md](INSTALL.md).
+The install guide lives in [INSTALL.md](https://github.com/icellus/codex-aide/blob/master/INSTALL.md).
 
 <h2 id="what-gets-installed">🧱 What Gets Installed</h2>
 
@@ -165,13 +165,13 @@ This is usually not a good fit when:
 
 <h2 id="repository-docs">📚 Repository Docs</h2>
 
-- [Chinese introduction](docs/README.zh-CN.md)
-- [Install guide](INSTALL.md)
-- [Contributing](CONTRIBUTING.md)
-- [Testing](TESTING.md)
-- [Security](SECURITY.md)
-- [Support](SUPPORT.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Chinese introduction](https://github.com/icellus/codex-aide/blob/master/docs/README.zh-CN.md)
+- [Install guide](https://github.com/icellus/codex-aide/blob/master/INSTALL.md)
+- [Contributing](https://github.com/icellus/codex-aide/blob/master/CONTRIBUTING.md)
+- [Testing](https://github.com/icellus/codex-aide/blob/master/TESTING.md)
+- [Security](https://github.com/icellus/codex-aide/blob/master/SECURITY.md)
+- [Support](https://github.com/icellus/codex-aide/blob/master/SUPPORT.md)
+- [Code of Conduct](https://github.com/icellus/codex-aide/blob/master/CODE_OF_CONDUCT.md)
 
 Some repository-structure ideas here were informed by community work, including [agents-zone-skillset](https://github.com/lipingtababa/agents-zone-skillset).
 

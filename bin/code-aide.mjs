@@ -101,7 +101,7 @@ async function main(argv = process.argv.slice(2)) {
   }
 
   if (parsed.command === "version") {
-    process.stdout.write("0.1.0\n");
+    process.stdout.write("0.1.1\n");
     return 0;
   }
 
