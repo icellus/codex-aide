@@ -18,7 +18,7 @@ Repository-level maintenance guidance for this repo.
 
 ## Default Working Rules
 
-- Reply to the user in Chinese by default.
+- Prefer direct, positive phrasing in docs and user-facing copy. State the intended action or boundary first; do not default to `not ... but ...` rewrites when a clear positive statement will do.
 - Repository commits should pass the local commit policy in `scripts/commit-policy.mjs`.
 - Changes to `starter/AGENTS.md`, `starter/aide/AGENTS.md`, `starter/aide/policies/**`, `starter/aide/skills/**`, `starter/aide/agents/**`, or `starter/aide/context/**` must pass the local authority validator via `.githooks/pre-commit` and `.githooks/pre-push`.
 - Legacy repo-level fixed test-runner assumptions have been removed; do not assume a single historical runner still exists.

@@ -1,57 +1,81 @@
-# @icellus/codex-aide
+<p align="center">
+  <img src="docs/assets/codex-aide-hero.svg" alt="codex-aide hero" width="960" />
+</p>
 
-Codex Aide is a governed repository starter for Codex-based execution, validation, and delivery workflows.
+<h1 align="center">codex-aide</h1>
 
-It installs a Codex runtime into an existing repository so work can run with explicit authority files, durable runtime state, validation baselines, and governed delivery rules.
+<p align="center">
+  <strong>Add a governed, Codex-ready runtime to an existing repository.</strong>
+</p>
 
-- npm package: `@icellus/codex-aide`
-- repository: <https://github.com/icellus/codex-aide>
-- Chinese introduction: [docs/README.zh-CN.md](docs/README.zh-CN.md)
+<p align="center">
+  For repositories you already use with <strong>Codex</strong>. If you work through <strong>Codex CLI</strong> or another compatible client, codex-aide fits into that workflow and gives it a more governed shape.
+</p>
 
-## What You Get
+<table align="center">
+  <tr>
+    <td align="center"><a href="#quick-start"><strong>Quick Start</strong></a></td>
+    <td align="center"><a href="#installation"><strong>Installation</strong></a></td>
+    <td align="center"><a href="#built-for-codex"><strong>Built for Codex</strong></a></td>
+    <td align="center"><a href="#repository-docs"><strong>Docs</strong></a></td>
+    <td align="center"><a href="docs/README.zh-CN.md"><strong>中文介绍</strong></a></td>
+  </tr>
+</table>
 
-After installation, the target repository gets:
+## ✨ Why codex-aide
 
-- a thin project-level `AGENTS.md` that defines the codex-aide entry boundary
-- a `.codex/aide/` runtime with policies, skills, agents, hooks, templates, and helper scripts
-- a `.codex/aide/AGENTS.md` runtime subtree contract for codex-aide-owned files
-- durable runtime state for task tracking, governance context, submit preferences, and progress records
-- a governed path for validation, commit, push, and delivery follow-through
+Many Codex setups begin as a mix of prompts, local notes, and copied rules. That can work for a while, but it is hard to keep consistent across repositories and sessions.
 
-## Contract Model
+codex-aide packages that into a repository runtime with:
 
-Codex Aide now uses a layered authority model instead of putting every runtime rule into the repository root `AGENTS.md`.
+- a stable entry point at the repository root
+- a dedicated runtime directory under `.codex/aide/`
+- a governed layout that is easier to review and refresh
+- durable state for ongoing work and workflow tracking
+- an install path you can run again as the starter evolves
 
-- the root `AGENTS.md` is intentionally thin
-- `.codex/aide/AGENTS.md` governs the codex-aide runtime subtree
-- `.codex/aide/skills/*/SKILL.md` and `.codex/aide/agents/*.toml` govern role behavior
+| Without codex-aide | With codex-aide |
+| --- | --- |
+| Root instructions keep growing | Runtime files stay grouped under `.codex/aide/` |
+| Repo setup drifts from one project to another | One starter layout can be installed again |
+| Long-running work loses local workflow state | Runtime state stays with the repository |
+| Workflow and validation flow depend on local habit | The starter ships a consistent, governed workflow baseline |
 
-This keeps the repository root contract easier to merge with existing repository instructions while still letting codex-aide keep a complete runtime contract under `.codex/aide/**`.
-
-## Compatibility
-
-Codex Aide is designed to coexist with other installed skills.
-
-- other skills may remain installed in the same repository or external skill locations
-- codex-aide keeps its own route, state, governance, and delivery authority inside `.codex/aide/**`
-- other skills do not enter codex-aide `next_owner`, `sticky_owner`, governance writeback, or runtime state ownership by default
-
-This is the default compatibility model after installation: coexistence without implicit routing takeover.
-
-## Quick Start
-
-Target:
-
-- a repository root where the runtime should be installed
-
-### Install With npm
+<h2 id="quick-start">🚀 Quick Start</h2>
 
 Requirements:
 
-- Node.js `>=20`
+- Node.js `>=20` for npm installation
+- A repository you use through Codex CLI or a Codex-capable client
+
+Choose one installation path below.
+
+<h2 id="installation">📦 Installation</h2>
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <strong>📦 npm install</strong><br />
+      Fastest standard path
+    </td>
+    <td align="center" width="33%">
+      <strong>🌐 git install</strong><br />
+      Pull the starter and copy it directly
+    </td>
+    <td align="center" width="33%">
+      <strong>🤖 AI install</strong><br />
+      Let your coding agent do the setup
+    </td>
+  </tr>
+</table>
+
+### 1. npm
+
+Use this when Node.js is available.
 
 ```bash
 npm i -g @icellus/codex-aide
+cd /path/to/your/repo
 code-aide install
 ```
 
@@ -62,24 +86,36 @@ code-aide install --target /path/to/repo
 code-aide install --dry-run
 ```
 
-### Manual Install
+### 2. Install from git
 
-If you do not want to use npm or Node.js at install time, copy the starter files into the target repository manually.
+Use this when you want to pull the starter and copy it into the repository yourself.
 
 ```bash
-git clone https://github.com/icellus/codex-aide.git
-cd codex-aide
+git clone --depth 1 https://github.com/icellus/codex-aide.git /tmp/codex-aide
+cd /tmp/codex-aide
 
 cp starter/AGENTS.md /path/to/repo/AGENTS.md
 mkdir -p /path/to/repo/.codex
 cp -R starter/aide /path/to/repo/.codex/aide
 ```
 
-Manual installation uses the same layout as the installer, but it does not apply the installer's merge or preservation logic automatically. It will not update an existing `AGENTS.md` for you, and it will not preserve runtime-local files automatically.
+This uses the same starter layout, but it does not apply the installer's merge and preservation behavior automatically.
 
-## Installed Layout
+### 3. Install with AI
 
-The published package ships:
+Use this when you want a coding agent to do the setup in the current repository.
+
+Give your agent this instruction:
+
+```text
+Follow https://raw.githubusercontent.com/icellus/codex-aide/main/INSTALL.md to install codex-aide into the current repository.
+```
+
+The install guide lives in [INSTALL.md](INSTALL.md).
+
+<h2 id="what-gets-installed">🧱 What Gets Installed</h2>
+
+The package ships this starter layout:
 
 ```text
 starter/AGENTS.md
@@ -87,53 +123,65 @@ starter/aide/AGENTS.md
 starter/aide/**
 ```
 
-The installer maps that into:
+The installer maps it into the target repository like this:
 
 ```text
-starter/AGENTS.md   -> <repo>/AGENTS.md
+starter/AGENTS.md      -> <repo>/AGENTS.md
 starter/aide/AGENTS.md -> <repo>/.codex/aide/AGENTS.md
-starter/aide/**     -> <repo>/.codex/aide/**
+starter/aide/**        -> <repo>/.codex/aide/**
 ```
 
-## Upgrade
+The goal is to keep the repository root light while keeping codex-aide runtime files together under `.codex/aide/`.
 
-The current `code-aide install` command can be re-run to refresh the shipped runtime files and the codex-aide root contract.
+<h2 id="built-for-codex">🧭 Built for Codex</h2>
 
-- if the target repository root already has `AGENTS.md`, the installer prepends or updates the managed codex-aide contract at the top and leaves the existing content in place
-- `.codex/aide/**` shipped files are refreshed from the latest starter
-- runtime-local files remain preserved
+codex-aide is for Codex-based repository workflows that want a governed runtime shape. It is not a standalone GUI product and it is not a generic prompt pack.
 
-The managed root block is wrapped with `<!-- codex-aide:start -->` / `<!-- codex-aide:end -->` markers when the installer merges into an existing `AGENTS.md`.
+To get value from the installed runtime, work from:
 
-The merge model is intentionally narrow:
+- Codex CLI
+- another client that reads repository instructions and works against the installed runtime files
 
-- codex-aide manages only its own top-level contract block
-- existing repository instructions remain below that managed block
-- codex-aide does not try to rewrite or normalize the rest of the user's `AGENTS.md`
+If Codex is already part of how you work in the repository, codex-aide is meant to tighten that workflow, not replace it with a separate product.
 
-When doing a manual upgrade, preserve these runtime-local paths instead of replacing them from the package:
+If the client ignores repository instructions or never touches the installed runtime tree, codex-aide will not behave as intended.
 
-- `.codex/aide/state/*.json`, except `*.demo.json`
-- `.codex/aide/context/project-profile.md`
-- `.codex/aide/policies/validation-profile.json`
-- `.codex/aide/progress/**`
-- `.codex/aide/logs/**`
-- `.codex/aide/artifacts/**`
-- `.codex/aide/product/**`
+### Compatibility
 
-Package-owned static files such as `.codex/aide/policies/routing-policy.md` can usually be refreshed from the latest starter.
+codex-aide can live alongside other installed skills. Its runtime files, workflow state, and repository-level structure stay grouped under `.codex/aide/`, so coexistence is fine by default.
 
-## CLI
+In practice, this is a good fit when:
+
+- you want Codex work to follow a clearer repository structure
+- other skills can coexist without becoming the default owners of `codex-aide` files and decisions
+- you want one installable workflow baseline instead of repeating setup by hand
+
+This is usually not a good fit when:
+
+- the client ignores repository instructions or installed runtime files
+- another system also wants to become the repository-level default authority for the same route, state, or governance decisions
+- another skill is expected to take over `.codex/aide/**` as its own default write surface
+- you only want a lightweight prompt snippet rather than an installed repository workflow
+
+<h2 id="repository-docs">📚 Repository Docs</h2>
+
+- [Chinese introduction](docs/README.zh-CN.md)
+- [Install guide](INSTALL.md)
+- [Contributing](CONTRIBUTING.md)
+- [Testing](TESTING.md)
+- [Security](SECURITY.md)
+- [Support](SUPPORT.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+
+Some repository-structure ideas here were informed by community work, including [agents-zone-skillset](https://github.com/lipingtababa/agents-zone-skillset).
+
+## 🛠 For Maintainers
+
+If you are maintaining this repository itself, start from a git checkout of `codex-aide` and run the repository checks there.
 
 ```bash
-code-aide --help
-code-aide --version
-code-aide install [--target <dir>] [--dry-run]
-```
-
-## Development
-
-```bash
+git clone https://github.com/icellus/codex-aide.git
+cd codex-aide
 node scripts/validate-codex-aide-dev.mjs full
 npm pack --dry-run
 ```

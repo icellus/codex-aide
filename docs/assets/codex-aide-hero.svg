@@ -1,0 +1,71 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">codex-aide hero</title>
+  <desc id="desc">A hero graphic for codex-aide, a governed Codex runtime starter for repositories.</desc>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="44" x2="1206" y2="596" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6F1E8"/>
+      <stop offset="1" stop-color="#EAF5F3"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="106" y1="92" x2="1174" y2="548" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FBFC"/>
+      <stop offset="1" stop-color="#E8F0F4"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="148" y1="352" x2="614" y2="408" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#0EA5A4"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="1280" height="640" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="28" flood-color="#0F172A" flood-opacity="0.13"/>
+    </filter>
+  </defs>
+
+  <rect x="56" y="44" width="1168" height="552" rx="34" fill="url(#bg)"/>
+  <rect x="56" y="44" width="1168" height="552" rx="34" stroke="#D7E3DF" stroke-width="2"/>
+
+  <g filter="url(#shadow)">
+    <rect x="106" y="92" width="1068" height="456" rx="28" fill="url(#panel)"/>
+    <rect x="106.5" y="92.5" width="1067" height="455" rx="27.5" stroke="#BBCDD5"/>
+  </g>
+
+  <text x="148" y="230" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="80" font-weight="700" fill="#111827">codex-aide</text>
+
+  <text x="148" y="282" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="28" fill="#334155">Install a governed Codex runtime</text>
+  <text x="148" y="318" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="28" fill="#334155">into an existing repository.</text>
+
+  <rect x="148" y="370" width="472" height="116" rx="24" fill="url(#teal)"/>
+  <circle cx="181" cy="402" r="14" fill="#DDF7F5"/>
+  <path d="M175 402L179 406L187 398" stroke="#0F766E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="206" y="407" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="20" font-weight="700" fill="#FFFFFF">Fits your existing Codex workflow</text>
+  <text x="182" y="441" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" fill="#DDF7F5">Use it in the same repository with Codex CLI</text>
+  <text x="182" y="462" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="15" fill="#DDF7F5">or another Codex-capable client.</text>
+
+  <g>
+    <rect x="732" y="156" width="282" height="82" rx="22" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="764" y="189" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="18" font-weight="700" fill="#111827">Repository root</text>
+    <text x="764" y="217" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#475569">AGENTS.md</text>
+
+    <rect x="800" y="272" width="340" height="108" rx="22" fill="#F0FDFA" stroke="#99F6E4" stroke-width="2"/>
+    <text x="832" y="306" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Runtime subtree</text>
+    <text x="832" y="334" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#0F766E">.codex/aide/</text>
+    <text x="832" y="356" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" fill="#334155">policies · skills · agents</text>
+    <text x="832" y="376" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" fill="#334155">hooks · templates</text>
+
+    <rect x="670" y="430" width="176" height="78" rx="20" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="698" y="464" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="17" font-weight="700" fill="#0F172A">Policy &amp; skills</text>
+    <text x="698" y="487" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" fill="#475569">runtime behavior</text>
+
+    <rect x="864" y="444" width="156" height="78" rx="20" fill="#FFF7ED" stroke="#FED7AA" stroke-width="2"/>
+    <text x="892" y="478" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="17" font-weight="700" fill="#9A3412">State</text>
+    <text x="892" y="501" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" fill="#7C2D12">task context</text>
+
+    <rect x="1038" y="430" width="128" height="78" rx="20" fill="#EEF2FF" stroke="#C7D2FE" stroke-width="2"/>
+    <text x="1066" y="464" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="17" font-weight="700" fill="#3730A3">Validation</text>
+    <text x="1066" y="487" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="14" fill="#4338CA">baseline</text>
+
+    <path d="M873 238 C875 254 918 262 970 272" fill="none" stroke="#8EA3AD" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M970 380 C970 390 970 396 970 404" fill="none" stroke="#8EA3AD" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M970 404 C936 410 844 416 758 430" fill="none" stroke="#8EA3AD" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M970 404 C960 416 950 428 942 444" fill="none" stroke="#8EA3AD" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M970 404 C1004 410 1070 416 1102 430" fill="none" stroke="#8EA3AD" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
