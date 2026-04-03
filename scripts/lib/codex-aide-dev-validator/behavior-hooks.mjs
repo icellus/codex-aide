@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 import {
   assertPresentFields,
@@ -347,8 +349,76 @@ function validateTaskProgressSyncBehaviorContracts({
   return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateTaskProgressSyncScenario });
 }
 
+function applyProgressDemoMutation(projectDir, mutation) {
+  const relativePath = typeof mutation?.path === "string" ? mutation.path.trim() : "";
+  if (!relativePath) {
+    throw new Error("progress demo mutation.path is required");
+  }
+
+  const filePath = path.join(projectDir, relativePath);
+  if (mutation.type === "append-text") {
+    fs.appendFileSync(filePath, String(mutation.text || ""), "utf8");
+    return;
+  }
+
+  throw new Error(`unsupported progress demo mutation type "${mutation?.type || "<missing>"}"`);
+}
+
+function withTempRepoRoot(repoRoot, prefix, callback) {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const projectDir = path.join(tempRoot, "repo");
+  fs.cpSync(repoRoot, projectDir, { recursive: true });
+
+  try {
+    return callback({ projectDir, tempRoot });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+function validateProgressDemoScenario({ repoRoot = defaultRepoRoot, scenario }) {
+  return withTempRepoRoot(repoRoot, "codex-aide-progress-demo-", ({ projectDir }) => {
+    const errors = [];
+
+    runSetupCommands(scenario.setup_commands, projectDir);
+
+    for (const mutation of scenario.pre_mutations || []) {
+      applyProgressDemoMutation(projectDir, mutation);
+    }
+
+    const scriptPath = path.join(projectDir, "scripts", "generate-codex-aide-progress-demos.mjs");
+    const invocation = spawnSync(process.execPath, [scriptPath, "--check", "--repo-root", projectDir], {
+      cwd: projectDir,
+      encoding: "utf8"
+    });
+    const expect = scenario.expect || {};
+
+    if (typeof expect.exit_status === "number" && (invocation.status ?? 1) !== expect.exit_status) {
+      errors.push(`${scenario.id || "<unknown>"}: expected exit_status=${expect.exit_status}, got ${invocation.status ?? 1}`);
+    }
+
+    if (typeof expect.stdout_contains === "string" && !String(invocation.stdout || "").includes(expect.stdout_contains)) {
+      errors.push(`${scenario.id || "<unknown>"}: expected stdout to contain ${JSON.stringify(expect.stdout_contains)}`);
+    }
+
+    if (typeof expect.stderr_contains === "string" && !String(invocation.stderr || "").includes(expect.stderr_contains)) {
+      errors.push(`${scenario.id || "<unknown>"}: expected stderr to contain ${JSON.stringify(expect.stderr_contains)}`);
+    }
+
+    return finishValidation(errors);
+  });
+}
+
+function validateProgressDemoContracts({
+  repoRoot = defaultRepoRoot,
+  scenarioRoot = path.join(repoRoot, "tests", "fixtures", "codex-aide-dev", "progress-demo-pass")
+} = {}) {
+  return collectScenarioErrors({ repoRoot, scenarioRoot, validateScenario: validateProgressDemoScenario });
+}
+
 export {
   validateHookRootBehaviorContracts,
+  validateProgressDemoContracts,
   validateTaskProgressSyncBehaviorContracts,
   validateValidateGitBehaviorContracts
 };

@@ -13,7 +13,7 @@
     "authority_target": "",
     "recommended_action": "",
     "disposition": "auto-fix|ask-user|special-flow",
-    "source": "product_assistant|aide",
+    "source": "product_assistant|Aide",
     "evidence": [],
     "occurrences": 0,
     "status": "queued|accepted|rejected|applied",

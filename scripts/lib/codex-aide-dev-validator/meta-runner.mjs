@@ -23,6 +23,7 @@ import {
 } from "./behavior-context.mjs";
 import {
   validateHookRootBehaviorContracts,
+  validateProgressDemoContracts,
   validateTaskProgressSyncBehaviorContracts,
   validateValidateGitBehaviorContracts
 } from "./behavior-hooks.mjs";
@@ -168,6 +169,21 @@ const executorDefinitions = Object.freeze({
   "governance-flow": createScenarioExecutor({ validator: validateGovernanceFlowContracts }),
   "task-state-behavior": createScenarioExecutor({ validator: validateTaskStateBehaviorContracts }),
   "task-progress-sync-behavior": createScenarioExecutor({ validator: validateTaskProgressSyncBehaviorContracts }),
+  "progress-demo-sync": createExecutor({
+    layer: "consistency",
+    assertionKind: "consistency",
+    requiresProof: true,
+    runActive: ({ repoRoot, check }) =>
+      validateProgressDemoContracts({
+        repoRoot,
+        scenarioRoot: path.join(repoRoot, check?.scenario_root || path.join("tests", "fixtures", "codex-aide-dev", "progress-demo-pass"))
+      }),
+    runProof: ({ repoRoot, check }) =>
+      validateProgressDemoContracts({
+        repoRoot,
+        scenarioRoot: proofScenarioRoot(repoRoot, check)
+      })
+  }),
   "repo-context-behavior": createScenarioExecutor({ validator: validateRepoContextBehaviorContracts }),
   "project-context-behavior": createScenarioExecutor({ validator: validateProjectContextBehaviorContracts }),
   "hook-root-behavior": createScenarioExecutor({

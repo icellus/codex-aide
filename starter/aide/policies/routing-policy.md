@@ -62,8 +62,8 @@ Plain-language intent should map to the same routes.
 - Main-thread closeout cannot substitute for a missing required `tester` handoff once `coder` has participated.
 - blocked handoff from a missing `Implementation Brief` must stop tester, qc, and submit continuation until `technical_manager` resolves it.
 - if missing brief requires user clarification, route through `technical_manager -> Aide -> user`.
-- for long-running technical tasks, `technical_manager` owns `.codex/aide/progress/**` writes and keeps `history` + `current.md` synchronized.
-- progress trigger events are fixed: `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `resume`, `completed`.
+- for long-running technical tasks, `technical_manager` owns progress semantics, checkpoints, and advancement decisions; runtime task-state sync keeps `history` + `current.md` synchronized.
+- minimum long-running sync events are `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `waiting-user`, `resume`, `paused`, `completed`, and `cancelled`.
 
 ## Task Lifecycle
 
@@ -217,6 +217,7 @@ Environment setup decisions and preparation belong to `technical_manager`.
 - `.codex/aide/progress/active/<task-slug>/current.md`: primary long-running snapshot per active task
 - `.codex/aide/progress/active/<task-slug>/history/<timestamp>-<slug>.md`: append-only long-running progress events
 - `.codex/aide/progress/archive/<task-slug>/...`: archived progress records for completed/closed tasks
+- `.codex/aide/progress/*.demo.md`: shipped reference outputs generated from the current runtime renderer; examples only, never live progress state
 - `node .codex/aide/scripts/context/task-progress-sync.mjs`: read-only helper that reports drift between hot task state and long-running `current.md`
 - long-running path segments use a slugified task identifier; the literal `task_id` remains part of task state and file content
 - `PROGRESS.md`: legacy optional note only, never the primary runtime progress source

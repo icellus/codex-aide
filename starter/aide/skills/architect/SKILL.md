@@ -137,9 +137,10 @@ Return:
 - architecture path if created
 - key design decision
 - unresolved technical tradeoffs, if any
-- next recommended step (return to `technical_manager` directly)
+- authoritative next handoff in `task_update.next_owner` (normally return to `technical_manager` directly)
 
 When this turn keeps or advances the current hot task, record a turn-result payload through `node .codex/aide/scripts/context/record-turn-result.mjs` so the Stop hook can sync the routed state.
+Do not mirror the handoff owner in a parallel top-level field; `task_update.next_owner` is authoritative.
 Do not append raw protocol payloads to the user-visible reply.
 
 End every final report with this exact retrospective section:
@@ -175,7 +176,6 @@ Record this exact payload:
     }
   ],
   "technical_tradeoffs": [],
-  "next_action_owner": "technical_manager|product_manager",
   "task_update": {
     "sync": true,
     "status": "handoff|blocked",

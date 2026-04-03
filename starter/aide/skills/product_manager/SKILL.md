@@ -138,11 +138,12 @@ Return:
 - PRD path if created
 - key MVP decision
 - unresolved product questions, if any
-- handoff target:
+- authoritative handoff target in `task_update.next_owner`:
   - if `skip`: hand off to `technical_manager` with skip rationale
   - if `product`: hand off to `architect` (auto-enabled), then continue to `technical_manager`
 
 When this turn keeps or advances the current hot task, record a turn-result payload through `node .codex/aide/scripts/context/record-turn-result.mjs` so the Stop hook can sync the routed state.
+Do not mirror the handoff owner in a parallel top-level field; `task_update.next_owner` is authoritative.
 Do not append raw protocol payloads to the user-visible reply.
 
 Record this exact payload:
@@ -155,7 +156,6 @@ Record this exact payload:
   "prd_path": null,
   "key_mvp_decision": "",
   "unresolved_product_questions": [],
-  "next_action_owner": "technical_manager|architect|Aide",
   "task_update": {
     "sync": true,
     "status": "handoff|blocked|waiting_user",

@@ -1,0 +1,7 @@
+{
+  "id": "progress_demos_match_runtime_renderer",
+  "expect": {
+    "exit_status": 0,
+    "stdout_contains": "progress demos are in sync"
+  }
+}

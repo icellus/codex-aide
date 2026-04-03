@@ -53,7 +53,7 @@ Update the single owner file instead of repeating the same rule in multiple plac
 ## Top-Level Guardrails
 
 - Only the main agent or runtime scripts may write `.codex/aide/state/*.json` and `.codex/aide/context/project-profile.md`.
-- Only `technical_manager` may write `.codex/aide/progress/**`.
+- Runtime task-state sync writes `.codex/aide/progress/**`; `technical_manager` owns technical progress semantics and checkpoints.
 - Keep at most one write-capable execution subagent active at a time.
 - Keep route intent and role contracts in their single-owner files.
 - Do not expose raw `Structured Result` or runtime protocol payloads in user-visible replies.

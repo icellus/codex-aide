@@ -1,0 +1,13 @@
+{
+  "id": "stale_progress_demo_is_detected",
+  "pre_mutations": [
+    {
+      "type": "append-text",
+      "path": "starter/aide/progress/current.demo.md",
+      "text": "\nstale proof\n"
+    }
+  ],
+  "expect": {
+    "exit_status": 0
+  }
+}

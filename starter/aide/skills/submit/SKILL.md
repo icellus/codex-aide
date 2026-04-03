@@ -76,7 +76,7 @@ Disabled or unconfigured stages should return `skipped`, not `blocked`.
 ## Post-Push Rules
 
 - `notify`, `ci`, and `release` are optional delivery stages
-- if the project does not configure a stage, mark it `skipped:not-configured`
+- if the project does not configure a stage, report `status=skipped` with `reason=not-configured`
 - for the starter default, a stage is considered configured only when its policy block is enabled and `command` is non-empty
 - prefer report-first behavior for CI or release unless policy explicitly allows stronger automation
 - when a stage fails because of environment, permissions, or missing signals, stop and report the blocker

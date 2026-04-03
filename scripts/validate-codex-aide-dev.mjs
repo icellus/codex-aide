@@ -12,6 +12,7 @@ import {
 } from "./lib/codex-aide-dev-validator/behavior-context.mjs";
 import {
   validateHookRootBehaviorContracts,
+  validateProgressDemoContracts,
   validateTaskProgressSyncBehaviorContracts,
   validateValidateGitBehaviorContracts
 } from "./lib/codex-aide-dev-validator/behavior-hooks.mjs";
@@ -143,6 +144,7 @@ export {
   validateHookRootBehaviorContracts,
   validateJsonContracts,
   validateMeta,
+  validateProgressDemoContracts,
   validateProjectContextBehaviorContracts,
   validateRegistry,
   validateRepoContextBehaviorContracts,

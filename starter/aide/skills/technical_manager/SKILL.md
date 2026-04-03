@@ -23,7 +23,7 @@ When you send user-facing progress updates, keep the wording natural and do not 
 - staged chain management across `coder`, `tester`, optional `qc`, and optional `submit`
 - conflict control across write-capable roles
 - hot-task lifecycle updates for technical delivery
-- progress ownership under `.codex/aide/progress/**` for `current.md` + `history/*.md` sync
+- progress semantics ownership for long-running technical tasks; runtime task-state sync keeps `current.md` + `history/*.md` aligned
 
 ## Read Order
 
@@ -49,7 +49,8 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/aide/progress/active/<task-slug>/curren
 
 - `Implementation Brief` is the document type, not the literal filename
 - keep the brief path slugged and space-free, for example `plans/<task-slug>-implementation-brief.md`
-- downstream roles should exchange the actual path through `brief_path`, never infer a filename from the title alone
+- `technical_manager` publishes the authoritative brief path through `artifacts.implementation_brief.path`
+- downstream `coder` and `tester` still exchange the actual brief path through `brief_path` in their own contracts; never infer a filename from the title alone
 
 ## What You Decide
 
@@ -106,13 +107,14 @@ Use `PRD.md`, `ARCHITECTURE.md`, `.codex/aide/progress/active/<task-slug>/curren
 
 ## Progress Write Rules (Mandatory)
 
-- `technical_manager` is the only execution role that writes `.codex/aide/progress/**`.
+- `technical_manager` owns long-running progress semantics, checkpoints, and advancement decisions for technical tasks.
+- runtime task-state sync writes `.codex/aide/progress/**` and keeps task-linked `current.md` + `history/*.md` aligned.
 - long-running current snapshot path: `.codex/aide/progress/active/<task-slug>/current.md`.
 - long-running history path: `.codex/aide/progress/active/<task-slug>/history/<timestamp>-<slug>.md`.
 - on state changes that materially update long-running progress, append one history entry and refresh `current.md` in the same update cycle.
 - at minimum, treat `new-task`, `brief-refresh`, `handoff-switch`, `blocked`, `waiting-user`, `resume`, `paused`, `completed`, and `cancelled` as long-running sync events.
 - on `completed` or `cancelled`, keep the final snapshot + history coherent, then move the task record to `.codex/aide/progress/archive/<task-slug>/...`.
-- `.codex/aide/templates/progress/current.md` and `.codex/aide/templates/progress/release.md` are `current.md` templates; `.codex/aide/templates/progress/history.md` is the history-entry template.
+- `.codex/aide/progress/current.demo.md`, `.codex/aide/progress/release-current.demo.md`, and `.codex/aide/progress/history-entry.demo.md` are generated reference outputs only; runtime render shape lives in `.codex/aide/scripts/shared/task-progress.mjs`.
 - progress path segments use a slugified task identifier; keep the literal `Task ID` inside file content and task state.
 - if a session stops before an `active`, `handoff`, or `blocked` task is explicitly settled, expect runtime hooks to record interruption only; on the next session, either resume the same hot task or retire it explicitly before switching.
 - if startup reconcile suggests the hot task might already be completed externally, confirm the evidence and then settle the task explicitly; do not rely on the reconcile helper to auto-complete it.
@@ -137,30 +139,49 @@ If conflict exists, stop and report concrete blocker plus recommended sequencing
 
 ## Output Contract
 
-For repository scan tasks, return only:
+For repository scan tasks, use `mode=repository-scan` and return only:
 
 - `status` (`complete|failed`)
 - `repo_context`
 - `validation_profile`
 
-For other technical-delivery tasks, return:
+For other technical-delivery tasks, use `mode=technical-delivery` and split the result into these layers:
 
-- selected task class
-- selected delivery mode
-- activated modules and staged order
-- `environment setup` decision
-- `Implementation Brief` path/status (`required|ready|needs-refresh`)
-- validation baseline initialization status for `.codex/aide/policies/validation-profile.json` (`none|proposed`)
-- tester baseline refresh feedback status (`none|reported`)
-- validation baseline refresh proposal status for `.codex/aide/policies/validation-profile.json` (`none|proposed`)
-- governance escalation status (`none|reported|special-flow`)
-- post-tester QC decision (`run-qc|skip-qc`)
-- next action owner
-- hot-task lifecycle update for the current turn
-- validation boundary and hard-gate summary
-- conflicts or blockers, if any
-- escalation-to-`Aide` decision (`yes|no`) and reason when `yes`
-- progress sync status and latest history path when long-running tracking is active
+- authoritative runtime fields in `task_update`
+- authoritative artifact fields in `artifacts`
+- report-only fields in `report`
+- governance evidence in `governance_candidates`
+- conflicts or blockers in `blockers`
+
+Authoritative runtime fields:
+
+- `task_update` is the only hot-task state patch consumed by the Stop hook for `technical_manager`
+- when technical-delivery truth changes, put the authoritative values in `task_update`, not in a parallel mirror field
+- `task_update.next_owner` is the authoritative next owner
+- `task_update.delivery_mode` is the authoritative task delivery mode when `technical_manager` changes it
+- use `task_update` for hot-task fields such as task class, risk, delivery mode, route rationale, enabled roles/modules, QC/submit policy, open questions, checkpoint, next step, next owner, waiting state, and settlement reason
+
+Authoritative artifact fields:
+
+- `artifacts.implementation_brief.path` is the authoritative `Implementation Brief` path when present
+- `artifacts.implementation_brief.status` records whether the brief is `none|required|ready|needs-refresh`
+- `repo_context` and `validation_profile` remain the authoritative scan outputs for `repository-scan` mode
+
+Report-only fields:
+
+- `report.*` is structured handoff/report content for people and downstream roles
+- current runtime hooks do not consume `report.*` for task-state progression
+- use `report` for `environment_setup`, validation boundary, hard gates, tester baseline refresh notes, validation-profile refresh notes, QC decision, governance escalation summary, progress sync notes, and explicit re-triage-to-`Aide` reasoning
+
+Redundancy rule:
+
+- do not add a second authoritative field that duplicates `task_update.next_owner` or `artifacts.implementation_brief.path`
+- if a human-readable mirror is useful in prose, say so in the natural-language reply; the JSON contract still treats `task_update.*` and `artifacts.*` as authoritative
+
+`mode` identifies which top-level branch this result is using:
+
+- `repository-scan`
+- `technical-delivery`
 
 When the current routed turn should keep, change, or settle the same hot task, record a turn-result payload through `node .codex/aide/scripts/context/record-turn-result.mjs` so the Stop hook can sync the hot task from this turn deterministically.
 Use `task_update.sync=true` whenever this turn belongs to the current hot task.
@@ -176,11 +197,12 @@ Record this exact payload:
   "mode": "repository-scan|technical-delivery",
   "repo_context": null,
   "validation_profile": null,
-  "brief_path": "",
-  "brief_status": "none|required|ready|needs-refresh",
-  "baseline_refresh_feedback": "none|reported",
-  "validation_profile_refresh": "none|proposed",
-  "governance_escalation": "none|reported|special-flow",
+  "artifacts": {
+    "implementation_brief": {
+      "path": "",
+      "status": "none|required|ready|needs-refresh"
+    }
+  },
   "governance_candidates": [
     {
       "issue": "",
@@ -193,17 +215,52 @@ Record this exact payload:
       "evidence": []
     }
   ],
-  "next_action_owner": "",
   "task_update": {
     "sync": true,
     "status": "active|handoff|blocked|waiting_user|completed|cancelled",
+    "class": "unknown|bugfix|feature|product|refactor|exploration",
+    "risk": "",
+    "delivery_mode": "lightweight|standard|long-running",
+    "route_rationale": "",
+    "enabled_roles": [],
+    "enabled_modules": [],
+    "qc_policy": "disabled|skip|skip-unless-risk-escalates|required",
+    "submit_policy": "enabled|manual|disabled",
+    "validation_profile_status": "",
+    "open_questions": [],
     "checkpoint": "",
     "next_step": "",
     "next_owner": "",
     "waiting_on": "none|user|repo|env|external|review|unknown",
     "blocked_reason": "",
-    "completion_reason": ""
+    "completion_reason": "",
+    "event": ""
+  },
+  "report": {
+    "environment_setup": "skip|current-workspace|isolated-workspace",
+    "validation": {
+      "baseline_refresh_feedback": "none|reported",
+      "profile_refresh": "none|proposed",
+      "boundary": "",
+      "hard_gates": []
+    },
+    "governance": {
+      "escalation": "none|reported|special-flow"
+    },
+    "qc": {
+      "decision": "run-qc|skip-qc"
+    },
+    "progress": {
+      "status": "not-applicable|in-sync|updated|drift-detected",
+      "latest_history_path": ""
+    },
+    "reroute": {
+      "to_aide": false,
+      "reason": ""
+    }
   },
   "blockers": []
 }
 ```
+
+For `mode=repository-scan`, `artifacts`, `task_update`, `report`, `governance_candidates`, and `blockers` may stay empty when they are not applicable.

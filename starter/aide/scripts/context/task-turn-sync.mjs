@@ -14,6 +14,19 @@ import {
   readTranscriptLines
 } from "../shared/transcript.mjs";
 
+const TECHNICAL_MANAGER_ONLY_TASK_UPDATE_FIELDS = Object.freeze([
+  "class",
+  "risk",
+  "delivery_mode",
+  "route_rationale",
+  "qc_policy",
+  "submit_policy",
+  "validation_profile_status",
+  "open_questions",
+  "enabled_roles",
+  "enabled_modules"
+]);
+
 function normalizeText(value) {
   return String(value || "").replace(/\r/g, "").trim();
 }
@@ -194,6 +207,30 @@ function normalizeTaskUpdate(value) {
   if (hasOwnField(value, "status")) {
     taskUpdate.status = normalizeText(value.status).toLowerCase();
   }
+  if (hasOwnField(value, "class")) {
+    taskUpdate.class = normalizeText(value.class);
+  }
+  if (hasOwnField(value, "risk")) {
+    taskUpdate.risk = normalizeText(value.risk);
+  }
+  if (hasOwnField(value, "delivery_mode")) {
+    taskUpdate.delivery_mode = normalizeText(value.delivery_mode);
+  }
+  if (hasOwnField(value, "route_rationale")) {
+    taskUpdate.route_rationale = normalizeText(value.route_rationale);
+  }
+  if (hasOwnField(value, "qc_policy")) {
+    taskUpdate.qc_policy = normalizeText(value.qc_policy);
+  }
+  if (hasOwnField(value, "submit_policy")) {
+    taskUpdate.submit_policy = normalizeText(value.submit_policy);
+  }
+  if (hasOwnField(value, "validation_profile_status")) {
+    taskUpdate.validation_profile_status = normalizeText(value.validation_profile_status);
+  }
+  if (hasOwnField(value, "open_questions")) {
+    taskUpdate.open_questions = normalizeStringList(value.open_questions);
+  }
   if (hasOwnField(value, "checkpoint")) {
     taskUpdate.checkpoint = normalizeText(value.checkpoint);
   }
@@ -225,6 +262,15 @@ function normalizeTaskUpdate(value) {
   return taskUpdate;
 }
 
+function findUnauthorizedTaskUpdateFields(taskUpdate, role) {
+  const normalizedRole = normalizeText(role);
+  if (!taskUpdate || typeof taskUpdate !== "object" || normalizedRole === "technical_manager") {
+    return [];
+  }
+
+  return TECHNICAL_MANAGER_ONLY_TASK_UPDATE_FIELDS.filter((fieldName) => hasOwnField(taskUpdate, fieldName));
+}
+
 function buildTaskPatch(currentTask, taskUpdate) {
   const patch = {
     current_task: normalizeText(currentTask.current_task),
@@ -233,6 +279,14 @@ function buildTaskPatch(currentTask, taskUpdate) {
 
   for (const fieldName of [
     "status",
+    "class",
+    "risk",
+    "delivery_mode",
+    "route_rationale",
+    "qc_policy",
+    "submit_policy",
+    "validation_profile_status",
+    "open_questions",
     "checkpoint",
     "next_step",
     "next_owner",
@@ -301,7 +355,7 @@ function deriveRoutePatch({ currentTask, structuredResult, taskUpdate, turnLines
   const routePatch = {};
 
   if (normalizedRole === "technical_manager") {
-    const briefPath = normalizeText(structuredResult?.brief_path);
+    const briefPath = normalizeText(structuredResult?.artifacts?.implementation_brief?.path);
     if (briefPath) {
       routePatch.implementation_brief_path = briefPath;
     }
@@ -444,6 +498,14 @@ function hasTaskUpdateOverrides(taskUpdate) {
 
   return [
     "status",
+    "class",
+    "risk",
+    "delivery_mode",
+    "route_rationale",
+    "qc_policy",
+    "submit_policy",
+    "validation_profile_status",
+    "open_questions",
     "checkpoint",
     "next_step",
     "next_owner",
@@ -480,6 +542,7 @@ function decideSync({ projectDir, currentTask, transcriptPath, turnId, sessionId
   const structuredResult = snapshot.structuredResult;
   const role = normalizeText(structuredResult?.role);
   const taskUpdate = normalizeTaskUpdate(structuredResult?.task_update);
+  const unauthorizedTaskUpdateFields = findUnauthorizedTaskUpdateFields(taskUpdate, role);
   const hasOverrides = hasTaskUpdateOverrides(taskUpdate);
   const expectedRoleError = structuredResult ? validateExpectedRole(currentTask, role, snapshot.turnLines) : null;
 
@@ -491,6 +554,21 @@ function decideSync({ projectDir, currentTask, transcriptPath, turnId, sessionId
       structuredResult,
       role,
       error: expectedRoleError
+    };
+  }
+
+  if (unauthorizedTaskUpdateFields.length > 0) {
+    return {
+      action: "reject-sync",
+      reason: "unauthorized-task-update-fields",
+      snapshot,
+      structuredResult,
+      taskUpdate,
+      role,
+      error: {
+        code: "unauthorized-task-update-fields",
+        message: `${role || "unknown role"} may not write ${unauthorizedTaskUpdateFields.join(", ")} through task_update`
+      }
     };
   }
 
