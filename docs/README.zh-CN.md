@@ -12,10 +12,31 @@
 
 安装完成后，目标仓库会得到：
 
-- 顶层 `AGENTS.md`，用于定义项目级默认行为和权威边界
+- 顶层 `AGENTS.md`，用于定义 codex-aide 的入口边界和顶层权威映射
 - `.codex/aide/` 运行时目录，包含 policies、skills、agents、hooks、templates 和辅助脚本
+- `.codex/aide/AGENTS.md`，用于约束 `.codex/aide/**` 子树的运行时边界
 - 用于任务跟踪、治理上下文、submit 偏好、长任务进度的持久化运行态文件
 - 面向验证、提交、推送和后续收尾的受治理交付链路
+
+## Contract 模型
+
+`Codex Aide` 现在使用分层 authority，而不是把所有运行时规则都塞进仓库根级 `AGENTS.md`。
+
+- 根级 `AGENTS.md` 刻意保持精简
+- `.codex/aide/AGENTS.md` 负责约束 codex-aide 的 runtime 子树
+- `.codex/aide/skills/*/SKILL.md` 与 `.codex/aide/agents/*.toml` 负责各角色行为
+
+这样做的目的，是让根级 contract 更容易和用户仓库已有说明共存，同时把完整的 codex-aide runtime contract 保留在 `.codex/aide/**` 内部。
+
+## 与其他 Skill 的兼容
+
+`Codex Aide` 默认按“可共存，但不隐式接管”的方式与其他 skill 兼容。
+
+- 其他 skill 可以继续存在于同一仓库，或者存在于外部 skill 位置
+- codex-aide 把自己的 route、state、governance 和 delivery authority 保持在 `.codex/aide/**`
+- 其他 skill 默认不会进入 codex-aide 的 `next_owner`、`sticky_owner`、governance writeback 或 runtime state ownership
+
+也就是说，安装后的默认兼容模型是“共存”，而不是“自动接入 codex-aide 路由图”。
 
 如果你希望 Codex 在多个任务、多个会话、多个仓库里保持一致行为，而不是每次都重新拼接提示词，这个包就是为这种场景设计的。
 
@@ -76,7 +97,7 @@ cp -R starter/aide /path/to/repo/.codex/aide
 
 手动安装和安装器使用同一套落地目录，但它不会自动应用安装器的保护逻辑。也就是说：
 
-- 不会自动拒绝已存在的 `AGENTS.md`
+- 不会自动把 codex-aide 的根级 contract 合并到已存在的 `AGENTS.md`
 - 不会自动保留本地运行态文件
 - 不会区分“随包静态文件”和“仓库本地运行态文件”
 
@@ -88,16 +109,16 @@ cp -R starter/aide /path/to/repo/.codex/aide
 
 ### 升级说明
 
-当前的 `code-aide install` 更适合作为“首次安装”入口，而不是通用的原地升级命令。
+当前的 `code-aide install` 可以重复执行，用来刷新随包运行时文件和 codex-aide 的根级 contract。
 
-- 如果目标仓库根目录已经有 `AGENTS.md`，它会直接退出
-- 它最适合还没有 Codex Aide 根级 contract 的干净目标仓库
-- 如果仓库已经在使用 Codex Aide，当前更稳的升级路径是基于最新 starter 文件做手工合并
+- 如果目标仓库根目录已经有 `AGENTS.md`，安装器会把 codex-aide 的受管 contract 置顶或更新，并保留原有内容
+- `.codex/aide/**` 下的随包静态文件会刷新到最新 starter 版本
+- 仓库本地运行态文件会继续保留
 
 推荐的手工升级流程：
 
 1. 获取最新的 `codex-aide` 源码树或发布压缩包。
-2. 在替换仓库根级 contract 前先审阅 `starter/AGENTS.md`。
+2. 在替换仓库根级 contract 前先审阅 `starter/AGENTS.md` 和 `starter/aide/AGENTS.md`。
 3. 刷新 `.codex/aide/**` 下的随包静态文件。
 4. 保留仓库本地运行态文件，不要直接覆盖。
 
@@ -107,6 +128,7 @@ cp -R starter/aide /path/to/repo/.codex/aide
 
 ```text
 starter/AGENTS.md
+starter/aide/AGENTS.md
 starter/aide/**
 ```
 
@@ -114,6 +136,7 @@ starter/aide/**
 
 ```text
 starter/AGENTS.md   -> <repo>/AGENTS.md
+starter/aide/AGENTS.md -> <repo>/.codex/aide/AGENTS.md
 starter/aide/**     -> <repo>/.codex/aide/**
 ```
 
@@ -122,7 +145,16 @@ starter/aide/**     -> <repo>/.codex/aide/**
 ```text
 AGENTS.md
 .codex/aide/
+.codex/aide/AGENTS.md
 ```
+
+当安装器需要把 codex-aide contract 合并到已有的顶层 `AGENTS.md` 时，会使用 `<!-- codex-aide:start -->` / `<!-- codex-aide:end -->` 标记包住受管区块，便于后续刷新。
+
+这里的合并策略是刻意收敛的：
+
+- codex-aide 只管理自己在顶层的 contract 区块
+- 用户仓库原有的说明内容会继续保留在受管区块之后
+- 安装器不会尝试重写、规整或解释用户 `AGENTS.md` 里剩余的内容
 
 ## 运行态本地文件
 

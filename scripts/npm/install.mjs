@@ -6,6 +6,8 @@ const packageRoot = path.resolve(fileURLToPath(new URL("../..", import.meta.url)
 const starterRoot = path.join(packageRoot, "starter");
 const sourceAgentsPath = path.join(starterRoot, "AGENTS.md");
 const sourceRuntimeDir = path.join(starterRoot, "aide");
+const managedAgentsStart = "<!-- codex-aide:start -->";
+const managedAgentsEnd = "<!-- codex-aide:end -->";
 
 function assertDirectory(dirPath, label) {
   if (!fs.existsSync(dirPath)) {
@@ -47,6 +49,44 @@ function listFilesRecursive(rootDir) {
   }
 
   return results.sort();
+}
+
+function normalizeTextFile(text) {
+  return String(text || "").replace(/\r/g, "");
+}
+
+function wrapManagedAgentsBlock(text) {
+  const normalized = normalizeTextFile(text).trimEnd();
+  return `${managedAgentsStart}\n${normalized}\n${managedAgentsEnd}\n`;
+}
+
+function mergeAgentsContract(existingText, managedText) {
+  const normalizedExisting = normalizeTextFile(existingText);
+  const normalizedManaged = normalizeTextFile(managedText).trimEnd();
+  const wrappedManaged = wrapManagedAgentsBlock(normalizedManaged);
+  const existingTrimmed = normalizedExisting.trim();
+  const existingLeadingTrimmed = normalizedExisting.trimStart();
+
+  if (!existingTrimmed) {
+    return normalizedManaged ? `${normalizedManaged}\n` : "";
+  }
+
+  if (existingLeadingTrimmed.startsWith(normalizedManaged)) {
+    const after = existingLeadingTrimmed.slice(normalizedManaged.length).replace(/^\n+/, "");
+    return `${wrappedManaged}${after ? `\n${after}` : ""}`.replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "\n");
+  }
+
+  const startIndex = normalizedExisting.indexOf(managedAgentsStart);
+  const endIndex = normalizedExisting.indexOf(managedAgentsEnd);
+
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    const before = normalizedExisting.slice(0, startIndex);
+    const after = normalizedExisting.slice(endIndex + managedAgentsEnd.length).replace(/^\n+/, "");
+    const merged = `${before}${wrappedManaged}${after ? `\n${after}` : ""}`;
+    return merged.replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "\n");
+  }
+
+  return `${wrappedManaged}\n${normalizedExisting.trimStart()}`.replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "\n");
 }
 
 function isProtectedRuntimePath(relativePath) {
@@ -101,18 +141,16 @@ function installRuntime({
   const targetCodexDir = path.join(resolvedTargetDir, ".codex");
   const targetRuntimeDir = path.join(targetCodexDir, "aide");
 
-  if (fs.existsSync(targetAgentsPath)) {
-    throw new Error(`install target already has AGENTS.md: ${formatPath(targetAgentsPath)}`);
-  }
-
   if (fs.existsSync(targetRuntimeDir) && !fs.statSync(targetRuntimeDir).isDirectory()) {
     throw new Error(`install target runtime path must be a directory: ${formatPath(targetRuntimeDir)}`);
   }
 
+  const sourceAgentsText = fs.readFileSync(sourceAgentsPath, "utf8");
   const sourceFiles = listFilesRecursive(sourceRuntimeDir);
   const installedFiles = [];
   const overwrittenFiles = [];
   const preservedRuntimeFiles = new Set();
+  let agentsAction = dryRun ? "would-install" : "installed";
 
   if (fs.existsSync(targetRuntimeDir)) {
     for (const existingFilePath of listFilesRecursive(targetRuntimeDir)) {
@@ -128,7 +166,26 @@ function installRuntime({
   if (!dryRun) {
     fs.mkdirSync(targetCodexDir, { recursive: true });
     fs.mkdirSync(targetRuntimeDir, { recursive: true });
-    fs.cpSync(sourceAgentsPath, targetAgentsPath);
+
+    if (fs.existsSync(targetAgentsPath)) {
+      const existingAgentsText = fs.readFileSync(targetAgentsPath, "utf8");
+      const mergedAgentsText = mergeAgentsContract(existingAgentsText, sourceAgentsText);
+      fs.writeFileSync(targetAgentsPath, mergedAgentsText, "utf8");
+      agentsAction = existingAgentsText.includes(managedAgentsStart)
+        ? "updated"
+        : normalizeTextFile(existingAgentsText).trimStart().startsWith(normalizeTextFile(sourceAgentsText).trimEnd())
+          ? "wrapped"
+          : "prepended";
+    } else {
+      fs.writeFileSync(targetAgentsPath, `${normalizeTextFile(sourceAgentsText).trimEnd()}\n`, "utf8");
+    }
+  } else if (fs.existsSync(targetAgentsPath)) {
+    const existingAgentsText = fs.readFileSync(targetAgentsPath, "utf8");
+    agentsAction = existingAgentsText.includes(managedAgentsStart)
+      ? "would-update"
+      : normalizeTextFile(existingAgentsText).trimStart().startsWith(normalizeTextFile(sourceAgentsText).trimEnd())
+        ? "would-wrap"
+        : "would-prepend";
   }
 
   for (const sourceFilePath of sourceFiles) {
@@ -155,7 +212,7 @@ function installRuntime({
   return {
     summary: `${dryRun ? "Dry run complete." : "Install complete."}`,
     details: [
-      `${dryRun ? "Would install" : "Installed"} AGENTS.md -> ${formatPath(targetAgentsPath)}`,
+      `${dryRun ? "Would manage" : "Managed"} AGENTS.md -> ${formatPath(targetAgentsPath)} (${agentsAction})`,
       `${dryRun ? "Would ensure" : "Ensured"} runtime root -> ${formatPath(targetRuntimeDir)}`,
       `${dryRun ? "Would install" : "Installed"} ${installedFiles.length} runtime file(s)`,
       `${dryRun ? "Would overwrite" : "Overwrote"} ${overwrittenFiles.length} shipped file(s)`,

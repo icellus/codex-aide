@@ -16,6 +16,14 @@ const agentsAllowedSections = new Set([
   "Top-Level Guardrails"
 ]);
 
+const runtimeAgentsAllowedSections = new Set([
+  "Scope And Precedence",
+  "Runtime Boundary",
+  "Write Boundaries",
+  "Runtime Sources",
+  "Compatibility Boundary"
+]);
+
 const agentsForbiddenPatterns = [
   "## Read Order",
   "## Sources of truth",
@@ -53,6 +61,25 @@ function validateAgents(text) {
 
   for (const heading of headings) {
     if (!agentsAllowedSections.has(heading)) {
+      errors.push(`disallowed section heading "${heading}"`);
+    }
+  }
+
+  for (const pattern of agentsForbiddenPatterns) {
+    if (text.includes(pattern)) {
+      errors.push(`forbidden pattern "${pattern}"`);
+    }
+  }
+
+  return errors;
+}
+
+function validateRuntimeAgents(text) {
+  const errors = [];
+  const headings = Array.from(text.matchAll(/^##\s+(.+)$/gm)).map((match) => match[1].trim());
+
+  for (const heading of headings) {
+    if (!runtimeAgentsAllowedSections.has(heading)) {
       errors.push(`disallowed section heading "${heading}"`);
     }
   }
@@ -112,6 +139,13 @@ function validatorForTarget(relativePath) {
     return {
       kind: "AGENTS",
       validate: validateAgents
+    };
+  }
+
+  if (relativePath === ".codex/aide/AGENTS.md" || relativePath === "starter/aide/AGENTS.md") {
+    return {
+      kind: "runtime-AGENTS",
+      validate: validateRuntimeAgents
     };
   }
 

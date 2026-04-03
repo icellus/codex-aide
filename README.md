@@ -12,10 +12,31 @@ It installs a Codex runtime into an existing repository so work can run with exp
 
 After installation, the target repository gets:
 
-- a project-level `AGENTS.md`
+- a thin project-level `AGENTS.md` that defines the codex-aide entry boundary
 - a `.codex/aide/` runtime with policies, skills, agents, hooks, templates, and helper scripts
+- a `.codex/aide/AGENTS.md` runtime subtree contract for codex-aide-owned files
 - durable runtime state for task tracking, governance context, submit preferences, and progress records
 - a governed path for validation, commit, push, and delivery follow-through
+
+## Contract Model
+
+Codex Aide now uses a layered authority model instead of putting every runtime rule into the repository root `AGENTS.md`.
+
+- the root `AGENTS.md` is intentionally thin
+- `.codex/aide/AGENTS.md` governs the codex-aide runtime subtree
+- `.codex/aide/skills/*/SKILL.md` and `.codex/aide/agents/*.toml` govern role behavior
+
+This keeps the repository root contract easier to merge with existing repository instructions while still letting codex-aide keep a complete runtime contract under `.codex/aide/**`.
+
+## Compatibility
+
+Codex Aide is designed to coexist with other installed skills.
+
+- other skills may remain installed in the same repository or external skill locations
+- codex-aide keeps its own route, state, governance, and delivery authority inside `.codex/aide/**`
+- other skills do not enter codex-aide `next_owner`, `sticky_owner`, governance writeback, or runtime state ownership by default
+
+This is the default compatibility model after installation: coexistence without implicit routing takeover.
 
 ## Quick Start
 
@@ -54,7 +75,7 @@ mkdir -p /path/to/repo/.codex
 cp -R starter/aide /path/to/repo/.codex/aide
 ```
 
-Manual installation uses the same layout as the installer, but it does not apply the installer's safety checks. It will not reject an existing `AGENTS.md`, and it will not preserve runtime-local files automatically.
+Manual installation uses the same layout as the installer, but it does not apply the installer's merge or preservation logic automatically. It will not update an existing `AGENTS.md` for you, and it will not preserve runtime-local files automatically.
 
 ## Installed Layout
 
@@ -62,6 +83,7 @@ The published package ships:
 
 ```text
 starter/AGENTS.md
+starter/aide/AGENTS.md
 starter/aide/**
 ```
 
@@ -69,16 +91,25 @@ The installer maps that into:
 
 ```text
 starter/AGENTS.md   -> <repo>/AGENTS.md
+starter/aide/AGENTS.md -> <repo>/.codex/aide/AGENTS.md
 starter/aide/**     -> <repo>/.codex/aide/**
 ```
 
 ## Upgrade
 
-The current `code-aide install` command should be treated as a first-install entrypoint, not as a general in-place upgrade command.
+The current `code-aide install` command can be re-run to refresh the shipped runtime files and the codex-aide root contract.
 
-- it exits if the target repository root already has `AGENTS.md`
-- it is best suited for a clean target repository
-- if a repository is already using Codex Aide, the safer upgrade path today is a manual merge from the latest starter files
+- if the target repository root already has `AGENTS.md`, the installer prepends or updates the managed codex-aide contract at the top and leaves the existing content in place
+- `.codex/aide/**` shipped files are refreshed from the latest starter
+- runtime-local files remain preserved
+
+The managed root block is wrapped with `<!-- codex-aide:start -->` / `<!-- codex-aide:end -->` markers when the installer merges into an existing `AGENTS.md`.
+
+The merge model is intentionally narrow:
+
+- codex-aide manages only its own top-level contract block
+- existing repository instructions remain below that managed block
+- codex-aide does not try to rewrite or normalize the rest of the user's `AGENTS.md`
 
 When doing a manual upgrade, preserve these runtime-local paths instead of replacing them from the package:
 

@@ -185,6 +185,7 @@ function validateGovernanceTargetContracts({ repoRoot = defaultRepoRoot } = {}) 
   const projectDir = repoRoot;
   const targets = [
     "starter/AGENTS.md",
+    "starter/aide/AGENTS.md",
     "starter/aide/policies/routing-policy.md",
     "starter/aide/policies/aide-governance-policy.md",
     "starter/aide/context/project-profile.md"

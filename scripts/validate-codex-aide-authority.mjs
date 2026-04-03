@@ -80,6 +80,7 @@ function collectAuthorityFiles(repoRoot) {
   const files = [];
   const include = [
     path.join(repoRoot, "starter", "AGENTS.md"),
+    path.join(repoRoot, "starter", "aide", "AGENTS.md"),
     path.join(repoRoot, "starter", "aide", "policies"),
     path.join(repoRoot, "starter", "aide", "skills"),
     path.join(repoRoot, "starter", "aide", "agents"),
