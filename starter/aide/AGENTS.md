@@ -25,6 +25,9 @@ Runtime subtree contract for `.codex/aide/**`.
 
 ## Runtime Sources
 
+- Aide entry contract, startup read order, and triage semantics -> `.codex/aide/skills/aide/SKILL.md`
+- Routing topology, optional route labels, chain rules, and gates -> `.codex/aide/policies/routing-policy.md`
+- Governance scope, triggers, levels, and dispositions -> `.codex/aide/policies/aide-governance-policy.md`
 - Task runtime authority -> `.codex/aide/state/task-context.json`
 - Governance runtime authority -> `.codex/aide/state/governance-context.json`
 - Submit preference runtime authority -> `.codex/aide/state/submit-preferences.json`

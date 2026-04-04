@@ -8,6 +8,8 @@ Success means these paths exist:
 
 ```text
 AGENTS.md
+.codex/config.toml
+.codex/hooks.json
 .codex/aide/
 .codex/aide/AGENTS.md
 ```
@@ -20,7 +22,7 @@ Use this when Node.js `>=20` is available:
 
 ```bash
 npm i -g @icellus/codex-aide
-code-aide install
+codex-aide install
 ```
 
 Prefer this path if the repository already has `AGENTS.md`.
@@ -35,8 +37,12 @@ Do not blindly overwrite an existing `AGENTS.md`.
 git clone --depth 1 https://github.com/icellus/codex-aide.git /tmp/codex-aide
 cp /tmp/codex-aide/starter/AGENTS.md ./AGENTS.md
 mkdir -p ./.codex
+cp /tmp/codex-aide/starter/aide/config.toml ./.codex/config.toml
+cp /tmp/codex-aide/starter/aide/hooks.json ./.codex/hooks.json
 cp -R /tmp/codex-aide/starter/aide ./.codex/aide
 ```
+
+If Codex CLI still does not run hooks in that repository, enable `codex_hooks` in `~/.codex/config.toml` or start Codex with `codex --enable codex_hooks`.
 
 ## Report back
 

@@ -1,1 +1,107 @@
-{"version":1,"scope":"codex-aide runtime authority maintenance","owners":[{"id":"starter_agents","path":"starter/AGENTS.md","allowed_sections":["Scope And Precedence","Product Defaults","Route Intents","Authority Map","Top-Level Guardrails"],"forbidden_patterns":["## Read Order","## Sources of truth","## Output Contract","## Structured Result","## Runtime Entrypoints","context/startup.mjs","context/session.mjs","context/task-overview.mjs","governance/writeback.mjs","governance/audit.mjs","runtime/state.mjs"]},{"id":"runtime_subtree_agents","path":"starter/aide/AGENTS.md","allowed_sections":["Scope And Precedence","Runtime Boundary","Write Boundaries","Runtime Sources","Compatibility Boundary"],"forbidden_patterns":["## Read Order","## Sources of truth","## Output Contract","## Structured Result","## Runtime Entrypoints","context/startup.mjs","context/session.mjs","context/task-overview.mjs","governance/writeback.mjs","governance/audit.mjs","runtime/state.mjs"]},{"id":"routing_policy","path":"starter/aide/policies/routing-policy.md","required_terms":["technical_manager","QC Gate","Submit Gate"]},{"id":"skills","path_prefix":"starter/aide/skills/","required_sections_any_of":["## Read Order","## Sources of truth"]},{"id":"agents","path_prefix":"starter/aide/agents/","required_terms":["developer_instructions"]}],"duplicate_rules":[{"id":"no_read_order_outside_skills","pattern":"## Read Order","allowed_paths":["starter/aide/skills/"]},{"id":"no_structured_result_outside_agents","pattern":"## Structured Result","allowed_paths":["starter/aide/agents/","starter/aide/skills/"]}],"authority_keywords":[{"keyword":"validation-profile.json","authoritative_paths":["starter/AGENTS.md","starter/aide/AGENTS.md","starter/aide/policies/aide-governance-policy.md","starter/aide/policies/routing-policy.md","starter/aide/skills/","starter/aide/agents/","starter/aide/context/project-profile.md"]}]}
+{
+  "version": 1,
+  "scope": "codex-aide runtime authority maintenance",
+  "owners": [
+    {
+      "id": "starter_agents",
+      "path": "starter/AGENTS.md",
+      "allowed_sections": [
+        "Scope And Precedence",
+        "Product Defaults",
+        "Top-Level Guardrails"
+      ],
+      "forbidden_patterns": [
+        "## Read Order",
+        "## Sources of truth",
+        "## Output Contract",
+        "## Structured Result",
+        "## Runtime Entrypoints",
+        "context/startup.mjs",
+        "context/session.mjs",
+        "context/task-overview.mjs",
+        "governance/writeback.mjs",
+        "governance/audit.mjs",
+        "runtime/state.mjs"
+      ]
+    },
+    {
+      "id": "runtime_subtree_agents",
+      "path": "starter/aide/AGENTS.md",
+      "allowed_sections": [
+        "Scope And Precedence",
+        "Runtime Boundary",
+        "Write Boundaries",
+        "Runtime Sources",
+        "Compatibility Boundary"
+      ],
+      "forbidden_patterns": [
+        "## Read Order",
+        "## Sources of truth",
+        "## Output Contract",
+        "## Structured Result",
+        "## Runtime Entrypoints",
+        "context/startup.mjs",
+        "context/session.mjs",
+        "context/task-overview.mjs",
+        "governance/writeback.mjs",
+        "governance/audit.mjs",
+        "runtime/state.mjs"
+      ]
+    },
+    {
+      "id": "routing_policy",
+      "path": "starter/aide/policies/routing-policy.md",
+      "required_terms": [
+        "technical_manager",
+        "QC Gate",
+        "Submit Gate"
+      ]
+    },
+    {
+      "id": "skills",
+      "path_prefix": "starter/aide/skills/",
+      "required_sections_any_of": [
+        "## Read Order",
+        "## Sources of truth"
+      ]
+    },
+    {
+      "id": "agents",
+      "path_prefix": "starter/aide/agents/",
+      "required_terms": [
+        "developer_instructions"
+      ]
+    }
+  ],
+  "duplicate_rules": [
+    {
+      "id": "no_read_order_outside_skills",
+      "pattern": "## Read Order",
+      "allowed_paths": [
+        "starter/aide/skills/"
+      ]
+    },
+    {
+      "id": "no_structured_result_outside_agents",
+      "pattern": "## Structured Result",
+      "allowed_paths": [
+        "starter/aide/agents/",
+        "starter/aide/skills/"
+      ]
+    }
+  ],
+  "authority_keywords": [
+    {
+      "keyword": "validation-profile.json",
+      "authoritative_paths": [
+        "starter/AGENTS.md",
+        "starter/aide/AGENTS.md",
+        "starter/aide/policies/aide-governance-policy.md",
+        "starter/aide/policies/routing-policy.md",
+        "starter/aide/skills/",
+        "starter/aide/agents/",
+        "starter/aide/context/project-profile.md"
+      ]
+    }
+  ]
+}

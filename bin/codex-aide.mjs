@@ -5,12 +5,12 @@ import path from "node:path";
 import { installRuntime } from "../scripts/npm/install.mjs";
 
 function usage() {
-  return `code-aide
+  return `codex-aide
 
 Usage:
-  code-aide install [--target <dir>] [--dry-run]
-  code-aide --help
-  code-aide --version
+  codex-aide install [--target <dir>] [--dry-run]
+  codex-aide --help
+  codex-aide --version
 `;
 }
 

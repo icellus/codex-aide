@@ -11,8 +11,6 @@ import { startRuntimeInvocationLogging } from "../shared/logging.mjs";
 const agentsAllowedSections = new Set([
   "Scope And Precedence",
   "Product Defaults",
-  "Route Intents",
-  "Authority Map",
   "Top-Level Guardrails"
 ]);
 

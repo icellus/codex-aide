@@ -16,7 +16,7 @@
   ],
   "type": "module",
   "bin": {
-    "code-aide": "bin/code-aide.mjs"
+    "codex-aide": "bin/codex-aide.mjs"
   },
   "files": [
     "bin",

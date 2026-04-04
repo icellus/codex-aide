@@ -76,14 +76,14 @@ Use this when Node.js is available.
 ```bash
 npm i -g @icellus/codex-aide
 cd /path/to/your/repo
-code-aide install
+codex-aide install
 ```
 
 Optional:
 
 ```bash
-code-aide install --target /path/to/repo
-code-aide install --dry-run
+codex-aide install --target /path/to/repo
+codex-aide install --dry-run
 ```
 
 ### 2. Install from git
@@ -96,6 +96,8 @@ cd /tmp/codex-aide
 
 cp starter/AGENTS.md /path/to/repo/AGENTS.md
 mkdir -p /path/to/repo/.codex
+cp starter/aide/config.toml /path/to/repo/.codex/config.toml
+cp starter/aide/hooks.json /path/to/repo/.codex/hooks.json
 cp -R starter/aide /path/to/repo/.codex/aide
 ```
 
@@ -127,11 +129,15 @@ The installer maps it into the target repository like this:
 
 ```text
 starter/AGENTS.md      -> <repo>/AGENTS.md
+starter/aide/config.toml -> <repo>/.codex/config.toml
+starter/aide/hooks.json  -> <repo>/.codex/hooks.json
 starter/aide/AGENTS.md -> <repo>/.codex/aide/AGENTS.md
 starter/aide/**        -> <repo>/.codex/aide/**
 ```
 
 The goal is to keep the repository root light while keeping codex-aide runtime files together under `.codex/aide/`.
+
+For Codex CLI hook-driven runtime syncing, the installer also materializes `.codex/hooks.json`. If your Codex setup ignores repository-local `config.toml`, enable `codex_hooks` in `~/.codex/config.toml` or launch Codex with `codex --enable codex_hooks`.
 
 <h2 id="built-for-codex">🧭 Built for Codex</h2>
 

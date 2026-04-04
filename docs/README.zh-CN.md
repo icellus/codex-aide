@@ -78,14 +78,14 @@
 ```bash
 npm i -g @icellus/codex-aide
 cd /path/to/your/repo
-code-aide install
+codex-aide install
 ```
 
 可选参数：
 
 ```bash
-code-aide install --target /path/to/repo
-code-aide install --dry-run
+codex-aide install --target /path/to/repo
+codex-aide install --dry-run
 ```
 
 ### 2. 通过 git 安装
@@ -98,6 +98,8 @@ cd /tmp/codex-aide
 
 cp starter/AGENTS.md /path/to/repo/AGENTS.md
 mkdir -p /path/to/repo/.codex
+cp starter/aide/config.toml /path/to/repo/.codex/config.toml
+cp starter/aide/hooks.json /path/to/repo/.codex/hooks.json
 cp -R starter/aide /path/to/repo/.codex/aide
 ```
 
@@ -129,11 +131,15 @@ starter/aide/**
 
 ```text
 starter/AGENTS.md      -> <repo>/AGENTS.md
+starter/aide/config.toml -> <repo>/.codex/config.toml
+starter/aide/hooks.json  -> <repo>/.codex/hooks.json
 starter/aide/AGENTS.md -> <repo>/.codex/aide/AGENTS.md
 starter/aide/**        -> <repo>/.codex/aide/**
 ```
 
 这样做是为了让根目录尽量保持轻量，同时把 Codex Aide 的工作流文件集中在 `.codex/aide/` 下。
+
+如果你使用的是 Codex CLI，安装器还会补齐 `.codex/hooks.json` 这层桥接文件，用来接通 hook 驱动的 runtime。同一仓库里如果 Codex 仍然没有读取本地 `config.toml`，需要在 `~/.codex/config.toml` 里启用 `codex_hooks`，或者用 `codex --enable codex_hooks` 启动。
 
 <h2 id="built-for-codex">🧭 适用于 Codex</h2>
 
