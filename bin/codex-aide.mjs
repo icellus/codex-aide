@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
 import path from "node:path";
 
 import { installRuntime } from "../scripts/npm/install.mjs";
+
+const packageJsonPath = new URL("../package.json", import.meta.url);
+const packageVersion = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")).version;
 
 function usage() {
   return `codex-aide
@@ -101,7 +105,7 @@ async function main(argv = process.argv.slice(2)) {
   }
 
   if (parsed.command === "version") {
-    process.stdout.write("0.1.1\n");
+    process.stdout.write(`${packageVersion}\n`);
     return 0;
   }
 
