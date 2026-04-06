@@ -1,6 +1,6 @@
 {
   "name": "@icellus/codex-aide",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Codex Aide is a governed repository starter for Codex-based execution, validation, and delivery workflows.",
   "keywords": [
     "codex",

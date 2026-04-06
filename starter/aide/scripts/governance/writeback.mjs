@@ -27,7 +27,7 @@ const defaultPolicy = Object.freeze({
 
 const runtimeRejectPrefixes = [".codex/aide/state/", ".codex/aide/logs/", ".codex/aide/progress/"];
 const runtimeAskUserPrefixes = [".codex/aide/scripts/", ".codex/aide/hooks/", ".codex/aide/product/"];
-const runtimeAskUserFiles = new Set([".codex/aide/hooks.json", ".codex/aide/config.toml"]);
+const runtimeAskUserFiles = new Set([".codex/hooks.json", ".codex/config.toml"]);
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

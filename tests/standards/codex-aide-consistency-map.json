@@ -704,7 +704,7 @@
     "a": "starter/aide/skills/aide/SKILL.md",
     "x": "starter/aide/agents/tester.toml",
     "c": "starter/aide/agents/coder.toml",
-    "h": "starter/aide/hooks.json",
+    "h": "starter/hooks.json",
     "ar": "starter/aide/skills/architect/SKILL.md",
     "q": "starter/aide/skills/qc/SKILL.md",
     "g": "starter/AGENTS.md",

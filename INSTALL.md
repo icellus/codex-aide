@@ -37,12 +37,12 @@ Do not blindly overwrite an existing `AGENTS.md`.
 git clone --depth 1 https://github.com/icellus/codex-aide.git /tmp/codex-aide
 cp /tmp/codex-aide/starter/AGENTS.md ./AGENTS.md
 mkdir -p ./.codex
-cp /tmp/codex-aide/starter/aide/config.toml ./.codex/config.toml
-cp /tmp/codex-aide/starter/aide/hooks.json ./.codex/hooks.json
+cp /tmp/codex-aide/starter/config.toml ./.codex/config.toml
+cp /tmp/codex-aide/starter/hooks.json ./.codex/hooks.json
 cp -R /tmp/codex-aide/starter/aide ./.codex/aide
 ```
 
-If Codex CLI still does not run hooks in that repository, enable `codex_hooks` in `~/.codex/config.toml` or start Codex with `codex --enable codex_hooks`.
+If Codex CLI still does not run hooks or delegated subagents in that repository, enable `codex_hooks` and `multi_agent` in `~/.codex/config.toml` or start Codex with `codex --enable codex_hooks --enable multi_agent`.
 
 ## Report back
 
