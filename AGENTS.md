@@ -10,6 +10,14 @@ Repository-level maintenance guidance for this repo.
 - It is not the runtime authority shipped into target repositories by `codex-aide`.
 - The shipped runtime authority for the starter lives at [starter/AGENTS.md](starter/AGENTS.md).
 
+## Product Definition
+
+- `codex-aide` is not primarily a skill pack. It packages an `Aide`-led workflow and governance layer for projects that use Codex.
+- After installation, the project root contract makes Codex work through the `Aide` role by default.
+- The product value is not only lower learning cost. The main value is that `Aide` manages intake, routing, state, governance, validation baseline, and delivery flow as one coherent project workflow.
+- The detailed `Aide` role contract lives in `starter/aide/skills/aide/SKILL.md`; the root starter contract bootstraps that role instead of replacing it.
+- When maintaining this repository, prefer wording that reflects `Aide` as the workflow/governance owner, not as an optional external skill the user must learn first.
+
 ## Host Isolation Hard Constraint
 
 - While maintaining this repository, treat `starter/**` as the development target, not the active authority for the current maintenance session.

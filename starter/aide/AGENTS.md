@@ -35,7 +35,7 @@ Runtime subtree contract for `.codex/aide/**`.
 - Pending governance protocol staging -> `.codex/aide/state/pending-governance-result.json`
 - Repository validation baseline -> `.codex/aide/policies/validation-profile.json`
 - Human-readable project summary -> `.codex/aide/context/project-profile.md`
-- Role behavior, read order, and output contract -> `.codex/aide/skills/*/SKILL.md` and `.codex/aide/agents/*.toml`
+- Runtime-internal role behavior, read order, and output contract -> `.codex/aide/skills/*/SKILL.md` and `.codex/aide/agents/*.toml`
 
 ## Compatibility Boundary
 

@@ -1,6 +1,8 @@
 # codex-aide install
 
-Install `codex-aide` into the current repository.
+Install `codex-aide` into the current project.
+
+After installation, the project root contract should make Codex work through the `Aide` role and load the detailed role contract from `.codex/aide/skills/aide/SKILL.md`.
 
 Default target: current working directory.
 
@@ -25,7 +27,7 @@ npm i -g @icellus/codex-aide
 codex-aide install
 ```
 
-Prefer this path if the repository already has `AGENTS.md`.
+Prefer this path if the project already has `AGENTS.md`.
 
 ## Fallback path
 
@@ -42,7 +44,7 @@ cp /tmp/codex-aide/starter/hooks.json ./.codex/hooks.json
 cp -R /tmp/codex-aide/starter/aide ./.codex/aide
 ```
 
-If Codex CLI still does not run hooks or delegated subagents in that repository, enable `codex_hooks` and `multi_agent` in `~/.codex/config.toml` or start Codex with `codex --enable codex_hooks --enable multi_agent`.
+If Codex CLI still does not run hooks or delegated subagents in that project, enable `codex_hooks` and `multi_agent` in `~/.codex/config.toml` or start Codex with `codex --enable codex_hooks --enable multi_agent`.
 
 ## Report back
 

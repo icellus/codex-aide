@@ -5,11 +5,11 @@
 <h1 align="center">codex-aide</h1>
 
 <p align="center">
-  <strong>Add a governed, Codex-ready runtime to an existing repository.</strong>
+  <strong>Install the Aide-managed workflow and governance layer in projects that use Codex.</strong>
 </p>
 
 <p align="center">
-  For repositories you already use with <strong>Codex</strong>. If you work through <strong>Codex CLI</strong> or another compatible client, codex-aide fits into that workflow and gives it a more governed shape.
+  For projects where AI work should follow one managed workflow instead of scattered prompts and personal habits. If you work through <strong>Codex CLI</strong> or another compatible client, codex-aide lets <strong>Aide</strong> manage intake, routing, state, governance, validation, and delivery through Codex.
 </p>
 
 <table align="center">
@@ -24,29 +24,29 @@
 
 ## ✨ Why codex-aide
 
-Many Codex setups begin as a mix of prompts, local notes, and copied rules. That can work for a while, but it is hard to keep consistent across repositories and sessions.
+Many Codex setups begin as scattered prompts, copied notes, and local rules. That can work inside one project for a while, but once you want the same way of working across multiple projects and need long-running work to stay manageable, consistency becomes hard to maintain.
 
-codex-aide packages that into a repository runtime with:
+codex-aide packages that into a project workflow and governance layer with:
 
-- a stable entry point at the repository root
-- a dedicated runtime directory under `.codex/aide/`
-- a governed layout that is easier to review and refresh
-- durable state for ongoing work and workflow tracking
-- an install path you can run again as the starter evolves
+- a stable project entry for AI work
+- one `Aide`-managed workflow for intake, routing, state, governance, validation, and delivery
+- durable state for long-running work and cross-session continuity
+- a layout teams can review, refresh, and reuse
+- an installation path you can run again as the product evolves
 
 | Without codex-aide | With codex-aide |
 | --- | --- |
-| Root instructions keep growing | Runtime files stay grouped under `.codex/aide/` |
-| Repo setup drifts from one project to another | One starter layout can be installed again |
-| Long-running work loses local workflow state | Runtime state stays with the repository |
-| Workflow and validation flow depend on local habit | The starter ships a consistent, governed workflow baseline |
+| Every project has to define and maintain its own way of working with AI | One `Aide`-managed baseline can be reused across projects |
+| Implementation context drifts and starts making mistakes as conversations grow | `Aide` keeps implementation context aligned through state, routing, and governance rules |
+| Long-running work and task context go out of sync across sessions | Task state, context, and progress stay available across sessions |
+| Development, testing, and delivery rely on ad hoc human coordination around AI output | `Aide` brings a consistent, governable workflow baseline that carries development, testing, and delivery together |
 
 <h2 id="quick-start">🚀 Quick Start</h2>
 
 Requirements:
 
 - Node.js `>=20` for npm installation
-- A repository you use through Codex CLI or a Codex-capable client
+- A project you use through Codex CLI or a Codex-capable client
 
 Choose one installation path below.
 
@@ -75,42 +75,42 @@ Use this when Node.js is available.
 
 ```bash
 npm i -g @icellus/codex-aide
-cd /path/to/your/repo
+cd /path/to/your/project
 codex-aide install
 ```
 
 Optional:
 
 ```bash
-codex-aide install --target /path/to/repo
+codex-aide install --target /path/to/project
 codex-aide install --dry-run
 ```
 
 ### 2. Install from git
 
-Use this when you want to pull the starter and copy it into the repository yourself.
+Use this when you want to pull the starter and copy it into the project yourself.
 
 ```bash
 git clone --depth 1 https://github.com/icellus/codex-aide.git /tmp/codex-aide
 cd /tmp/codex-aide
 
-cp starter/AGENTS.md /path/to/repo/AGENTS.md
-mkdir -p /path/to/repo/.codex
-cp starter/config.toml /path/to/repo/.codex/config.toml
-cp starter/hooks.json /path/to/repo/.codex/hooks.json
-cp -R starter/aide /path/to/repo/.codex/aide
+cp starter/AGENTS.md /path/to/project/AGENTS.md
+mkdir -p /path/to/project/.codex
+cp starter/config.toml /path/to/project/.codex/config.toml
+cp starter/hooks.json /path/to/project/.codex/hooks.json
+cp -R starter/aide /path/to/project/.codex/aide
 ```
 
 This uses the same starter layout, but it does not apply the installer's merge and preservation behavior automatically.
 
 ### 3. Install with AI
 
-Use this when you want a coding agent to do the setup in the current repository.
+Use this when you want a coding agent to do the setup in the current project.
 
 Give your agent this instruction:
 
 ```text
-Follow https://raw.githubusercontent.com/icellus/codex-aide/master/INSTALL.md to install codex-aide into the current repository.
+Follow https://raw.githubusercontent.com/icellus/codex-aide/master/INSTALL.md to install codex-aide into the current project.
 ```
 
 The install guide lives in [INSTALL.md](https://github.com/icellus/codex-aide/blob/master/INSTALL.md).
@@ -135,37 +135,37 @@ starter/aide/AGENTS.md -> <repo>/.codex/aide/AGENTS.md
 starter/aide/**        -> <repo>/.codex/aide/**
 ```
 
-The goal is to keep the repository root light while keeping codex-aide runtime files together under `.codex/aide/`.
+The goal is to keep the project root light, keep codex-aide files together under `.codex/aide/`, and let the root contract hand day-to-day AI workflow management to `Aide`.
 
 For Codex CLI hook-driven runtime syncing and delegated subagent routing, the installer also materializes `.codex/hooks.json` and seeds `.codex/config.toml` with `codex_hooks = true` plus `multi_agent = true`. If your Codex setup ignores repository-local `config.toml`, enable both features in `~/.codex/config.toml` or launch Codex with `codex --enable codex_hooks --enable multi_agent`.
 
 <h2 id="built-for-codex">🧭 Built for Codex</h2>
 
-codex-aide is for Codex-based repository workflows that want a governed runtime shape. It is not a standalone GUI product and it is not a generic prompt pack.
+codex-aide is for projects that want `Aide` to manage AI work through Codex. It is not a standalone GUI product and it is not a generic prompt pack.
 
-To get value from the installed runtime, work from:
+To use codex-aide as intended, work from:
 
 - Codex CLI
-- another client that reads repository instructions and works against the installed runtime files
+- another client that reads project instructions and works against the installed codex-aide files
 
-If Codex is already part of how you work in the repository, codex-aide is meant to tighten that workflow, not replace it with a separate product.
+If Codex is already part of how you work in the project, codex-aide is meant to let `Aide` manage that project workflow through Codex by default, not replace it with a separate product.
 
-If the client ignores repository instructions or never touches the installed runtime tree, codex-aide will not behave as intended.
+If the client ignores project instructions or never touches the installed codex-aide files, codex-aide will not behave as intended.
 
 ### Compatibility
 
-codex-aide can live alongside other installed skills. Its runtime files, workflow state, and repository-level structure stay grouped under `.codex/aide/`, so coexistence is fine by default.
+codex-aide can live alongside other installed skills. Its workflow state and governance files stay grouped under `.codex/aide/`, and the default behavior still comes from the project root contract plus the `Aide` role contract, so coexistence is fine by default.
 
 In practice, this is a good fit when:
 
-- you want Codex work to follow a clearer repository structure
+- you want AI work in the project to follow one managed workflow instead of per-user habits
 - other skills can coexist without becoming the default owners of `codex-aide` files and decisions
-- you want one installable workflow baseline instead of repeating setup by hand
+- you want one reusable governance and delivery baseline instead of rebuilding process from scratch
 
 This is usually not a good fit when:
 
 - the client ignores repository instructions or installed runtime files
-- another system also wants to become the repository-level default authority for the same route, state, or governance decisions
+- another system also wants to become the project-level default authority for the same route, state, or governance decisions
 - another skill is expected to take over `.codex/aide/**` as its own default write surface
 - you only want a lightweight prompt snippet rather than an installed repository workflow
 

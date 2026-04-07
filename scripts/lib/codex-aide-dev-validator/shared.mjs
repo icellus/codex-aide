@@ -678,6 +678,7 @@ function runGit(cwd, args) {
 function withTempProject(repoRoot, prefix, callback) {
   const sourceRuntimeDir = path.join(repoRoot, "starter", "aide");
   const sourceAgentsPath = path.join(repoRoot, "starter", "AGENTS.md");
+  const sourceConfigPath = path.join(repoRoot, "starter", "config.toml");
   const sourceHooksPath = path.join(repoRoot, "starter", "hooks.json");
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   const projectDir = path.join(tempRoot, "codex-aide");
@@ -685,6 +686,7 @@ function withTempProject(repoRoot, prefix, callback) {
   fs.mkdirSync(projectDir, { recursive: true });
   fs.cpSync(sourceAgentsPath, path.join(projectDir, "AGENTS.md"));
   fs.mkdirSync(path.join(projectDir, ".codex"), { recursive: true });
+  fs.cpSync(sourceConfigPath, path.join(projectDir, ".codex", "config.toml"));
   fs.cpSync(sourceHooksPath, path.join(projectDir, ".codex", "hooks.json"));
   fs.cpSync(sourceRuntimeDir, path.join(projectDir, ".codex", "aide"), { recursive: true });
 
