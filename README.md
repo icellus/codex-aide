@@ -9,6 +9,13 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@icellus/codex-aide"><img alt="npm version" src="https://img.shields.io/npm/v/@icellus/codex-aide.svg" /></a>
+  <a href="https://www.npmjs.com/package/@icellus/codex-aide"><img alt="npm downloads" src="https://img.shields.io/npm/dm/@icellus/codex-aide.svg" /></a>
+  <a href="https://github.com/icellus/codex-aide/actions/workflows/codex-aide-dev-validation.yml"><img alt="development validation" src="https://github.com/icellus/codex-aide/actions/workflows/codex-aide-dev-validation.yml/badge.svg" /></a>
+  <a href="https://github.com/icellus/codex-aide/blob/master/LICENSE"><img alt="license" src="https://img.shields.io/github/license/icellus/codex-aide.svg" /></a>
+</p>
+
+<p align="center">
   For projects where AI work should follow one managed workflow instead of scattered prompts and personal habits. If you work through <strong>Codex CLI</strong> or another compatible client, codex-aide lets <strong>Aide</strong> manage intake, routing, state, governance, validation, and delivery through Codex.
 </p>
 
@@ -33,6 +40,8 @@ codex-aide packages that into a project workflow and governance layer with:
 - durable state for long-running work and cross-session continuity
 - a layout teams can review, refresh, and reuse
 - an installation path you can run again as the product evolves
+
+codex-aide is early-stage, public, MIT-licensed, and published on npm as `@icellus/codex-aide`. The repository is maintained as a reusable baseline for Codex-centered open-source maintenance workflows rather than a one-off prompt collection.
 
 | Without codex-aide | With codex-aide |
 | --- | --- |
@@ -172,12 +181,15 @@ This is usually not a good fit when:
 <h2 id="repository-docs">📚 Repository Docs</h2>
 
 - [Chinese introduction](https://github.com/icellus/codex-aide/blob/master/docs/README.zh-CN.md)
+- [Use cases](https://github.com/icellus/codex-aide/blob/master/docs/use-cases.md)
+- [Demo workflow](https://github.com/icellus/codex-aide/blob/master/docs/demo.md)
 - [Install guide](https://github.com/icellus/codex-aide/blob/master/INSTALL.md)
 - [Contributing](https://github.com/icellus/codex-aide/blob/master/CONTRIBUTING.md)
 - [Testing](https://github.com/icellus/codex-aide/blob/master/TESTING.md)
 - [Security](https://github.com/icellus/codex-aide/blob/master/SECURITY.md)
 - [Support](https://github.com/icellus/codex-aide/blob/master/SUPPORT.md)
 - [Code of Conduct](https://github.com/icellus/codex-aide/blob/master/CODE_OF_CONDUCT.md)
+- [Changelog](https://github.com/icellus/codex-aide/blob/master/CHANGELOG.md)
 
 Some repository-structure ideas here were informed by community work, including [agents-zone-skillset](https://github.com/lipingtababa/agents-zone-skillset).
 

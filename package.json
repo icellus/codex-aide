@@ -20,6 +20,8 @@
   },
   "files": [
     "bin",
+    "CHANGELOG.md",
+    "docs",
     "scripts/npm",
     "starter",
     "LICENSE"
