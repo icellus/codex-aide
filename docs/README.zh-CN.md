@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/codex-aide-hero.svg" alt="codex-aide hero" width="960" />
+  <img src="https://github.com/user-attachments/assets/10c05403-c3f8-409f-bf73-ed0f114acc25" alt="codex-aide hero" width="960" />
 </p>
 
 <h1 align="center">codex-aide</h1>
